@@ -1,0 +1,35 @@
+{
+	"name": "@ingram-tech/email",
+	"version": "0.1.0",
+	"description": "Zero-dependency Cloudflare Email Sending client for Ingram Technologies Next.js projects.",
+	"license": "MIT",
+	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ingram-technologies/nextkit.git",
+		"directory": "packages/email"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"files": [
+		"dist"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"scripts": {
+		"build": "tsc -p tsconfig.json",
+		"type-check": "tsc -p tsconfig.json --noEmit",
+		"test": "vitest run"
+	},
+	"devDependencies": {
+		"@ingram-tech/typescript-config": "workspace:*",
+		"@types/node": "^20.0.0",
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.6"
+	}
+}

@@ -1,0 +1,7 @@
+#!/bin/sh
+# nextkit pre-commit hook.
+# Dogfoods @ingram-tech/git-hooks: formats staged files with Biome, then
+# re-stages them. The exact same logic ships to consumer sites via the
+# `nextkit-format-staged` bin — see packages/git-hooks.
+set -eu
+exec bun packages/git-hooks/bin/format-staged.mjs
