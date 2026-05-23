@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+# OIDC Trusted Publishing to npm: no long-lived NPM_TOKEN secret is used.
+# `id-token: write` lets the job mint a short-lived OIDC credential that npm
+# verifies against the trusted publisher configured for each package.
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      # Trusted Publishing requires a recent npm (>= 11.5.1) for OIDC + provenance.
+      - run: npm install -g npm@latest
+      - run: bun install --frozen-lockfile
+      - name: Create Release PR or publish
+        uses: changesets/action@v1
+        with:
+          # Opens/updates a "Version Packages" PR from pending changesets; when
+          # that PR is merged, publishes the bumped packages.
+          version: bun run version-packages
+          publish: bun run release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"
