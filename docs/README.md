@@ -14,4 +14,5 @@ with the philosophy, then dip into specifics as needed.
   nextkit.
 - **[creating-a-package.md](./creating-a-package.md)** — checklist for new
   packages.
+- **[releasing.md](./releasing.md)** — versioning + npm Trusted Publishing flow.
 - **[ingram-cloud.md](./ingram-cloud.md)** — planned backend (placeholder).
