@@ -31,16 +31,34 @@ Trusted Publisher**, add:
 versions were bootstrapped with a one-time local `npm publish`, so all five are
 ready to wire up now.)
 
-## Status / things to validate on first CI release
+## Troubleshooting: `E404 ... PUT /@ingram-tech%2f<pkg>` on publish
 
-- **OIDC publish path**: `bun run release` runs `changeset publish`. Confirm the
-  publish leg performs the OIDC exchange (needs npm ≥ 11.5.1, which the workflow
-  installs). If Changesets publishes via `bun` rather than `npm` and bun does
-  not yet perform the npm OIDC handshake, switch the publish step to npm (the
-  manifests already convert `workspace:*` correctly — verified via `bun pm pack`).
-- **Provenance**: `NPM_CONFIG_PROVENANCE=true` plus `id-token: write` attaches
-  provenance. Verify the green "provenance" badge appears on npmjs.com after the
-  first CI publish.
+If a CI release run logs `using npm trusted publishing` and then fails with:
+
+```
+npm error 404 ... PUT https://registry.npmjs.org/@ingram-tech%2f<pkg>
+... could not be found or you do not have permission to access it.
+```
+
+…the workflow is **fine** — npm is rejecting the OIDC publish because **no
+trusted publisher is configured for that package** (or the configured
+repo/workflow doesn't match). This is the one-time web setup above. It is *not*
+a bun-vs-npm or provenance problem: the run correctly detects OIDC, signs
+provenance, and publishes via npm — it just needs the npm-side trust to exist.
+
+Fix: add the Trusted Publisher for that exact package (steps above), making sure
+the **workflow filename is `release.yml`** and any **environment** matches (the
+workflow uses none). Then re-run the release. Until every published package has
+its trusted publisher, releases that touch those packages will E404.
+
+**Fallback:** if you'd rather not manage per-package trust, add an npm
+**granular access token** as an `NPM_TOKEN` repo secret and set
+`NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}` on the release step — `changeset
+publish` will use it instead of OIDC. Less secure (long-lived secret), but one
+config for all packages.
+
+- **Provenance**: `NPM_CONFIG_PROVENANCE=true` + `id-token: write` attaches
+  provenance once trusted publishing succeeds — verify the green badge on npm.
 
 ## Manual bootstrap (reference)
 
