@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { HONEYPOT_FIELD, TOKEN_FIELD } from "./fields";
 import { createFormToken, verifyFormToken } from "./token";
 import { verifyHuman } from "./verify";
@@ -84,5 +84,31 @@ describe("verifyHuman", () => {
 			timing: { minMs: 0 },
 		});
 		expect(result).toEqual({ ok: true });
+	});
+});
+
+describe("graceful degradation without BOT_PROTECTION_SECRET", () => {
+	it("disables the timing layer instead of throwing/dropping", async () => {
+		const saved = process.env.BOT_PROTECTION_SECRET;
+		delete process.env.BOT_PROTECTION_SECRET;
+		vi.spyOn(console, "warn").mockImplementation(() => {});
+		try {
+			expect(createFormToken()).toBe("");
+			// No token at all — still passes, because honeypot is the only
+			// active gate when the secret is missing.
+			const fd = new FormData();
+			fd.set(HONEYPOT_FIELD, "");
+			expect(await verifyHuman({ formData: fd })).toEqual({ ok: true });
+			// Honeypot still rejects.
+			const spam = new FormData();
+			spam.set(HONEYPOT_FIELD, "filled");
+			expect(await verifyHuman({ formData: spam })).toMatchObject({
+				ok: false,
+				reason: "honeypot",
+			});
+		} finally {
+			process.env.BOT_PROTECTION_SECRET = saved;
+			vi.restoreAllMocks();
+		}
 	});
 });
