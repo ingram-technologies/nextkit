@@ -28,6 +28,7 @@ Read **[docs/philosophy.md](./docs/philosophy.md)** for the full reasoning.
 | [`@ingram-tech/email`](./packages/email) | Zero-dep Cloudflare email client |
 | [`@ingram-tech/bot-protection`](./packages/bot-protection) | Invisible form bot protection (honeypot + timing + BotID) |
 | [`@ingram-tech/newsletter`](./packages/newsletter) | Supabase-backed newsletter subscriptions + sending (RFC 8058) |
+| [`@ingram-tech/agent-guide`](./packages/agent-guide) | Brief nextkit conventions for AI agents, imported into a site's CLAUDE.md |
 
 More to come (blog, supabase). See [docs/](./docs/README.md).
 
