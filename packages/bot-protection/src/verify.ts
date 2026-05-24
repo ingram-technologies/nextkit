@@ -1,5 +1,6 @@
 import { checkBot } from "./botid";
 import { HONEYPOT_FIELD, TOKEN_FIELD } from "./fields";
+import { isConfigured } from "./keys";
 import { type TokenCheck, verifyFormToken } from "./token";
 
 export interface VerifyResult {
@@ -40,11 +41,15 @@ export const verifyHuman = async (options: VerifyOptions): Promise<VerifyResult>
 		return { ok: false, reason: "honeypot" };
 	}
 
-	const token = verifyFormToken(
-		getField(options.formData, TOKEN_FIELD),
-		options.timing,
-	);
-	if (!token.ok) return token;
+	// Timing layer only applies when a secret is configured; otherwise it's
+	// disabled (honeypot + BotID still run) so a misconfigured site keeps working.
+	if (isConfigured()) {
+		const token = verifyFormToken(
+			getField(options.formData, TOKEN_FIELD),
+			options.timing,
+		);
+		if (!token.ok) return token;
+	}
 
 	if (options.botid !== false) {
 		const { isBot } = await checkBot();

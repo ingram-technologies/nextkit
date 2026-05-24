@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { getSecret } from "./keys";
+import { getSecret, isConfigured } from "./keys";
 
 /**
  * Signed timing token: `<timestamp>.<hmac>`. The timestamp records when the
@@ -10,8 +10,18 @@ import { getSecret } from "./keys";
 const sign = (ts: string, secret: string): string =>
 	createHmac("sha256", secret).update(ts).digest("hex");
 
-/** Mint a token. Call server-side when rendering the form. */
+/**
+ * Mint a token. Call server-side when rendering the form. If
+ * BOT_PROTECTION_SECRET isn't configured, returns "" (the timing layer is
+ * disabled) rather than throwing, so a misconfigured site still works.
+ */
 export const createFormToken = (): string => {
+	if (!isConfigured()) {
+		console.warn(
+			"@ingram-tech/bot-protection: BOT_PROTECTION_SECRET not set — timing token disabled.",
+		);
+		return "";
+	}
 	const ts = Date.now().toString();
 	return `${ts}.${sign(ts, getSecret())}`;
 };
