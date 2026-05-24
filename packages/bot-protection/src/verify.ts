@@ -16,6 +16,11 @@ export interface VerifyOptions {
 	timing?: TokenCheck;
 	/** Run the Vercel BotID layer (default true). Set false to skip. */
 	botid?: boolean;
+	/**
+	 * Honeypot field name to check. Must match the `field` rendered by
+	 * `<HoneypotField/>`. Defaults to {@link HONEYPOT_FIELD}.
+	 */
+	honeypotField?: string;
 }
 
 const getField = (formData: VerifyOptions["formData"], name: string): string => {
@@ -37,7 +42,8 @@ const getField = (formData: VerifyOptions["formData"], name: string): string => 
  * what tripped them.
  */
 export const verifyHuman = async (options: VerifyOptions): Promise<VerifyResult> => {
-	if (getField(options.formData, HONEYPOT_FIELD).trim() !== "") {
+	const honeypotField = options.honeypotField ?? HONEYPOT_FIELD;
+	if (getField(options.formData, honeypotField).trim() !== "") {
 		return { ok: false, reason: "honeypot" };
 	}
 
