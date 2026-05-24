@@ -1,0 +1,44 @@
+{
+	"name": "@ingram-tech/newsletter",
+	"version": "0.1.0",
+	"description": "Supabase-backed newsletter subscriptions + sending, with RFC 8058 one-click unsubscribe.",
+	"license": "MIT",
+	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ingram-technologies/nextkit.git",
+		"directory": "packages/newsletter"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"files": [
+		"dist",
+		"migrations"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./migrations/*": "./migrations/*"
+	},
+	"scripts": {
+		"build": "tsc -p tsconfig.json",
+		"type-check": "tsc -p tsconfig.json --noEmit",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"@ingram-tech/email": "workspace:^"
+	},
+	"devDependencies": {
+		"@ingram-tech/typescript-config": "workspace:*",
+		"@supabase/supabase-js": "^2.45.0",
+		"@types/node": "^20.0.0",
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.6"
+	},
+	"peerDependencies": {
+		"@supabase/supabase-js": ">=2.0.0"
+	}
+}
