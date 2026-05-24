@@ -1,6 +1,6 @@
 {
 	"name": "@ingram-tech/bot-protection",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "Invisible, layered bot protection for forms — honeypot + signed timing token + Vercel BotID.",
 	"license": "MIT",
 	"type": "module",
@@ -23,6 +23,10 @@
 		"./honeypot": {
 			"types": "./dist/honeypot.d.ts",
 			"import": "./dist/honeypot.js"
+		},
+		"./fields": {
+			"types": "./dist/fields.d.ts",
+			"import": "./dist/fields.js"
 		}
 	},
 	"scripts": {
