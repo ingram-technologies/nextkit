@@ -28,8 +28,9 @@ Read **[docs/philosophy.md](./docs/philosophy.md)** for the full reasoning.
 | [`@ingram-tech/git-hooks`](./packages/git-hooks) | Biome format-on-commit hook |
 | [`@ingram-tech/email`](./packages/email) | Zero-dep Cloudflare email client |
 | [`@ingram-tech/bot-protection`](./packages/bot-protection) | Invisible form bot protection (honeypot + timing + BotID) |
+| [`@ingram-tech/newsletter`](./packages/newsletter) | Supabase-backed newsletter subscriptions + sending (RFC 8058) |
 
-More to come (newsletter, blog, supabase). See [docs/](./docs/README.md).
+More to come (blog, supabase). See [docs/](./docs/README.md).
 
 ## Stack & stance
 
