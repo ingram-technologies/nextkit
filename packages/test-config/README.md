@@ -1,8 +1,7 @@
 # @ingram-tech/test-config
 
-Shared [Vitest](https://vitest.dev) configuration and setup, mirroring
-`our reference codebase`: jsdom environment, global APIs, v8 coverage, jest-dom matchers,
-and Next.js navigation mocks.
+Shared [Vitest](https://vitest.dev) configuration and setup: jsdom environment,
+global APIs, v8 coverage, jest-dom matchers, and Next.js navigation mocks.
 
 ## Install
 
@@ -29,7 +28,7 @@ export default mergeConfig(
 );
 ```
 
-Add the scripts (mirrors our reference codebase):
+Add the scripts:
 
 ```json
 {

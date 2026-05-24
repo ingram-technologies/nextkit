@@ -1,7 +1,6 @@
 # Testing conventions
 
-Mirrors `our reference codebase`, our reference codebase. Provided by
-[`@ingram-tech/test-config`](../packages/test-config).
+Provided by [`@ingram-tech/test-config`](../packages/test-config).
 
 ## Stack
 
@@ -33,8 +32,8 @@ Mirrors `our reference codebase`, our reference codebase. Provided by
 
 - **Prefer real over mocked.** Test pure functions directly; for data-layer
   code, integration-test against a **real local Supabase** rather than mocking
-  the client. `our reference codebase` probes a local instance and skips gracefully when it
-  isn't running — copy that pattern instead of over-mocking.
+  the client. Probe a local instance and skip gracefully when it isn't running —
+  prefer that pattern instead of over-mocking.
 - **Mock only the boundary.** The shared setup mocks `next/navigation` so
   components render in isolation; that's the kind of thing worth mocking. Don't
   mock your own business logic.

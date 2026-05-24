@@ -1,10 +1,9 @@
 import type { ViteUserConfig } from "vitest/config";
 
 /**
- * Default Vitest configuration for Ingram Technologies projects, mirroring the
- * `our reference codebase` setup: jsdom environment, global test APIs, v8 coverage, and the
- * shared setup file ({@link ./setup}) that wires up jest-dom matchers and
- * common Next.js mocks.
+ * Default Vitest configuration for Ingram Technologies projects: jsdom
+ * environment, global test APIs, v8 coverage, and the shared setup file
+ * ({@link ./setup}) that wires up jest-dom matchers and common Next.js mocks.
  *
  * Compose it in your `vitest.config.ts`:
  *

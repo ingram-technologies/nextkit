@@ -10,11 +10,10 @@ place, versioned, and propagated to every site.
 
 ## Why
 
-We run many Next.js sites (our reference codebase, a sister site, a sister site, a sister site,
-a sister site, a sister site, a sister site). They share the same needs — email,
-newsletters, bot protection, linting, testing, code style — and those kept
-getting re-implemented and drifting apart. nextkit makes each concern live once,
-as a package sites consume by version. Fix it once, every site benefits.
+We run many Next.js sites. They share the same needs — email, newsletters, bot
+protection, linting, testing, code style — and those kept getting
+re-implemented and drifting apart. nextkit makes each concern live once, as a
+package sites consume by version. Fix it once, every site benefits.
 
 Read **[docs/philosophy.md](./docs/philosophy.md)** for the full reasoning.
 

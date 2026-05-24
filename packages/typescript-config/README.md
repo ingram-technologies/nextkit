@@ -1,7 +1,7 @@
 # @ingram-tech/typescript-config
 
 Shared TypeScript configurations for Ingram Technologies projects. Strict by
-default, mirroring `our reference codebase`.
+default.
 
 ## Install
 

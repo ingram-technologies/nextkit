@@ -2,8 +2,7 @@
 
 Shared [Biome](https://biomejs.dev) configuration for Ingram Technologies
 Next.js projects. This is the single source of truth for code style and lint
-rules across the fleet — derived from the conventions in `our reference codebase`, our
-highest-quality codebase.
+rules across the fleet.
 
 ## Install
 
@@ -44,5 +43,4 @@ Need a rule unique to your codebase (e.g. "this helper must be imported, never
 redefined")? Don't add it here — add a local [GritQL plugin](https://biomejs.dev/linter/plugins/)
 in your repo's `biome-plugins/` and reference it from your own `biome.json`'s
 `plugins` array. This package stays general; repo-specific enforcement stays
-local. See `our reference codebase`'s `no-decentralized-numeric-helpers.grit` for the
-pattern.
+local.

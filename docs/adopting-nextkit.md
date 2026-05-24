@@ -65,6 +65,4 @@ preview. That is how single-source-of-truth improvements reach the site.
 
 ## Per-site adoption status
 
-Target sites: our reference codebase (reference), a sister site, a sister site, a sister site,
-a sister site, a sister site, a sister site. Track adoption in each repo's
-`CLAUDE.md` or an issue, not here.
+Track adoption in each consuming repo's `CLAUDE.md` or an issue, not here.

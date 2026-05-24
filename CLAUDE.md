@@ -45,9 +45,3 @@ This repo follows the "docs written by and for AI" pattern
 ([`docs/ai-docs-convention.md`](./docs/ai-docs-convention.md)) that we replicate
 in every Ingram repo. Keep this CLAUDE.md thin; put subsystem knowledge in
 `docs/`.
-
-## Reference codebase
-
-`our reference codebase` (a sibling repo) is our highest-quality codebase and the source of
-most conventions here. When in doubt about a pattern, check how our reference codebase does
-it.

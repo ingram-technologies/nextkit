@@ -2,10 +2,9 @@
 /**
  * nextkit pre-commit: format staged files with Biome, then re-stage them.
  *
- * Centralizes the logic that lived inline in each repo's `.githooks/pre-commit`
- * (originally from our reference codebase). Sites get it by pointing their committed
- * `.githooks/pre-commit` at this bin — so the behavior updates in one place when
- * this package is bumped.
+ * Centralizes the logic that lived inline in each repo's `.githooks/pre-commit`.
+ * Sites get it by pointing their committed `.githooks/pre-commit` at this bin —
+ * so the behavior updates in one place when this package is bumped.
  *
  * Behavior:
  *   - Only staged files are touched (never the whole tree).

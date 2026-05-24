@@ -7,10 +7,9 @@ Technologies' websites — keep it current, because everything else flows from i
 ## What nextkit is
 
 nextkit is a **super-thin, opinionated foundation** shared by every Ingram
-Next.js website (our reference codebase, a sister site, a sister site, a sister site,
-a sister site, a sister site, a sister site, …). It is a set of independently
-versioned npm packages plus the conventions, configuration, and documentation
-that make our sites consistent and maintainable.
+Next.js website. It is a set of independently versioned npm packages plus the
+conventions, configuration, and documentation that make our sites consistent
+and maintainable.
 
 ## The prime directive: stay indistinguishable from plain Next.js
 

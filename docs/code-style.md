@@ -1,7 +1,7 @@
 # Code style & quality rules
 
-The house rules for every Ingram Next.js codebase. Derived from `our reference codebase`, our
-highest-quality codebase. Most formatting is enforced mechanically by
+The house rules for every Ingram Next.js codebase. Most formatting is enforced
+mechanically by
 [`@ingram-tech/biome-config`](../packages/biome-config); the rules below are the
 judgment-level conventions that humans and agents must follow.
 

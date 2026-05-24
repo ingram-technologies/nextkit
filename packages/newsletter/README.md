@@ -2,8 +2,7 @@
 
 Supabase-backed newsletter subscriptions and sending, with idempotent
 subscribe/resubscribe, token-based unsubscribe, and RFC 8058 one-click
-unsubscribe. Ported from a sister site's battle-tested implementation; sends via
-[`@ingram-tech/email`](../email).
+unsubscribe. Sends via [`@ingram-tech/email`](../email).
 
 This package **owns its tables** and ships the migrations; you inject a Supabase
 client and a base URL. It defines its own row types (it does not import your

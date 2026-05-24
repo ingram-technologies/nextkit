@@ -2,16 +2,16 @@
 
 Every Ingram repo carries a `docs/` directory of **developer-facing technical
 documentation, written by and for AI agents** (and the humans working alongside
-them). This is a deliberate, systematic pattern — pioneered in `our reference codebase` — and
-it is part of nextkit itself.
+them). This is a deliberate, systematic pattern, and it is part of nextkit
+itself.
 
 ## Why
 
 We build with coding agents. When agents write most of the code, the scarcest
 shared resource is not the code — it is the **accumulated judgment**: why a
 subsystem is shaped the way it is, which helper is canonical, what the gotchas
-are. Left in chat logs or a single person's head, that knowledge evaporates. In
-`docs/`, it compounds: every agent session starts better-informed than the last.
+are. Left in chat logs or a single person's head, that knowledge evaporates. In `docs/`, it compounds: every agent session starts better-informed than the
+last.
 
 This is "Channel 2" from [`philosophy.md`](./philosophy.md#two-distribution-channels)
 — the agent-knowledge layer.
@@ -19,9 +19,9 @@ This is "Channel 2" from [`philosophy.md`](./philosophy.md#two-distribution-chan
 ## What goes here
 
 - **Subsystem walkthroughs**: how a non-trivial flow works, with the entry-point
-  file path and the high-level steps. (our reference codebase: `invoice-payment-application.md`.)
+  file path and the high-level steps (e.g. `invoice-payment-application.md`).
 - **Architecture decisions**: where new code should live, which patterns to
-  phase out. (our reference codebase: `architecture-decisions.md`.)
+  phase out (e.g. `architecture-decisions.md`).
 - **Integration notes**: the quirks of an external API or format.
 - **Design principles**: the target architecture for an evolving area.
 

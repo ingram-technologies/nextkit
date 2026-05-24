@@ -4,9 +4,9 @@
  *
  * This is the canonical version of a client that had drifted into copies across
  * several Ingram sites — it merges every feature those copies had grown:
- *   - cc / bcc            (from a sister site)
- *   - custom headers      (from a sister site, for RFC 8058 List-Unsubscribe)
- *   - attachments         (shared)
+ *   - cc / bcc
+ *   - custom headers      (for RFC 8058 List-Unsubscribe)
+ *   - attachments
  *
  * See {@link ./keys} for the required environment variables.
  */

@@ -1,8 +1,8 @@
 # @ingram-tech/git-hooks
 
-Shared git hooks for Ingram Technologies projects. Zero-runtime-dependency,
-mirroring `our reference codebase`: a **format-only pre-commit** that runs Biome on staged
-files and re-stages them. Linting stays in CI; commits stay fast.
+Shared git hooks for Ingram Technologies projects. Zero-runtime-dependency: a
+**format-only pre-commit** that runs Biome on staged files and re-stages them.
+Linting stays in CI; commits stay fast.
 
 We deliberately avoid husky/lefthook — git's native `core.hooksPath` plus a
 committed hook script is enough, and adds no dependency.

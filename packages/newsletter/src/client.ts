@@ -49,7 +49,7 @@ export interface SendResult {
 /**
  * Build a newsletter client bound to a Supabase project. The package owns its
  * tables (see migrations/) and defines its own row types; you inject the client
- * and base URL. Ported from the battle-tested a sister site implementation.
+ * and base URL.
  */
 export const createNewsletter = (config: NewsletterConfig) => {
 	const { supabase, baseUrl } = config;
