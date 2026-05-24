@@ -10,6 +10,10 @@ import { HONEYPOT_FIELD, TOKEN_FIELD } from "./fields";
  * Real users never see or fill the honeypot (off-screen, aria-hidden,
  * tabIndex -1, autocomplete off); bots that fill every field give themselves
  * away.
+ *
+ * Pass `field` to use a custom honeypot name — it must match the
+ * `honeypotField` you pass to `verifyHuman()`, or the trap reads the wrong
+ * field and fails open.
  */
 
 const hidden: CSSProperties = {
@@ -21,16 +25,27 @@ const hidden: CSSProperties = {
 	overflow: "hidden",
 };
 
-export const HoneypotField = ({ token }: { token: string }) => (
+export const HoneypotField = ({
+	token,
+	field = HONEYPOT_FIELD,
+}: {
+	token: string;
+	field?: string;
+}) => (
 	<div aria-hidden="true" style={hidden}>
 		<label>
 			Leave this field empty
 			<input
 				type="text"
-				name={HONEYPOT_FIELD}
+				name={field}
 				tabIndex={-1}
 				autoComplete="off"
 				defaultValue=""
+				// Belt-and-suspenders against autofill filling the trap for real
+				// users: the major password managers honor these opt-outs.
+				data-1p-ignore
+				data-lpignore="true"
+				data-form-type="other"
 			/>
 		</label>
 		<input type="hidden" name={TOKEN_FIELD} defaultValue={token} />
