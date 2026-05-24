@@ -85,6 +85,31 @@ describe("verifyHuman", () => {
 		});
 		expect(result).toEqual({ ok: true });
 	});
+
+	it("honors a custom honeypot field name", async () => {
+		const fd = new FormData();
+		fd.set("subject_trap", "filled-by-bot");
+		fd.set(TOKEN_FIELD, goodToken());
+		expect(
+			await verifyHuman({ formData: fd, honeypotField: "subject_trap" }),
+		).toMatchObject({ ok: false, reason: "honeypot" });
+	});
+
+	it("ignores the default field when a custom honeypot name is set", async () => {
+		// A real field that happens to match the *default* name must not trip
+		// the trap once the form has opted into a custom honeypot name.
+		const fd = new FormData();
+		fd.set(HONEYPOT_FIELD, "a genuine value the user typed");
+		fd.set("subject_trap", "");
+		fd.set(TOKEN_FIELD, goodToken());
+		expect(
+			await verifyHuman({
+				formData: fd,
+				honeypotField: "subject_trap",
+				timing: { minMs: 0 },
+			}),
+		).toEqual({ ok: true });
+	});
 });
 
 describe("graceful degradation without BOT_PROTECTION_SECRET", () => {

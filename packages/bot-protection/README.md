@@ -59,6 +59,16 @@ export async function POST(request: Request) {
 `verifyHuman` also accepts a plain object (`{ formData: { ...fields } }`) and a
 `timing` window (`{ minMs, maxMs }`). Pass `botid: false` to skip layer 3.
 
+The honeypot field defaults to a name browsers and password managers won't
+autofill (filling it would falsely flag real users). If that default collides
+with a real field in your form, override it on both sides — they must match:
+
+```tsx
+<HoneypotField token={token} field="subject_trap" />
+// ...and on the server:
+await verifyHuman({ formData, honeypotField: "subject_trap" });
+```
+
 ## Vercel BotID wiring (per app, layer 3 only)
 
 ```ts
