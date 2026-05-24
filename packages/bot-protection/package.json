@@ -1,0 +1,53 @@
+{
+	"name": "@ingram-tech/bot-protection",
+	"version": "0.1.0",
+	"description": "Invisible, layered bot protection for forms — honeypot + signed timing token + Vercel BotID.",
+	"license": "MIT",
+	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ingram-technologies/nextkit.git",
+		"directory": "packages/bot-protection"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"files": [
+		"dist"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./honeypot": {
+			"types": "./dist/honeypot.d.ts",
+			"import": "./dist/honeypot.js"
+		}
+	},
+	"scripts": {
+		"build": "tsc -p tsconfig.json",
+		"type-check": "tsc -p tsconfig.json --noEmit",
+		"test": "vitest run"
+	},
+	"devDependencies": {
+		"@ingram-tech/typescript-config": "workspace:*",
+		"@types/node": "^20.0.0",
+		"@types/react": "^19.0.0",
+		"react": "^19.0.0",
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.6"
+	},
+	"peerDependencies": {
+		"botid": ">=1.0.0",
+		"react": "^18.0.0 || ^19.0.0"
+	},
+	"peerDependenciesMeta": {
+		"botid": {
+			"optional": true
+		},
+		"react": {
+			"optional": true
+		}
+	}
+}
