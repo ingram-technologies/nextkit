@@ -1,0 +1,34 @@
+{
+	"name": "@ingram-tech/nk-cli",
+	"version": "0.0.0",
+	"description": "nk — the nextkit CLI. One command for dev (Next + local Supabase) and formatting (Biome for code, Prettier for SQL) across Ingram Next.js sites.",
+	"license": "MIT",
+	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ingram-technologies/nextkit.git",
+		"directory": "packages/nk-cli"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"files": [
+		"bin",
+		"lib"
+	],
+	"bin": {
+		"nk": "bin/nk.js"
+	},
+	"scripts": {
+		"build": "true",
+		"type-check": "true",
+		"test": "true"
+	},
+	"dependencies": {
+		"prettier": "^3.8.3",
+		"prettier-plugin-sql": "^0.20.0"
+	},
+	"engines": {
+		"node": ">=20"
+	}
+}
