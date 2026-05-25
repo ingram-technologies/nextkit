@@ -1,6 +1,6 @@
 {
 	"name": "@ingram-tech/email",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "Zero-dependency Cloudflare Email Sending client for Ingram Technologies Next.js projects.",
 	"license": "MIT",
 	"type": "module",

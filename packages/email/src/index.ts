@@ -3,5 +3,5 @@ export {
 	type EmailOptions,
 	fromAddress,
 	sendEmail,
-} from "./client";
-export { type EmailEnv, isConfigured, keys } from "./keys";
+} from "./client.js";
+export { type EmailEnv, isConfigured, keys } from "./keys.js";
