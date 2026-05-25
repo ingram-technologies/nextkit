@@ -1,6 +1,6 @@
 {
 	"name": "@ingram-tech/agent-guide",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "Brief nextkit conventions for AI agents — imported into a consuming site's CLAUDE.md so guidance propagates with version bumps.",
 	"license": "MIT",
 	"repository": {

@@ -1,5 +1,11 @@
 # @ingram-tech/bot-protection
 
+## 0.3.0
+
+### Minor Changes
+
+- 26e6d73: Add a `/react` client export: `useBotProtection(tokenEndpoint)` + `HoneypotInput`, for client components that POST JSON to their own route. Replaces the hand-copied `src/lib/bot-protection.tsx` that had been duplicated across sites, keeping the honeypot field name and timing token in lockstep with the server verifier.
+
 ## 0.2.0
 
 ### Minor Changes
