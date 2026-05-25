@@ -59,6 +59,51 @@ export async function POST(request: Request) {
 `verifyHuman` also accepts a plain object (`{ formData: { ...fields } }`) and a
 `timing` window (`{ minMs, maxMs }`). Pass `botid: false` to skip layer 3.
 
+### Client forms (JSON POST)
+
+For client components that POST JSON instead of a server-rendered `<form>`, use
+the `/react` hook. It fetches the token from your route's `GET` on mount and
+hands you the fields to merge into the body. The route's `GET` returns the
+token; its `POST` verifies:
+
+```tsx
+"use client";
+import { HoneypotInput, useBotProtection } from "@ingram-tech/bot-protection/react";
+
+export function ContactForm() {
+	const { honeypotRef, botFields } = useBotProtection("/api/contact");
+
+	async function onSubmit(values: FormValues) {
+		await fetch("/api/contact", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ ...values, ...botFields() }),
+		});
+	}
+	return (
+		<form onSubmit={/* ... */}>
+			{/* ...your real fields... */}
+			<HoneypotInput inputRef={honeypotRef} />
+		</form>
+	);
+}
+```
+
+```ts
+// app/api/contact/route.ts
+import { createFormToken, verifyHuman } from "@ingram-tech/bot-protection";
+
+export const GET = () => Response.json({ token: createFormToken() });
+
+export async function POST(request: Request) {
+	const body = await request.json();
+	const result = await verifyHuman({ formData: body });
+	if (!result.ok) return Response.json({ ok: true }); // silently drop
+	// ...send the email / save the lead...
+	return Response.json({ ok: true });
+}
+```
+
 The honeypot field defaults to a name browsers and password managers won't
 autofill (filling it would falsely flag real users). If that default collides
 with a real field in your form, override it on both sides — they must match:

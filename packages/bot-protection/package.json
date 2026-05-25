@@ -24,6 +24,10 @@
 			"types": "./dist/honeypot.d.ts",
 			"import": "./dist/honeypot.js"
 		},
+		"./react": {
+			"types": "./dist/react.d.ts",
+			"import": "./dist/react.js"
+		},
 		"./fields": {
 			"types": "./dist/fields.d.ts",
 			"import": "./dist/fields.js"

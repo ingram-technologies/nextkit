@@ -16,9 +16,12 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Lint & format check
         run: bun run check
-      - name: Type-check
-        run: bun run type-check
+      # Build before type-check: packages whose deps resolve to built workspace
+      # types (e.g. newsletter → email's dist/*.d.ts) need dist to exist first.
+      # check runs first on the clean tree, so Biome never sees dist/.
       - name: Build
         run: bun run build
+      - name: Type-check
+        run: bun run type-check
       - name: Test
         run: bun run test
