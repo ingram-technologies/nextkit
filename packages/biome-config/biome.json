@@ -22,12 +22,12 @@
 				"useExhaustiveDependencies": "warn"
 			},
 			"style": {
-				"noNonNullAssertion": "warn",
+				"noNonNullAssertion": "error",
 				"useNodejsImportProtocol": "off",
 				"useImportType": "off"
 			},
 			"suspicious": {
-				"noExplicitAny": "warn",
+				"noExplicitAny": "error",
 				"noArrayIndexKey": "off",
 				"noDocumentCookie": "off"
 			},

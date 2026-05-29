@@ -21,7 +21,8 @@ judgment-level conventions that humans and agents must follow.
 - **No `as unknown as T`** double casts. If types genuinely don't overlap,
   document why in a comment.
 - **No non-null assertions (`!`)** in app code. Use guard clauses, optional
-  chaining, or nullish coalescing. (Biome flags these as `warn`.)
+  chaining, or nullish coalescing. (Biome enforces this as an `error`, alongside
+  `noExplicitAny` — both fail `bun run check`.)
 - `noUncheckedIndexedAccess` is on — handle the `undefined` from index access.
 
 ## Data access (Supabase)
