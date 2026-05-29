@@ -28,23 +28,18 @@ export const keys = (): EmailEnv => {
 	const apiToken = process.env.CLOUDFLARE_EMAIL_API_TOKEN;
 	const fromDomain = process.env.EMAIL_FROM_DOMAIN;
 
-	const missing: string[] = [];
-	if (!accountId) missing.push("CLOUDFLARE_ACCOUNT_ID");
-	if (!apiToken) missing.push("CLOUDFLARE_EMAIL_API_TOKEN");
-	if (!fromDomain) missing.push("EMAIL_FROM_DOMAIN");
-
-	if (missing.length > 0) {
+	if (!accountId || !apiToken || !fromDomain) {
+		const missing: string[] = [];
+		if (!accountId) missing.push("CLOUDFLARE_ACCOUNT_ID");
+		if (!apiToken) missing.push("CLOUDFLARE_EMAIL_API_TOKEN");
+		if (!fromDomain) missing.push("EMAIL_FROM_DOMAIN");
 		throw new Error(
 			`@ingram-tech/email: missing environment variables: ${missing.join(", ")}`,
 		);
 	}
 
-	// Non-null assertions are safe here: the checks above guarantee presence.
-	return {
-		accountId: accountId as string,
-		apiToken: apiToken as string,
-		fromDomain: fromDomain as string,
-	};
+	// The combined guard above narrows all three to `string` — no cast needed.
+	return { accountId, apiToken, fromDomain };
 };
 
 /**
