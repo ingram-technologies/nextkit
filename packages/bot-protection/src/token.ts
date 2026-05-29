@@ -5,6 +5,13 @@ import { getSecret, isConfigured } from "./keys";
  * Signed timing token: `<timestamp>.<hmac>`. The timestamp records when the
  * form was rendered; the HMAC (keyed by BOT_PROTECTION_SECRET) prevents a bot
  * from forging an older timestamp to defeat the "submitted too fast" check.
+ *
+ * Scope: this is a *timing window* gate, not a per-submission nonce. A token is
+ * valid for any number of submissions between `minMs` and `maxMs` after it was
+ * minted, so it does not by itself prevent replay within that window — it raises
+ * the cost (a bot must fetch a real form and wait) and composes with the
+ * honeypot and Vercel BotID layers. If you need true single-use semantics, bind
+ * the token to a server-stored, one-time value (e.g. a session/CSRF nonce).
  */
 
 const sign = (ts: string, secret: string): string =>
@@ -29,7 +36,7 @@ export const createFormToken = (): string => {
 export interface TokenCheck {
 	/** Reject submissions faster than this (default 2000ms — bots are instant). */
 	minMs?: number;
-	/** Reject tokens older than this (default 1h — stale/replayed forms). */
+	/** Reject tokens older than this (default 1h — bounds the replay window). */
 	maxMs?: number;
 }
 
