@@ -16,18 +16,40 @@ and maintainable.
 > A nextkit site must be indistinguishable from a normal Next.js site, beyond
 > its dependencies.
 
-We are **not** building a meta-framework. There is no nextkit CLI you must run to
-build or dev, no custom router, no wrapper around `next`. You can `bun dev` and
-`next build` exactly as you would in any Next.js app. nextkit only provides:
+We are **not** building a meta-framework. There is no custom router and no
+wrapper around the Next.js build. You can always run `next dev` and `next build`
+directly, exactly as in any Next.js app. nextkit only provides:
 
 - **Configuration** you extend (`biome.json`, `tsconfig.json`, Vitest preset).
 - **Libraries** you import (`@ingram-tech/email`, …).
 - **Conventions** documented here for humans and agents to follow.
+- **An optional CLI** (`@ingram-tech/nk-cli`, the `nk` command) that *orchestrates*
+  the standard commands — see the carve-out below.
 
 If a feature would require us to intercept the Next.js build or hide Next.js
 behind an abstraction, it does not belong in nextkit. This constraint is what
 keeps us able to adopt new Next.js versions immediately and keeps every site
 debuggable by anyone who knows Next.js.
+
+### The `nk` carve-out: orchestration, never interception
+
+`nk` is the one piece of nextkit that looks like a CLI, so it gets an explicit
+boundary to keep it honest:
+
+- **It only shells out to the standard tools** (`next`, `biome`, `tsc`,
+  `supabase`) resolved from the site's own `node_modules`. It never replaces,
+  patches, or hides them — `nk build` is `next build`, `nk dev` boots local
+  Supabase (if present) and then runs `next dev`.
+- **It is never required.** Every nextkit site must remain fully buildable and
+  runnable with plain `next build` / `next dev` if `nk` is removed. `nk` is
+  convenience (one place for the local-Supabase wiring and SQL formatting Biome
+  can't do), not a dependency the build hides behind.
+- **It carries no app logic.** If a command in `nk` ever did more than
+  orchestrate standard tools, it would violate the prime directive and belong
+  somewhere else.
+
+This boundary is enforced, not just stated: see the orchestration tests in
+`packages/nk-cli`.
 
 ## Single source of truth, propagated
 

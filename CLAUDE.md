@@ -13,8 +13,11 @@ before making structural decisions** — it is the source of truth for the "why"
 
 nextkit must stay a **thin wrapper**: a consuming site is indistinguishable from
 a plain Next.js app beyond its dependencies. Never add anything that wraps or
-intercepts the Next.js build, or that requires a nextkit CLI to dev/build. We
-ship config to extend, libraries to import, and docs to follow — nothing more.
+intercepts the Next.js build. We ship config to extend, libraries to import, and
+docs to follow. The one CLI we ship — `@ingram-tech/nk-cli` (`nk`) — only
+*orchestrates* the standard tools and must never be required: every site stays
+fully buildable with plain `next build` / `next dev`. See the `nk` carve-out in
+[`docs/philosophy.md`](./docs/philosophy.md).
 
 ## Commands
 

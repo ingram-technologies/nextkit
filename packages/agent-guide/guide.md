@@ -12,7 +12,8 @@ package. Stay a thin, standard Next.js app (bun · Biome · strict TS).
 - **Send email only via `@ingram-tech/email`** — never add another mail client.
 - Format/lint with **Biome** via `nk` (`@ingram-tech/nk-cli`); don't reintroduce
   ESLint, nor Prettier for code (`nk` uses Prettier only for SQL, which Biome
-  can't format).
+  can't format). `nk` is optional convenience that only orchestrates the standard
+  tools — the site must stay buildable with plain `next build` / `next dev`.
 
 ## What nextkit provides (reach for these)
 

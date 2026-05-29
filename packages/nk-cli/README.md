@@ -27,6 +27,13 @@ Then point your package.json scripts at it:
 `nk` shells out to the site's own `bunx`-resolved tools (Biome, Next, tsc,
 Supabase), so versions stay under each site's control — nk just orchestrates.
 
+> **`nk` is optional.** It only orchestrates the standard commands; it never
+> wraps or intercepts the Next.js build. Every site must stay fully buildable
+> and runnable with plain `next build` / `next dev` if `nk` is removed — see the
+> [`nk` carve-out](https://github.com/ingram-technologies/nextkit/blob/main/docs/philosophy.md)
+> in the philosophy doc. The orchestration tests in this package check that the
+> formatter resolves to standard Biome invocations and nothing more.
+
 ## Commands
 
 - **`nk dev`** — start the Next dev server. If `supabase/config.toml` is present,
