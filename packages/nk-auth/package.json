@@ -1,7 +1,7 @@
 {
 	"name": "@ingram-tech/nk-auth",
-	"version": "0.1.0",
-	"description": "Better Auth for Ingram Next.js sites, configured to keep Supabase Postgres + RLS working via a JWT bridge.",
+	"version": "0.2.0",
+	"description": "The Ingram Better Auth foundation: composable presets (org, dual-shape JWT, Supabase RLS bridge, active-org hooks, pg pool) for Next.js sites.",
 	"license": "MIT",
 	"type": "module",
 	"repository": {
@@ -21,6 +21,18 @@
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js"
 		},
+		"./jwt": {
+			"types": "./dist/jwt.d.ts",
+			"import": "./dist/jwt.js"
+		},
+		"./organization": {
+			"types": "./dist/organization.d.ts",
+			"import": "./dist/organization.js"
+		},
+		"./pool": {
+			"types": "./dist/pool.d.ts",
+			"import": "./dist/pool.js"
+		},
 		"./client": {
 			"types": "./dist/client.d.ts",
 			"import": "./dist/client.js"
@@ -33,30 +45,43 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
-		"@better-auth/passkey": "^1.6.0",
 		"bcrypt": "^5.1.1",
-		"better-auth": "^1.6.0",
-		"pg": "^8.13.0",
+		"jose": "^6.0.0",
 		"zod": "^4.0.0"
 	},
+	"peerDependencies": {
+		"@better-auth/passkey": "^1.6.0",
+		"@supabase/supabase-js": ">=2.0.0",
+		"better-auth": "^1.6.0",
+		"pg": "^8.13.0",
+		"react": "^18.0.0 || ^19.0.0"
+	},
+	"peerDependenciesMeta": {
+		"@better-auth/passkey": {
+			"optional": true
+		},
+		"@supabase/supabase-js": {
+			"optional": true
+		},
+		"pg": {
+			"optional": true
+		},
+		"react": {
+			"optional": true
+		}
+	},
 	"devDependencies": {
+		"@better-auth/passkey": "^1.6.0",
 		"@ingram-tech/typescript-config": "workspace:*",
 		"@supabase/supabase-js": "^2.45.0",
 		"@types/bcrypt": "^5.0.2",
 		"@types/node": "^20.0.0",
 		"@types/pg": "^8.11.0",
 		"@types/react": "^19.0.0",
+		"better-auth": "^1.6.0",
+		"pg": "^8.13.0",
 		"react": "^19.0.0",
 		"typescript": "^6.0.3",
 		"vitest": "^4.1.6"
-	},
-	"peerDependencies": {
-		"@supabase/supabase-js": ">=2.0.0",
-		"react": "^18.0.0 || ^19.0.0"
-	},
-	"peerDependenciesMeta": {
-		"react": {
-			"optional": true
-		}
 	}
 }

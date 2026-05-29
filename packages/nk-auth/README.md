@@ -1,18 +1,36 @@
 # @ingram-tech/nk-auth
 
-[Better Auth](https://better-auth.com) for Ingram Next.js sites, configured so
-that **Supabase Postgres + Row Level Security keep working** after you drop
-Supabase Auth. Email/password (bcrypt-compatible with migrated Supabase hashes),
-OAuth, and passkeys out of the box.
+The Ingram **[Better Auth](https://better-auth.com) foundation**: a toolkit of
+composable presets each Ingram Next.js site spreads into its *own*
+`betterAuth()` call. It is **not** a `betterAuth()` wrapper — the site stays
+plain Better Auth (prime directive), keeping full plugin type inference. Import
+only what you need from focused subpaths.
 
-This package **owns its tables** and ships the migration; you inject the
-connection, providers, and an email sender. It defines its own config types and
-never imports your generated Supabase `Database`, so it drops into any project
-(the Django-app model — see [`docs/philosophy.md`](../../docs/philosophy.md)).
+`better-auth`, `pg`, `@better-auth/passkey`, `@supabase/supabase-js` are
+**peer dependencies** so there's exactly one Better Auth copy in the app.
 
-> Read [`docs/better-auth-migration.md`](../../docs/better-auth-migration.md)
-> first — it explains the RLS bridge, the migration runbook, and the gotchas
-> this package exists to handle.
+| Export (subpath) | For |
+| --- | --- |
+| `rlsJwtOptions` (`./jwt`) | Supabase RLS bridge token (`role:"authenticated"`) |
+| `backendJwtOptions` / `verifyBackendJwt` (`./jwt`) | a JWT for the site's own backend API (custom `audience`) |
+| `nkOrganizationDefaults`, `lastActiveOrganizationHooks`, `lastActiveOrganizationUserField` (`./organization`) | org-plugin defaults + active-org restore/persist |
+| `createAuthPool` (`./pool`) | `pg` Pool with optional SSL CA verification |
+| `bcryptPassword`, `makeEmailSenders`, `makePasskeyOptions`, `uuidGenerateId` (`./`) | password migration, email hooks, passkeys, UUID ids |
+| `createServerSupabase` (`./`) | RLS-aware supabase-js client (attaches the session JWT) |
+
+> **Supabase Auth → Better Auth + RLS migration?** Read
+> [`docs/better-auth-migration.md`](../../docs/better-auth-migration.md) — the
+> RLS bridge, the migration runbook, and the gotchas.
+>
+> **Backend-JWT + org sites** (e.g. integrain): compose `createAuthPool`,
+> `backendJwtOptions({ audience })`, `nkOrganizationDefaults`, and
+> `lastActiveOrganizationHooks(pool)` in your `betterAuth()`; verify backend
+> tokens with `verifyBackendJwt`. Keep app-specific bits (SSO restrictions,
+> permissions/roles, connectors) in the app.
+>
+> **Note:** pin `kysely@0.28.x` in the consuming app (0.29 moved
+> `DEFAULT_MIGRATION_TABLE` out of its barrel, breaking the adapter + the
+> Turbopack build).
 
 ## Install
 

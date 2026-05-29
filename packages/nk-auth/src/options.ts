@@ -1,22 +1,18 @@
 import { randomUUID } from "node:crypto";
 import type { PasskeyOptions } from "@better-auth/passkey";
 import bcrypt from "bcrypt";
-import type { JwtOptions } from "better-auth/plugins/jwt";
 
 /**
  * Portable Better Auth building blocks for Ingram sites.
  *
  * Deliberately NOT a `betterAuth()` wrapper: a site assembles its own instance
- * in `lib/auth.ts` and spreads these presets in. That keeps full plugin type
- * inference at the call site (where `declaration` is off) and respects the
- * prime directive — the site stays plain Better Auth, we just ship the
- * RLS-preserving config. See docs/better-auth-migration.md.
+ * and spreads these presets in. That keeps full plugin type inference at the
+ * call site (where `declaration` is off) and respects the prime directive — the
+ * site stays plain Better Auth, we just ship the shared config. JWT + org
+ * presets live in `./jwt` and `./organization`. See docs/better-auth-migration.md.
  *
- * Two invariants these presets carry, both of which silently break RLS if
- * dropped (see docs/better-auth-migration.md):
- *   1. `uuidGenerateId` keeps new-user ids UUID-shaped for `auth.uid()::uuid`.
- *   2. `rlsJwtOptions` mints `role: "authenticated"`, or PostgREST treats every
- *      request as `anon`.
+ * `uuidGenerateId` keeps new-user ids UUID-shaped (needed for Supabase
+ * `auth.uid()::uuid` on RLS sites).
  */
 
 /**
@@ -34,24 +30,8 @@ export const bcryptPassword = {
 	}): Promise<boolean> => bcrypt.compare(password, hash),
 };
 
-/** `advanced.database.generateId` — invariant 1. */
+/** `advanced.database.generateId` — keeps new-user ids UUID-shaped. */
 export const uuidGenerateId = (): string => randomUUID();
-
-/**
- * `jwt` plugin options — the RLS bridge. Mints an asymmetric token whose claims
- * Supabase accepts as a third-party issuer, so `auth.uid()` returns the user's
- * UUID and every existing policy keeps working. Use as `jwt(rlsJwtOptions)`.
- */
-export const rlsJwtOptions: JwtOptions = {
-	jwks: { keyPairConfig: { alg: "EdDSA" } },
-	jwt: {
-		definePayload: ({ user }) => ({
-			sub: user.id, // the Supabase UUID
-			role: "authenticated", // invariant 2
-			aud: "authenticated",
-		}),
-	},
-};
 
 export interface PasskeyConfig {
 	/** Relying-party id: the registrable domain, e.g. "example.com". */
