@@ -12,7 +12,7 @@
     },
     "packages/agent-guide": {
       "name": "@ingram-tech/agent-guide",
-      "version": "0.1.0",
+      "version": "0.1.1",
     },
     "packages/biome-config": {
       "name": "@ingram-tech/biome-config",
@@ -23,7 +23,7 @@
     },
     "packages/bot-protection": {
       "name": "@ingram-tech/bot-protection",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "devDependencies": {
         "@ingram-tech/typescript-config": "workspace:*",
         "@types/node": "^20.0.0",
@@ -43,7 +43,7 @@
     },
     "packages/email": {
       "name": "@ingram-tech/email",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "devDependencies": {
         "@ingram-tech/typescript-config": "workspace:*",
         "@types/node": "^20.0.0",
@@ -63,6 +63,7 @@
       "version": "0.2.0",
       "dependencies": {
         "@ingram-tech/email": "workspace:^",
+        "zod": "^3.25.0",
       },
       "devDependencies": {
         "@ingram-tech/typescript-config": "workspace:*",
@@ -79,11 +80,14 @@
       "name": "@ingram-tech/nk-cli",
       "version": "0.1.0",
       "bin": {
-        "nk": "bin/nk.mjs",
+        "nk": "bin/nk.js",
       },
       "dependencies": {
         "prettier": "^3.8.3",
         "prettier-plugin-sql": "^0.20.0",
+      },
+      "devDependencies": {
+        "vitest": "^4.1.6",
       },
     },
     "packages/test-config": {
@@ -634,6 +638,8 @@
     "xml-name-validator": ["xml-name-validator@5.0.0", "", {}, "sha512-EvGK8EJ3DhaHfbRlETOWAS5pO9MZITeauHKJyb8wyajUfQUenkIg2MvLDTZ4T/TgIcm3HU0TFBgWWboAZ30UHg=="],
 
     "xmlchars": ["xmlchars@2.2.0", "", {}, "sha512-JZnDKK8B0RCDw84FNdDAIpZK+JuJw+s7Lz8nksI7SIuU3UXJJslUthsi+uWBUYOwPFwW7W7PRLRfUKpxjtjFCw=="],
+
+    "zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
 
     "@changesets/apply-release-plan/prettier": ["prettier@2.8.8", "", { "bin": { "prettier": "bin-prettier.js" } }, "sha512-tdN8qQGvNjw4CHbY+XXk0JgCXn9QiF21a55rBe5LJAU+kDyC4WQn4+awm2Xfk2lQMk5fKup9XgzTZtGkjBdP9Q=="],
 

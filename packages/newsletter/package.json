@@ -29,7 +29,8 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
-		"@ingram-tech/email": "workspace:^"
+		"@ingram-tech/email": "workspace:^",
+		"zod": "^3.25.0"
 	},
 	"devDependencies": {
 		"@ingram-tech/typescript-config": "workspace:*",

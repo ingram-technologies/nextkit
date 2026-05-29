@@ -7,7 +7,12 @@ import {
 	renderNewsletterHtml,
 	renderNewsletterText,
 } from "./render";
-import type { Newsletter, Subscription } from "./types";
+import {
+	type Newsletter,
+	newsletterSchema,
+	type Subscription,
+	subscriptionSchema,
+} from "./types";
 
 export interface NewsletterConfig {
 	/** A Supabase client with service-role access (writes bypass RLS). */
@@ -71,7 +76,7 @@ export const createNewsletter = (config: NewsletterConfig) => {
 			.eq("slug", slug)
 			.maybeSingle();
 		if (error) throw new Error(`Failed to load newsletter: ${error.message}`);
-		return (data as Newsletter | null) ?? null;
+		return data === null ? null : newsletterSchema.parse(data);
 	};
 
 	/**
@@ -88,13 +93,17 @@ export const createNewsletter = (config: NewsletterConfig) => {
 			throw new Error(`Newsletter is not active: ${options.newsletterSlug}`);
 		}
 
-		const { data: existingData } = await supabase
+		const { data: existingData, error: lookupError } = await supabase
 			.from("newsletter_subscriptions")
 			.select("*")
 			.eq("newsletter_id", newsletter.id)
 			.eq("email", email)
 			.maybeSingle();
-		const existing = existingData as Subscription | null;
+		if (lookupError) {
+			throw new Error(`Failed to look up subscription: ${lookupError.message}`);
+		}
+		const existing =
+			existingData === null ? null : subscriptionSchema.parse(existingData);
 
 		if (existing) {
 			if (!existing.unsubscribed_at && (!options.userId || existing.user_id)) {
@@ -111,7 +120,7 @@ export const createNewsletter = (config: NewsletterConfig) => {
 				.select()
 				.single();
 			if (error) throw new Error(`Failed to resubscribe: ${error.message}`);
-			return updated as Subscription;
+			return subscriptionSchema.parse(updated);
 		}
 
 		const { data: inserted, error } = await supabase
@@ -125,7 +134,7 @@ export const createNewsletter = (config: NewsletterConfig) => {
 			.select()
 			.single();
 		if (error) throw new Error(`Failed to subscribe: ${error.message}`);
-		return inserted as Subscription;
+		return subscriptionSchema.parse(inserted);
 	};
 
 	/** Unsubscribe by token. Idempotent; returns false only for unknown tokens. */
@@ -136,7 +145,12 @@ export const createNewsletter = (config: NewsletterConfig) => {
 			.eq("unsubscribe_token", token)
 			.maybeSingle();
 		if (error) throw new Error(`Failed to look up token: ${error.message}`);
-		const row = data as Pick<Subscription, "id" | "unsubscribed_at"> | null;
+		const row =
+			data === null
+				? null
+				: subscriptionSchema
+						.pick({ id: true, unsubscribed_at: true })
+						.parse(data);
 		if (!row) return false;
 		if (row.unsubscribed_at) return true;
 
@@ -162,13 +176,17 @@ export const createNewsletter = (config: NewsletterConfig) => {
 			.is("unsubscribed_at", null)
 			.order("subscribed_at", { ascending: true });
 		if (error) throw new Error(`Failed to list subscribers: ${error.message}`);
-		return (data as Subscription[] | null) ?? [];
+		return subscriptionSchema.array().parse(data ?? []);
 	};
 
 	/**
 	 * Send to all active subscribers (or just `onlyTo`). Each recipient gets a
 	 * per-row List-Unsubscribe header. Failures are caught per-recipient so one
 	 * bad address doesn't poison the batch.
+	 *
+	 * Sends are sequential (one awaited `sendEmail` per recipient) with no
+	 * built-in rate limiting or retry — fine for the small lists we run today;
+	 * revisit (batching/backoff) before large sends.
 	 */
 	const send = async (options: SendOptions): Promise<SendResult> => {
 		const newsletter = await getBySlug(options.newsletterSlug);
