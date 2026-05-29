@@ -1,0 +1,43 @@
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { authEnv, isConfigured } from "./keys";
+
+const VALID = {
+	BETTER_AUTH_SECRET: "s".repeat(32),
+	BETTER_AUTH_URL: "https://example.com",
+	DATABASE_URL: "postgresql://user:pw@db.example.com:5432/postgres",
+	NEXT_PUBLIC_SUPABASE_URL: "https://proj.supabase.co",
+	NEXT_PUBLIC_SUPABASE_ANON_KEY: "anon-key",
+} as const;
+
+describe("authEnv", () => {
+	const original = process.env;
+
+	beforeEach(() => {
+		process.env = { ...original, ...VALID };
+	});
+	afterEach(() => {
+		process.env = original;
+	});
+
+	it("returns a config-shaped object from valid env", () => {
+		expect(authEnv()).toEqual({
+			secret: VALID.BETTER_AUTH_SECRET,
+			baseURL: VALID.BETTER_AUTH_URL,
+			databaseUrl: VALID.DATABASE_URL,
+			supabaseUrl: VALID.NEXT_PUBLIC_SUPABASE_URL,
+			supabaseAnonKey: VALID.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+		});
+		expect(isConfigured()).toBe(true);
+	});
+
+	it("throws listing every missing/invalid var", () => {
+		process.env = { ...original };
+		delete process.env.BETTER_AUTH_SECRET;
+		delete process.env.DATABASE_URL;
+		process.env.BETTER_AUTH_URL = "not-a-url";
+		expect(isConfigured()).toBe(false);
+		expect(() => authEnv()).toThrow(/BETTER_AUTH_SECRET/);
+		expect(() => authEnv()).toThrow(/BETTER_AUTH_URL/);
+		expect(() => authEnv()).toThrow(/DATABASE_URL/);
+	});
+});
