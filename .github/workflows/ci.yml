@@ -21,6 +21,13 @@ jobs:
       # check runs first on the clean tree, so Biome never sees dist/.
       - name: Build
         run: bun run build
+      # Catches malformed exports / types / files fields before they ship — the
+      # class of packaging bug that only surfaces on `npm install` in a real app.
+      - name: Check package publishing (publint)
+        run: |
+          for dir in packages/email packages/bot-protection packages/newsletter; do
+            bunx publint "$dir"
+          done
       - name: Type-check
         run: bun run type-check
       - name: Test
