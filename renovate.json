@@ -1,0 +1,23 @@
+{
+	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
+	"extends": ["config:recommended", ":semanticCommits", ":dependencyDashboard"],
+	"labels": ["dependencies"],
+	"lockFileMaintenance": { "enabled": true },
+	"packageRules": [
+		{
+			"description": "Batch dev tooling bumps into one PR.",
+			"matchDepTypes": ["devDependencies"],
+			"groupName": "dev dependencies"
+		},
+		{
+			"description": "Keep workspace cross-links managed by Changesets, not Renovate.",
+			"matchPackagePatterns": ["^@ingram-tech/"],
+			"enabled": false
+		},
+		{
+			"description": "Pin GitHub Actions to a digest for supply-chain safety.",
+			"matchManagers": ["github-actions"],
+			"pinDigests": true
+		}
+	]
+}
