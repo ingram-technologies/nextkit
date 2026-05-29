@@ -22,11 +22,14 @@
 	"scripts": {
 		"build": "true",
 		"type-check": "true",
-		"test": "true"
+		"test": "vitest run"
 	},
 	"dependencies": {
 		"prettier": "^3.8.3",
 		"prettier-plugin-sql": "^0.20.0"
+	},
+	"devDependencies": {
+		"vitest": "^4.1.6"
 	},
 	"engines": {
 		"node": ">=20"
