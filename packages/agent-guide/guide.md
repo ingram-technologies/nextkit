@@ -15,6 +15,31 @@ package. Stay a thin, standard Next.js app (bun · Biome · strict TS).
   can't format). `nk` is optional convenience that only orchestrates the standard
   tools — the site must stay buildable with plain `next build` / `next dev`.
 
+## Route & URL conventions
+
+Keep the URL namespace honest about **who calls each route**:
+
+- **`/api/…` — the app's public API only.** Routes that external clients or your
+  own frontend consume *as an API*. Nothing else belongs here.
+- **`/internal/…` — all plumbing the public never calls as your API.** This is
+  where provider integrations, webhooks, workers and crons live:
+  - **`/internal/connect/<provider>/{start,callback}`** — the outbound OAuth /
+    app-install handshake. `start` (session-gated) kicks off the redirect to the
+    provider; **`callback` is the URL you register with the provider** — it
+    finishes the exchange/records the install and redirects the user back into the
+    app. e.g. `/internal/connect/slack/callback`, `/internal/connect/github/callback`.
+  - **`/internal/webhooks/<provider>`** — inbound provider webhooks (Slack,
+    GitHub, Stripe, …). Authenticated by the provider's signature/secret, not a
+    session. App-level (one URL per provider); route to the tenant from the
+    payload (team id, installation id, …).
+  - **`/internal/worker/<name>` · `/internal/cron/<name>`** — queue drains and
+    scheduled jobs, gated by a shared worker secret (Vercel Cron / queue calls them).
+
+Rule of thumb: if a human navigates to it, it's a **page** (normal route tree);
+if your frontend fetches it as an API, it's **`/api/…`**; if a provider, cron, or
+queue calls it, it's **`/internal/…`**. Never put OAuth callbacks or webhooks in
+the UI/page tree, and never expose internal plumbing under `/api/`.
+
 ## What nextkit provides (reach for these)
 
 - `@ingram-tech/email` — Cloudflare email: `sendEmail`, `fromAddress`
