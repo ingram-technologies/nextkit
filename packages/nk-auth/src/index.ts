@@ -23,6 +23,7 @@ export {
 	lastActiveOrganizationUserField,
 	nkOrganizationDefaults,
 } from "./organization";
+export { authBasePath } from "./paths";
 export { createAuthPool } from "./pool";
 export {
 	createServerSupabase,

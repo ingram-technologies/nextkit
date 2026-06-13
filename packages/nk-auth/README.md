@@ -73,6 +73,7 @@ per the prime directive. The presets carry the RLS-preserving bits.
 import { passkey } from "@better-auth/passkey";
 import { fromAddress, sendEmail } from "@ingram-tech/email";
 import {
+	authBasePath,
 	authEnv,
 	bcryptPassword,
 	makeEmailSenders,
@@ -93,7 +94,8 @@ export const auth = betterAuth({
 	database: new Pool({ connectionString: env.databaseUrl }),
 	secret: env.secret,
 	baseURL: env.baseURL,
-	advanced: { database: { generateId: uuidGenerateId } }, // UUID-shaped ids
+	basePath: authBasePath, // mount at /auth, not the framework default /api/auth
+	advanced: { database: { generateId: uuidGenerateId } }, // UUIDv7 ids
 	emailAndPassword: {
 		enabled: true,
 		password: bcryptPassword, // verifies migrated Supabase bcrypt hashes
@@ -114,7 +116,9 @@ export const auth = betterAuth({
 ```
 
 ```ts
-// app/api/auth/[...all]/route.ts — a standard Next.js route handler
+// app/auth/[...all]/route.ts — a standard Next.js route handler.
+// Lives at /auth (set via `basePath: authBasePath`), NOT /api/auth: auth is a
+// user-facing surface (sign-in, OAuth callbacks), not an internal machine API.
 import { auth } from "@/lib/auth";
 export const { GET, POST } = auth.handler;
 ```
@@ -153,6 +157,7 @@ preserved here too):
 ```tsx
 "use client";
 import {
+	authBasePath,
 	createAuthClient,
 	jwtClient,
 	passkeyClient,
@@ -160,6 +165,7 @@ import {
 
 export const authClient = createAuthClient({
 	baseURL: process.env.NEXT_PUBLIC_SITE_URL ?? "",
+	basePath: authBasePath, // matches the server: /auth
 	plugins: [jwtClient(), passkeyClient()],
 });
 // authClient.signIn.email(...), signIn.social(...), useSession(), passkey.*
@@ -169,7 +175,7 @@ export const authClient = createAuthClient({
 
 `auth.uid()` reads the `sub` claim of the JWT PostgREST receives. The `jwt`
 plugin (configured here) mints an asymmetric token with `sub` = the user's UUID
-and `role: "authenticated"`, exposed at `/api/auth/jwks`. Register that JWKS URL
+and `role: "authenticated"`, exposed at `/auth/jwks`. Register that JWKS URL
 as a Supabase **third-party auth** issuer, and every existing policy works
 unchanged. Full rationale and the HS256 fallback:
 [`docs/better-auth-migration.md`](../../docs/better-auth-migration.md).

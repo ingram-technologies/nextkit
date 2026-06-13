@@ -20,3 +20,5 @@
 export { passkeyClient } from "@better-auth/passkey/client";
 export { jwtClient } from "better-auth/client/plugins";
 export { createAuthClient } from "better-auth/react";
+// Re-exported here too so the client can set `basePath` without a server import.
+export { authBasePath } from "./paths";

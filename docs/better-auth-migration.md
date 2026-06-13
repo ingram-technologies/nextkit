@@ -80,7 +80,7 @@ Asymmetric signing, no shared secret, `auth.uid()` works natively.
 
 1. Enable the Better Auth **`jwt` plugin** with an asymmetric algorithm
    (`EdDSA` or `ES256`). It exposes a JWKS endpoint at
-   `https://<site>/api/auth/jwks` and signs session tokens with the private key.
+   `https://<site>/auth/jwks` and signs session tokens with the private key.
 2. Shape the token so Supabase accepts it: `sub` = user id (UUID),
    `role = "authenticated"`, `aud = "authenticated"`.
 3. Register that issuer in Supabase **Authentication → Third-Party Auth** (or
@@ -161,7 +161,7 @@ app data. (Better Auth itself connects directly; see the table-lockdown gotcha.)
   low-traffic window and tell users.
 - **OAuth redirect URLs change.** From
   `https://<proj>.supabase.co/auth/v1/callback` to
-  `https://<site>/api/auth/callback/<provider>`. Update Google/GitHub consoles
+  `https://<site>/auth/callback/<provider>`. Update Google/GitHub consoles
   *before* cutover.
 - **Realtime / Storage RLS** (if any site uses them) rely on the same JWT —
   passing the Better Auth token through covers them too, but verify per site.
@@ -296,7 +296,8 @@ For each site, in order:
    to copy `auth.users`/`auth.identities` → `public.user`/`account`, preserving
    UUIDs and bcrypt hashes. `FROM_DATABASE_URL` and `TO_DATABASE_URL` are the
    same Supabase DB.
-5. **Wire the routes:** `app/api/auth/[...all]/route.ts` → `auth.handler`.
+5. **Wire the routes:** `app/auth/[...all]/route.ts` → `auth.handler` (mount at
+   `/auth` via `basePath: authBasePath`, not `/api/auth`).
 6. **Configure the RLS bridge** (Bridge A: register the JWKS issuer in Supabase;
    confirm `auth.uid()` returns the right UUID with a probe query).
 7. **Swap the data client** to `createServerSupabase` everywhere supabase-js is
