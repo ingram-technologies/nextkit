@@ -1,0 +1,20 @@
+// Server-safe entry — no React. Client hooks live at "@ingram-tech/nk-i18n/client".
+export {
+	createT,
+	defineI18nScope,
+	defineMessages,
+	type I18nScope,
+	type Messages,
+	type MessageSource,
+	type TranslationKey,
+	type Translator,
+} from "./core";
+export {
+	defineI18nConfig,
+	deriveLocaleConstants,
+	type I18nConfig,
+	localeMap,
+	type LocaleDefinition,
+	type MissingKeysPolicy,
+} from "./config";
+export { negotiateAcceptLanguage } from "./negotiate";

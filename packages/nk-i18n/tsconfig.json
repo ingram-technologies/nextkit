@@ -1,0 +1,14 @@
+{
+	"extends": "@ingram-tech/typescript-config/base.json",
+	"compilerOptions": {
+		"outDir": "dist",
+		"rootDir": "src",
+		"jsx": "react-jsx",
+		// The client export (client.tsx) renders a provider and reads DOM-free
+		// React context; dom libs keep @types/react happy.
+		"lib": ["esnext", "dom", "dom.iterable"],
+		"types": ["react"]
+	},
+	"include": ["src"],
+	"exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.tsx"]
+}

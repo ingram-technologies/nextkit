@@ -1,0 +1,51 @@
+{
+	"name": "@ingram-tech/nk-i18n",
+	"version": "0.1.0",
+	"description": "Type-safe, English-as-key i18n for Ingram Next.js sites — ICU translator, scopes, locale config, and Accept-Language negotiation.",
+	"license": "MIT",
+	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ingram-technologies/nextkit.git",
+		"directory": "packages/nk-i18n"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"files": [
+		"dist"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./client": {
+			"types": "./dist/client.d.ts",
+			"import": "./dist/client.js"
+		}
+	},
+	"scripts": {
+		"build": "tsc -p tsconfig.json",
+		"type-check": "tsc -p tsconfig.json --noEmit",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"intl-messageformat": "^11.2.8"
+	},
+	"devDependencies": {
+		"@ingram-tech/typescript-config": "workspace:*",
+		"@types/react": "^19.0.0",
+		"react": "^19.0.0",
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.6"
+	},
+	"peerDependencies": {
+		"react": "^18.0.0 || ^19.0.0"
+	},
+	"peerDependenciesMeta": {
+		"react": {
+			"optional": true
+		}
+	}
+}
