@@ -1,0 +1,27 @@
+{
+	"useTabs": true,
+	"tabWidth": 4,
+	"printWidth": 88,
+	"singleQuote": false,
+	"jsxSingleQuote": false,
+	"quoteProps": "as-needed",
+	"trailingComma": "all",
+	"semi": true,
+	"arrowParens": "always",
+	"bracketSameLine": false,
+	"bracketSpacing": true,
+	"sortPackageJson": false,
+	"sortImports": false,
+	"sortTailwindcss": false,
+	"ignorePatterns": [
+		"**/*.md",
+		"**/*.mdx",
+		"**/*.yaml",
+		"**/*.yml",
+		"**/*.toml",
+		"**/*.html",
+		"dist",
+		".next",
+		"build"
+	]
+}

@@ -21,10 +21,10 @@ Read **[docs/philosophy.md](./docs/philosophy.md)** for the full reasoning.
 
 | Package | What |
 | --- | --- |
-| [`@ingram-tech/biome-config`](./packages/biome-config) | Shared Biome lint + format config |
+| [`@ingram-tech/oxlint-config`](./packages/oxlint-config) | Shared oxlint + oxfmt lint/format config |
 | [`@ingram-tech/typescript-config`](./packages/typescript-config) | Strict TS configs (base + Next.js) |
 | [`@ingram-tech/test-config`](./packages/test-config) | Vitest preset + setup |
-| [`@ingram-tech/git-hooks`](./packages/git-hooks) | Biome format-on-commit hook |
+| [`@ingram-tech/git-hooks`](./packages/git-hooks) | oxfmt format-on-commit hook |
 | [`@ingram-tech/email`](./packages/email) | Zero-dep Cloudflare email client |
 | [`@ingram-tech/bot-protection`](./packages/bot-protection) | Invisible form bot protection (honeypot + timing + BotID) |
 | [`@ingram-tech/newsletter`](./packages/newsletter) | Supabase-backed newsletter subscriptions + sending (RFC 8058) |
@@ -34,8 +34,8 @@ More to come (blog, supabase). See [docs/](./docs/README.md).
 
 ## Stack & stance
 
-Next.js + Bun + Vercel, Biome + Vitest + Playwright, Cloudflare (email) and
-Supabase (when a DB is needed). EU-first, self-hostable, no per-seat US SaaS.
+Next.js + Bun + Vercel, oxlint + oxfmt + Vitest + Playwright, Cloudflare (email)
+and Supabase (when a DB is needed). EU-first, self-hostable, no per-seat US SaaS.
 
 ## Develop
 

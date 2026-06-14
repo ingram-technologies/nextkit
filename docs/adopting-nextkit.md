@@ -6,22 +6,36 @@ nextkit. Adopt incrementally — each step is independent and low-risk.
 ## 1. Shared tooling configs (do this first — highest ROI, lowest risk)
 
 ```bash
-bun add -d @ingram-tech/biome-config @ingram-tech/typescript-config \
-	@ingram-tech/test-config @ingram-tech/git-hooks @biomejs/biome typescript
+bun add -d @ingram-tech/oxlint-config @ingram-tech/typescript-config \
+	@ingram-tech/test-config @ingram-tech/git-hooks oxlint oxfmt typescript
 ```
 
-**Biome** — replace your `biome.json` with:
+> Already on `@ingram-tech/biome-config`? Run the codemod instead — see
+> [`oxlint-migration.md`](./oxlint-migration.md). The steps below are for a
+> fresh adoption.
+
+**Lint (oxlint)** — add `.oxlintrc.json`. Note oxlint's `extends` resolves
+**relative paths**, not package specifiers:
 
 ```json
 {
-	"$schema": "https://biomejs.dev/schemas/2.4.15/schema.json",
-	"extends": ["@ingram-tech/biome-config/biome.json"],
-	"files": { "includes": ["src/**", "*.{ts,js,json}"], "ignoreUnknown": true }
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	"extends": ["./node_modules/@ingram-tech/oxlint-config/oxlintrc.json"],
+	"ignorePatterns": ["dist", ".next"]
 }
 ```
 
-Sites still on ESLint: migrate to Biome now (`bunx @biomejs/biome migrate eslint`),
-then delete the ESLint config and deps. Roll out new rules as `warn` first.
+**Format (oxfmt)** — oxfmt has no `extends`, so copy the shared config to a
+local `.oxfmtrc.json` (the codemod does this for you):
+
+```bash
+cp node_modules/@ingram-tech/oxlint-config/oxfmtrc.json .oxfmtrc.json
+```
+
+Sites still on ESLint: just delete the ESLint config and deps — oxlint covers
+the common rule set out of the box. On Prettier or Biome? Seed your
+`.oxfmtrc.json` with `oxfmt --migrate=prettier` / `oxfmt --migrate=biome`, then
+reconcile against the shared config.
 
 **TypeScript** — point `tsconfig.json` at the shared preset:
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { uuidGenerateId } from "./options";
 
 describe("uuidGenerateId", () => {
@@ -14,12 +14,22 @@ describe("uuidGenerateId", () => {
 		expect(["8", "9", "a", "b"]).toContain(id[19]); // variant (10xx)
 	});
 
-	it("is time-ordered: later ids sort after earlier ones", () => {
-		const a = uuidGenerateId();
-		const b = uuidGenerateId();
-		// The 48-bit ms-timestamp prefix makes string order match creation order
-		// (equal within the same ms; never earlier).
-		expect(b >= a).toBe(true);
+	it("is time-ordered: ids from a later millisecond sort after earlier ones", () => {
+		// The point of UUIDv7 is the ms-timestamp prefix that makes ids sortable
+		// by creation time (DB index locality, cursor pagination). There's no
+		// monotonic counter, so order *within* a single ms is undefined — drive
+		// the clock to compare across milliseconds, which is the real guarantee
+		// and makes the assertion deterministic.
+		vi.useFakeTimers();
+		try {
+			vi.setSystemTime(1_700_000_000_000);
+			const a = uuidGenerateId();
+			vi.setSystemTime(1_700_000_000_001);
+			const b = uuidGenerateId();
+			expect(b > a).toBe(true);
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	it("is unique across many calls", () => {

@@ -14,9 +14,9 @@
 	],
 	"scripts": {
 		"build": "bun run --filter '*' build",
-		"lint": "biome lint .",
-		"format": "biome format --write .",
-		"check": "biome check .",
+		"lint": "oxlint",
+		"format": "oxfmt --write .",
+		"check": "oxlint && oxfmt --check .",
 		"type-check": "bun run --filter '*' type-check",
 		"test": "bun run --filter '*' test",
 		"ci": "bun run check && bun run build && bun run type-check && bun run test",
@@ -26,8 +26,9 @@
 		"prepare": "git config core.hooksPath .githooks || true"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.4.15",
 		"@changesets/cli": "^2.27.0",
+		"oxfmt": "^0.54.0",
+		"oxlint": "^1.69.0",
 		"typescript": "^6.0.3"
 	},
 	"packageManager": "bun@1.2.0",

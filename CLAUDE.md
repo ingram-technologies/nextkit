@@ -25,19 +25,19 @@ fully buildable with plain `next build` / `next dev`. See the `nk` carve-out in
 bun install
 bun run ci          # check + type-check + test (run before pushing)
 bun run build       # build publishable packages (tsc)
-bun run check       # biome check
+bun run check       # oxlint + oxfmt --check
 bun run changeset   # required for any change to a published package
 ```
 
 ## Conventions (the short version — full rules in docs/)
 
 - **Code style:** [`docs/code-style.md`](./docs/code-style.md). Tabs/4/88 via
-  Biome. No `as` casts on external input (use Zod), no non-null `!`, no
-  `biome-ignore` without justification.
+  oxfmt. No `as` casts on external input (use Zod), no non-null `!`, no
+  `oxlint-disable` without justification.
 - **Packages are vertical slices:** each owns its code, its `keys.ts` env
   contract, its migration (if stateful), and its docs. See
   [`docs/creating-a-package.md`](./docs/creating-a-package.md).
-- **Enforce > document:** prefer a Biome rule or GritQL plugin over a prose rule.
+- **Enforce > document:** prefer an oxlint rule or local oxlint plugin over a prose rule.
 - **peerDependencies for `next`/`react`**, never `dependencies`.
 - **Changeset every published change.** Keep changes backward-compatible; ship a
   codemod with any breaking major.

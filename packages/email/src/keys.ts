@@ -50,6 +50,6 @@ export const keys = (): EmailEnv => {
 export const isConfigured = (): boolean =>
 	Boolean(
 		process.env.CLOUDFLARE_ACCOUNT_ID &&
-			process.env.CLOUDFLARE_EMAIL_API_TOKEN &&
-			process.env.EMAIL_FROM_DOMAIN,
+		process.env.CLOUDFLARE_EMAIL_API_TOKEN &&
+		process.env.EMAIL_FROM_DOMAIN,
 	);

@@ -16,13 +16,14 @@ packages, `bun run --filter '*'` is enough. Revisit only if builds get slow.
 ```
 nextkit/
   package.json            # workspace root: scripts + dev tooling
-  biome.json              # dogfoods @ingram-tech/biome-config
+  .oxlintrc.json          # dogfoods @ingram-tech/oxlint-config (lint)
+  .oxfmtrc.json           # house format config (oxfmt has no "extends")
   tsconfig.json           # dogfoods @ingram-tech/typescript-config
   .githooks/pre-commit    # dogfoods @ingram-tech/git-hooks
   .changeset/             # release config
   docs/                   # this directory — AI-facing docs
   packages/
-    biome-config/         # @ingram-tech/biome-config       (config)
+    oxlint-config/        # @ingram-tech/oxlint-config       (config)
     typescript-config/    # @ingram-tech/typescript-config  (config)
     test-config/          # @ingram-tech/test-config        (config)
     git-hooks/            # @ingram-tech/git-hooks           (tooling)
@@ -31,8 +32,8 @@ nextkit/
 
 ## Package categories
 
-- **Config packages** (`biome-config`, `typescript-config`, `test-config`):
-  ship JSON/preset files that sites *extend*. No build step.
+- **Config packages** (`oxlint-config`, `typescript-config`, `test-config`):
+  ship JSON/preset files that sites *extend* (or, for oxfmt, copy). No build step.
 - **Tooling packages** (`git-hooks`): ship an executable bin. No build step.
 - **Runtime packages** (`email`, and future `newsletter`, `bot-protection`,
   `blog`, `supabase`): ship compiled JS + `.d.ts` from `src/`, built with `tsc`.
@@ -44,7 +45,8 @@ extension:
 
 | Concern | Mechanism in the consuming site |
 | --- | --- |
-| Lint/format | `biome.json` → `"extends": ["@ingram-tech/biome-config/biome.json"]` |
+| Lint | `.oxlintrc.json` → `"extends": ["./node_modules/@ingram-tech/oxlint-config/oxlintrc.json"]` (oxlint resolves relative paths, not package specifiers) |
+| Format | `.oxfmtrc.json` — a copy of `@ingram-tech/oxlint-config/oxfmtrc.json` (oxfmt has no `extends`), or `oxfmt -c` that path |
 | TypeScript | `tsconfig.json` → `"extends": "@ingram-tech/typescript-config/nextjs.json"` |
 | Tests | `vitest.config.ts` → `mergeConfig(nextkitTestConfig, …)` |
 | Git hooks | `.githooks/pre-commit` → `bunx nextkit-format-staged` |
@@ -56,9 +58,10 @@ packages. That is the whole point.
 ## Dogfooding
 
 nextkit uses its own config packages on itself (note the `extends` pointing at
-local workspace paths in the root `biome.json` / `tsconfig.json`). If a config
-change breaks nextkit's own CI, it would break consumers too — so we feel it
-first.
+local workspace paths in the root `.oxlintrc.json` / `tsconfig.json`; the root
+`.oxfmtrc.json` mirrors the shared oxfmt config, since oxfmt has no `extends`).
+If a config change breaks nextkit's own CI, it would break consumers too — so we
+feel it first.
 
 ## Versioning & release
 

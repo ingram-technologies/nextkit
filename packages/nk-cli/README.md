@@ -24,15 +24,15 @@ Then point your package.json scripts at it:
 }
 ```
 
-`nk` shells out to the site's own `bunx`-resolved tools (Biome, Next, tsc,
-Supabase), so versions stay under each site's control — nk just orchestrates.
+`nk` shells out to the site's own `bunx`-resolved tools (oxlint, oxfmt, Next,
+tsc, Supabase), so versions stay under each site's control — nk just orchestrates.
 
 > **`nk` is optional.** It only orchestrates the standard commands; it never
 > wraps or intercepts the Next.js build. Every site must stay fully buildable
 > and runnable with plain `next build` / `next dev` if `nk` is removed — see the
 > [`nk` carve-out](https://github.com/ingram-technologies/nextkit/blob/main/docs/philosophy.md)
 > in the philosophy doc. The orchestration tests in this package check that the
-> formatter resolves to standard Biome invocations and nothing more.
+> formatter resolves to standard oxlint/oxfmt (or biome) invocations and nothing more.
 
 ## Commands
 
@@ -42,17 +42,17 @@ Supabase), so versions stay under each site's control — nk just orchestrates.
   `SUPABASE_SECRET_KEY`), then launches `next dev --turbopack`. No Supabase dir →
   it just starts Next. Replaces hand-written `scripts/dev.sh`.
 - **`nk format` / `nk format --check`** — formats code (JS/TS/JSON/CSS) with
-  Biome and SQL with Prettier. `--check` verifies without writing (CI).
-- **`nk lint`** — `biome lint .`
-- **`nk check`** — `biome check .` (lint + format) plus SQL format verification.
+  oxfmt and SQL with Prettier. `--check` verifies without writing (CI).
+- **`nk lint`** — `oxlint`
+- **`nk check`** — `oxlint` + `oxfmt --check` plus SQL format verification.
   The CI gate.
 - **`nk type-check`** — `next typegen && tsc --noEmit`.
 - **`nk build [...]`** — `next build`, extra args passed through.
 
 ## Why Prettier for SQL?
 
-Biome is the formatter for code and stays that way — Prettier is never used for
-JS/TS. But Biome can't format SQL, so `nk` bundles `prettier` +
+oxfmt is the formatter for code and stays that way — Prettier is never used for
+JS/TS. But oxfmt can't format SQL, so `nk` bundles `prettier` +
 `prettier-plugin-sql` **as its own dependencies** and uses them only for `.sql`
 files. Prettier therefore never lands in any app's `package.json`. A site's own
 `.prettierrc` / package.json `"prettier"` settings are honored if present;
@@ -60,9 +60,9 @@ otherwise nk defaults to tabs + the Postgres dialect.
 
 ## Swapping the formatter
 
-Biome is the default. The code formatter is behind a small indirection, so when
-oxc's formatter is GA you can switch a single site with:
+oxc (oxlint + oxfmt) is the default. The toolchain is behind a small
+indirection, so a site not yet migrated can fall back to Biome with:
 
 ```jsonc
-{ "nk": { "formatter": "oxc" } }
+{ "nk": { "formatter": "biome" } }
 ```

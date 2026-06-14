@@ -2,14 +2,14 @@
 
 The house rules for every Ingram Next.js codebase. Most formatting is enforced
 mechanically by
-[`@ingram-tech/biome-config`](../packages/biome-config); the rules below are the
+[`@ingram-tech/oxlint-config`](../packages/oxlint-config); the rules below are the
 judgment-level conventions that humans and agents must follow.
 
 > **Enforce what you can, document what you can't.** Where a rule below can
-> become a Biome rule or a GritQL plugin, make it one. This list is the
+> become an oxlint rule or a local oxlint plugin, make it one. This list is the
 > fallback, not the goal.
 
-## Formatting (mechanical — Biome)
+## Formatting (mechanical — oxfmt)
 
 - **Tabs**, indent width 4, line width 88.
 - Run `bun run format` (or rely on the pre-commit hook). Never hand-format.
@@ -21,8 +21,9 @@ judgment-level conventions that humans and agents must follow.
 - **No `as unknown as T`** double casts. If types genuinely don't overlap,
   document why in a comment.
 - **No non-null assertions (`!`)** in app code. Use guard clauses, optional
-  chaining, or nullish coalescing. (Biome enforces this as an `error`, alongside
-  `noExplicitAny` — both fail `bun run check`.)
+  chaining, or nullish coalescing. (oxlint enforces this via
+  `typescript/no-non-null-assertion` as an `error`, alongside
+  `typescript/no-explicit-any` — both fail `bun run check`.)
 - `noUncheckedIndexedAccess` is on — handle the `undefined` from index access.
 
 ## Data access (Supabase)
@@ -47,14 +48,14 @@ judgment-level conventions that humans and agents must follow.
   ```tsx
   export const UserCard: React.FC<{ user: User }> = ({ user }) => <div>…</div>;
   ```
-- For `useExhaustiveDependencies`, wrap functions in `useCallback` rather than
+- For `react/exhaustive-deps`, wrap functions in `useCallback` rather than
   suppressing the rule.
 
 ## Suppressions
 
-- **No `biome-ignore` without a justification comment** explaining why. This is
-  a hard rule — an unjustified suppression should fail review (and, ideally, a
-  GritQL plugin).
+- **No `oxlint-disable` without a justification comment** explaining why (use
+  the `oxlint-disable-next-line <rule> -- reason` form). This is a hard rule —
+  an unjustified suppression should fail review.
 
 ## Don't duplicate utilities
 

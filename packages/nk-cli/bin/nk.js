@@ -10,15 +10,15 @@ Usage: nk <command> [options]
 Commands:
   dev                 Start the Next dev server. If supabase/config.toml exists,
                       boots local Supabase first and wires its env in.
-  format [--check]    Format code with the configured formatter (Biome) and SQL
+  format [--check]    Format code with the configured formatter (oxfmt) and SQL
                       with Prettier. --check verifies without writing (for CI).
   lint                Lint with the configured formatter.
   check               Lint + format verification (the CI gate).
   type-check          next typegen && tsc --noEmit.
   build [...]         next build (extra args passed through).
 
-The formatter is Biome by default. Switch it per-site with
-{ "nk": { "formatter": "oxc" } } in package.json.`;
+The formatter is oxc (oxlint + oxfmt) by default. Switch it per-site with
+{ "nk": { "formatter": "biome" } } in package.json.`;
 
 const [cmd, ...rest] = process.argv.slice(2);
 

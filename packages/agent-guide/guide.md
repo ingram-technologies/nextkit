@@ -2,7 +2,7 @@
 
 This is a **nextkit** site — Ingram Technologies' shared Next.js foundation.
 Core idea: don't reinvent shared concerns — reach for the `@ingram-tech/*`
-package. Stay a thin, standard Next.js app (bun · Biome · strict TS).
+package. Stay a thin, standard Next.js app (bun · oxlint + oxfmt · strict TS).
 
 ## Hard rules
 
@@ -10,10 +10,10 @@ package. Stay a thin, standard Next.js app (bun · Biome · strict TS).
   (server: `verifyHuman` → silently drop bots; client: honeypot + signed token).
   Never ship a form without it.
 - **Send email only via `@ingram-tech/email`** — never add another mail client.
-- Format/lint with **Biome** via `nk` (`@ingram-tech/nk-cli`); don't reintroduce
-  ESLint, nor Prettier for code (`nk` uses Prettier only for SQL, which Biome
-  can't format). `nk` is optional convenience that only orchestrates the standard
-  tools — the site must stay buildable with plain `next build` / `next dev`.
+- Format/lint with **oxlint + oxfmt** via `nk` (`@ingram-tech/nk-cli`); don't
+  reintroduce ESLint, nor Prettier for code (`nk` uses Prettier only for SQL,
+  which oxfmt can't format). `nk` is optional convenience that only orchestrates
+  the standard tools — the site must stay buildable with plain `next build` / `next dev`.
 
 ## Route & URL conventions
 
@@ -46,7 +46,7 @@ the UI/page tree, and never expose internal plumbing under `/api/`.
 - `@ingram-tech/bot-protection` — invisible form protection (honeypot + timing + Vercel BotID)
 - `@ingram-tech/newsletter` — Supabase newsletter: subscribe / send, 1-click unsubscribe
 - `@ingram-tech/nk-cli` — the `nk` command: `nk dev` (Next + local Supabase), plus `nk format` / `lint` / `check` / `type-check` / `build`
-- `@ingram-tech/biome-config` · `typescript-config` · `test-config` — shared config
-- `@ingram-tech/git-hooks` — Biome format-on-commit
+- `@ingram-tech/oxlint-config` · `typescript-config` · `test-config` — shared config
+- `@ingram-tech/git-hooks` — oxfmt format-on-commit
 
 For detail on any package, read its README in `node_modules/@ingram-tech/<pkg>/`.

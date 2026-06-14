@@ -25,7 +25,4 @@ export {
 } from "./organization";
 export { authBasePath } from "./paths";
 export { createAuthPool } from "./pool";
-export {
-	createServerSupabase,
-	type ServerSupabaseConfig,
-} from "./supabase";
+export { createServerSupabase, type ServerSupabaseConfig } from "./supabase";

@@ -8,16 +8,17 @@ import { run } from "./run.js";
 const require = createRequire(import.meta.url);
 
 // House SQL defaults, used only when the site has no Prettier config of its own
-// (matches the studios' biome tab style + Supabase's Postgres dialect).
+// (matches the house tab style + Supabase's Postgres dialect).
 const SQL_DEFAULTS = { useTabs: true, language: "postgresql" };
 
 /**
  * `nk format` / `nk format --check`.
  *
- * Code (JS/TS/JSON/CSS) goes through the configured formatter (Biome); SQL goes
- * through Prettier, which Biome can't format. Prettier + prettier-plugin-sql are
- * bundled with nk-cli, so they never appear in any app's dependencies — the "no
- * Prettier for code" rule still holds, it's just the one file type Biome lacks.
+ * Code (JS/TS/JSON/CSS) goes through the configured formatter (oxfmt); SQL goes
+ * through Prettier, which the code formatter (oxfmt) can't format. Prettier +
+ * prettier-plugin-sql are bundled with nk-cli, so they never appear in any app's
+ * dependencies — the "no Prettier for code" rule still holds, it's just the one
+ * file type oxfmt lacks.
  */
 export async function format({ check }) {
 	const formatter = resolveFormatter();

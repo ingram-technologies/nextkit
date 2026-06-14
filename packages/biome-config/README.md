@@ -1,8 +1,17 @@
 # @ingram-tech/biome-config
 
+> [!WARNING]
+> **Deprecated.** The fleet has moved from Biome to the oxc toolchain
+> (oxlint + oxfmt). Use
+> [`@ingram-tech/oxlint-config`](../oxlint-config) instead, and follow the
+> one-step codemod in
+> [`docs/oxlint-migration.md`](https://github.com/ingram-technologies/nextkit/blob/main/docs/oxlint-migration.md).
+> This package is frozen at its final version and will receive no further
+> updates; it remains published only so existing pins keep resolving.
+
 Shared [Biome](https://biomejs.dev) configuration for Ingram Technologies
-Next.js projects. This is the single source of truth for code style and lint
-rules across the fleet.
+Next.js projects. This was the single source of truth for code style and lint
+rules across the fleet, until the move to oxc.
 
 ## Install
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * nextkit pre-commit: format staged files with Biome, then re-stage them.
+ * nextkit pre-commit: format staged files with oxfmt, then re-stage them.
  *
  * Centralizes the logic that lived inline in each repo's `.githooks/pre-commit`.
  * Sites get it by pointing their committed `.githooks/pre-commit` at this bin —
@@ -8,7 +8,8 @@
  *
  * Behavior:
  *   - Only staged files are touched (never the whole tree).
- *   - Only extensions Biome understands are passed to it.
+ *   - Only extensions oxfmt understands are passed to it.
+ *   - oxfmt auto-discovers the repo's `.oxfmtrc.json` for house style.
  *   - Files are re-staged after formatting so the commit includes the result.
  *   - Formatting only — no lint gate on commit (lint runs in CI).
  */
@@ -16,15 +17,9 @@ import { execFileSync } from "node:child_process";
 
 const FORMATTABLE = /\.(jsx?|tsx?|mts|cts|json|jsonc|css|graphql|gql)$/;
 
-const git = (args) =>
-	execFileSync("git", args, { encoding: "utf8" }).trim();
+const git = (args) => execFileSync("git", args, { encoding: "utf8" }).trim();
 
-const stagedFiles = git([
-	"diff",
-	"--cached",
-	"--name-only",
-	"--diff-filter=ACMRTUXB",
-])
+const stagedFiles = git(["diff", "--cached", "--name-only", "--diff-filter=ACMRTUXB"])
 	.split("\n")
 	.filter(Boolean);
 
@@ -36,19 +31,11 @@ if (toFormat.length === 0) process.exit(0);
 try {
 	execFileSync(
 		"bunx",
-		[
-			"biome",
-			"format",
-			"--write",
-			"--files-ignore-unknown=true",
-			"--no-errors-on-unmatched",
-			"--",
-			...toFormat,
-		],
+		["oxfmt", "--write", "--no-error-on-unmatched-pattern", "--", ...toFormat],
 		{ stdio: "inherit" },
 	);
 } catch (err) {
-	console.error("[nextkit] biome format failed:", err.message);
+	console.error("[nextkit] oxfmt failed:", err.message);
 	process.exit(1);
 }
 

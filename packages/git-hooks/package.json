@@ -1,7 +1,7 @@
 {
 	"name": "@ingram-tech/git-hooks",
 	"version": "0.1.0",
-	"description": "Shared git hooks (Biome format-on-commit) for Ingram Technologies projects.",
+	"description": "Shared git hooks (oxfmt format-on-commit) for Ingram Technologies projects.",
 	"license": "MIT",
 	"type": "module",
 	"repository": {

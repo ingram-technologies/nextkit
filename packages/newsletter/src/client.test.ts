@@ -136,7 +136,7 @@ class FakeQuery {
 		}
 		return { data: this.mode ? (matched[0] ?? null) : matched, error: null };
 	}
-	// biome-ignore lint/suspicious/noThenProperty: deliberate thenable — a test double of Supabase's PromiseLike query builder, which is awaited at several points in the client.
+	// oxlint-disable-next-line unicorn/no-thenable -- deliberate thenable: a test double of Supabase's PromiseLike query builder, awaited at several points in the client.
 	then(
 		resolve: (value: { data: unknown; error: null }) => unknown,
 		reject?: (reason: unknown) => unknown,

@@ -35,6 +35,7 @@ export const HoneypotField = ({
 	<div aria-hidden="true" style={hidden}>
 		<label>
 			Leave this field empty
+			{/* oxlint-disable-next-line jsx-a11y/control-has-associated-label -- aria-hidden honeypot: the wrapping <label> names it, but the trap is intentionally hidden from real users and assistive tech. */}
 			<input
 				type="text"
 				name={field}

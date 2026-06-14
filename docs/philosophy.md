@@ -20,7 +20,7 @@ We are **not** building a meta-framework. There is no custom router and no
 wrapper around the Next.js build. You can always run `next dev` and `next build`
 directly, exactly as in any Next.js app. nextkit only provides:
 
-- **Configuration** you extend (`biome.json`, `tsconfig.json`, Vitest preset).
+- **Configuration** you extend (`.oxlintrc.json`, `.oxfmtrc.json`, `tsconfig.json`, Vitest preset).
 - **Libraries** you import (`@ingram-tech/email`, …).
 - **Conventions** documented here for humans and agents to follow.
 - **An optional CLI** (`@ingram-tech/nk-cli`, the `nk` command) that *orchestrates*
@@ -36,13 +36,13 @@ debuggable by anyone who knows Next.js.
 `nk` is the one piece of nextkit that looks like a CLI, so it gets an explicit
 boundary to keep it honest:
 
-- **It only shells out to the standard tools** (`next`, `biome`, `tsc`,
-  `supabase`) resolved from the site's own `node_modules`. It never replaces,
+- **It only shells out to the standard tools** (`next`, `oxlint`, `oxfmt`,
+  `tsc`, `supabase`) resolved from the site's own `node_modules`. It never replaces,
   patches, or hides them — `nk build` is `next build`, `nk dev` boots local
   Supabase (if present) and then runs `next dev`.
 - **It is never required.** Every nextkit site must remain fully buildable and
   runnable with plain `next build` / `next dev` if `nk` is removed. `nk` is
-  convenience (one place for the local-Supabase wiring and SQL formatting Biome
+  convenience (one place for the local-Supabase wiring and SQL formatting oxfmt
   can't do), not a dependency the build hides behind.
 - **It carries no app logic.** If a command in `nk` ever did more than
   orchestrate standard tools, it would violate the prime directive and belong
@@ -115,7 +115,7 @@ Defaults are chosen to keep us in control and in the EU where practical:
 - **Email out & newsletter out:** Cloudflare Email Sending (zero-dep client).
 - **Database (when needed):** Supabase.
 - **Hosting/compute:** Vercel.
-- **Lint/format:** Biome. **Tests:** Vitest + Playwright.
+- **Lint/format:** oxc (oxlint + oxfmt). **Tests:** Vitest + Playwright.
 
 We deliberately avoid the next-forge default stack of US paid SaaS (Clerk,
 Prisma+Neon, Resend, etc.). We borrow next-forge's *package boundaries* as a
@@ -140,7 +140,7 @@ shared asset is not the library — it is the **accumulated judgment**. See
 
 Push every rule as far down this ladder as it will go:
 
-1. **Biome rule** (machine-enforced, can't be ignored) — best.
+1. **oxlint rule** (machine-enforced, can't be ignored) — best.
 2. **Git hook / CI gate** (enforced at commit/PR time).
 3. **Documentation** (relies on human/agent judgment) — last resort.
 

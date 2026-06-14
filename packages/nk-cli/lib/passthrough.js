@@ -11,10 +11,16 @@ export function lint() {
 /** `nk check` — the CI gate: lint + format verify (code) plus SQL format verify. */
 export async function check() {
 	const formatter = resolveFormatter();
-	let failed = run(formatter.check[0], formatter.check[1]) !== 0;
+	// Run every gate before deciding (no short-circuit), so one failure doesn't
+	// hide another. oxc splits lint (oxlint) and format (oxfmt); biome could do
+	// both in one pass, but running them separately keeps one code path.
+	const lintFailed = run(formatter.lint[0], formatter.lint[1]) !== 0;
+	const fmtFailed = formatter.checkFormat
+		? run(formatter.checkFormat[0], formatter.checkFormat[1]) !== 0
+		: false;
 	await formatSql({ check: true });
-	if (process.exitCode) failed = true;
-	process.exit(failed ? 1 : 0);
+	const sqlFailed = Boolean(process.exitCode);
+	process.exit(lintFailed || fmtFailed || sqlFailed ? 1 : 0);
 }
 
 /** `nk type-check` — the house type-check: regenerate Next's types, then tsc. */

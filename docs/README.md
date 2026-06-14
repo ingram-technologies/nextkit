@@ -12,6 +12,8 @@ with the philosophy, then dip into specifics as needed.
   itself, to replicate in every repo.
 - **[adopting-nextkit.md](./adopting-nextkit.md)** — migrating a site onto
   nextkit.
+- **[oxlint-migration.md](./oxlint-migration.md)** — moving a site from Biome to
+  the oxc toolchain (oxlint + oxfmt), with a codemod.
 - **[better-auth-migration.md](./better-auth-migration.md)** — plan for moving
   the fleet from Supabase Auth to Better Auth while keeping RLS.
 - **[creating-a-package.md](./creating-a-package.md)** — checklist for new
