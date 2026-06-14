@@ -21,7 +21,14 @@
 	},
 	"overrides": [
 		{
-			"files": ["**/scripts/**"],
+			"files": [
+				"**/scripts/**",
+				"**/*.test.ts",
+				"**/*.test.tsx",
+				"**/__tests__/**",
+				"**/test/**",
+				"**/tests/**"
+			],
 			"rules": { "no-restricted-imports": "off" }
 		}
 	]

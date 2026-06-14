@@ -1,6 +1,6 @@
 {
 	"name": "@ingram-tech/oxlint-config",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"description": "Shared oxlint + oxfmt configuration for Ingram Technologies Next.js projects.",
 	"license": "MIT",
 	"repository": {

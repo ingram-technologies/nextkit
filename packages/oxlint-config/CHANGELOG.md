@@ -1,5 +1,13 @@
 # @ingram-tech/oxlint-config
 
+## 0.2.1
+
+### Patch Changes
+
+- tier-b: also exempt test/infra files (`**/*.test.ts(x)`, `__tests__/`, `test(s)/`)
+  from the `pg` Pool/Client ban — tests legitimately build raw pg clients (e.g.
+  connecting as a specific role to verify RLS isolation).
+
 ## 0.2.0
 
 ### Minor Changes
