@@ -1,5 +1,4 @@
 ---
-"@ingram-tech/nk-db": patch
 "@ingram-tech/nk-auth": patch
 ---
 

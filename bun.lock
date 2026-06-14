@@ -51,7 +51,7 @@
     },
     "packages/git-hooks": {
       "name": "@ingram-tech/git-hooks",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "bin": {
         "nextkit-format-staged": "bin/format-staged.mjs",
       },
@@ -113,7 +113,7 @@
     },
     "packages/nk-cli": {
       "name": "@ingram-tech/nk-cli",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "bin": {
         "nk": "bin/nk.js",
       },
@@ -127,7 +127,7 @@
     },
     "packages/nk-db": {
       "name": "@ingram-tech/nk-db",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "bin": {
         "nk-pglite-dev": "./dist/pglite/dev.js",
       },
@@ -1012,6 +1012,8 @@
     "@changesets/apply-release-plan/prettier": ["prettier@2.8.8", "", { "bin": { "prettier": "bin-prettier.js" } }, "sha512-tdN8qQGvNjw4CHbY+XXk0JgCXn9QiF21a55rBe5LJAU+kDyC4WQn4+awm2Xfk2lQMk5fKup9XgzTZtGkjBdP9Q=="],
 
     "@changesets/write/prettier": ["prettier@2.8.8", "", { "bin": { "prettier": "bin-prettier.js" } }, "sha512-tdN8qQGvNjw4CHbY+XXk0JgCXn9QiF21a55rBe5LJAU+kDyC4WQn4+awm2Xfk2lQMk5fKup9XgzTZtGkjBdP9Q=="],
+
+    "@ingram-tech/nk-auth/@ingram-tech/nk-db": ["@ingram-tech/nk-db@0.1.0", "", { "dependencies": { "zod": "^4.0.0" }, "peerDependencies": { "@electric-sql/pglite": ">=0.5.0", "@electric-sql/pglite-socket": ">=0.0.10", "drizzle-orm": ">=0.44.0", "pg": "^8.13.0" }, "optionalPeers": ["@electric-sql/pglite", "@electric-sql/pglite-socket"], "bin": { "nk-pglite-dev": "dist/pglite/dev.js" } }, "sha512-e+QQiH1DIToUsQNWAc7+fNvnEP64b8uGNkkwKht/IaBdBAjS51RPMch/5Q2glauBKa8TDCRuEGAlL6sa7qQAsw=="],
 
     "@ingram-tech/nk-auth/zod": ["zod@4.4.3", "", {}, "sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ=="],
 
