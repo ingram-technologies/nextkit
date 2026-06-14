@@ -13,7 +13,8 @@ Commands:
   format [--check]    Format code with the configured formatter (oxfmt) and SQL
                       with Prettier. --check verifies without writing (for CI).
   lint                Lint with the configured formatter.
-  check               Lint + format verification (the CI gate).
+  check               Lint + format verification, plus the agent-guide import
+                      gate (the CI gate).
   type-check          next typegen && tsc --noEmit.
   build [...]         next build (extra args passed through).
 
