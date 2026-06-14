@@ -46,7 +46,11 @@ export function deriveLocaleConstants<const TConfig extends AnyI18nConfig>(
 ): {
 	SUPPORTED_LOCALES: Array<keyof TConfig["locales"] & string>;
 	DEFAULT_LOCALE: TConfig["baseLocale"];
-	LOCALE_NAMES: Record<keyof TConfig["locales"] & string, string>;
+	// Preserve each locale's literal `label` type so labels can themselves be
+	// used as translation keys (e.g. `t(LOCALE_NAMES[loc])`).
+	LOCALE_NAMES: {
+		[K in keyof TConfig["locales"] & string]: TConfig["locales"][K]["label"];
+	};
 } {
 	type Locale = keyof TConfig["locales"] & string;
 	const entries = Object.entries(config.locales) as Array<[Locale, LocaleDefinition]>;
@@ -55,7 +59,9 @@ export function deriveLocaleConstants<const TConfig extends AnyI18nConfig>(
 		DEFAULT_LOCALE: config.baseLocale,
 		LOCALE_NAMES: Object.fromEntries(
 			entries.map(([locale, def]) => [locale, def.label]),
-		) as Record<Locale, string>,
+		) as {
+			[K in Locale]: TConfig["locales"][K]["label"];
+		},
 	};
 }
 

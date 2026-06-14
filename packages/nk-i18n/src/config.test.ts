@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import { defineI18nConfig, deriveLocaleConstants, localeMap } from "./config";
 
 const i18nConfig = defineI18nConfig({
@@ -57,5 +57,14 @@ describe("config", () => {
 			nl: "/nl/",
 			fr: "/fr/",
 		});
+	});
+
+	it("preserves literal label types on LOCALE_NAMES", () => {
+		const { LOCALE_NAMES } = deriveLocaleConstants(i18nConfig);
+		// Labels keep their literal type so they can be used as translation keys
+		// (e.g. t(LOCALE_NAMES[loc])).
+		expectTypeOf(LOCALE_NAMES.en).toEqualTypeOf<"English">();
+		expectTypeOf(LOCALE_NAMES.fr).toEqualTypeOf<"Français">();
+		expect(LOCALE_NAMES.nl).toBe("Nederlands");
 	});
 });

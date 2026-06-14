@@ -1,5 +1,11 @@
 # @ingram-tech/nk-i18n
 
+## 0.1.1
+
+`deriveLocaleConstants` now preserves each locale's literal `label` type on
+`LOCALE_NAMES` (instead of widening to `string`), so labels can be used as
+translation keys — e.g. `t(LOCALE_NAMES[loc])`.
+
 ## 0.1.0
 
 Initial release. Type-safe, English-as-key i18n extracted from the Ingram sites:
