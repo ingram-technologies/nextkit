@@ -1,6 +1,6 @@
 import { pg_trgm } from "@electric-sql/pglite/contrib/pg_trgm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createTestDb, type TestDb } from "./index";
+import { createTestDb, type TestDb } from "./index.js";
 
 // An app whose migrations `CREATE EXTENSION pg_trgm` can only boot the PGlite
 // harness if the extension module is registered at create time. This guards the

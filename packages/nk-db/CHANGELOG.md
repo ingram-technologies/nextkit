@@ -1,5 +1,14 @@
 # @ingram-tech/nk-db
 
+## 0.2.1
+
+### Patch Changes
+
+- Fix ESM packaging: relative re-exports in the compiled output now carry `.js`
+  extensions, so the main entry resolves under strict Node ESM (Vitest / `node`),
+  not only bundlers. Surfaced by a consumer importing `@ingram-tech/nk-db` from a
+  Vitest suite.
+
 ## 0.2.0
 
 ### Minor Changes

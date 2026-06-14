@@ -1,5 +1,5 @@
 import { Pool, type PoolConfig } from "pg";
-import { dbEnv } from "./keys";
+import { dbEnv } from "./keys.js";
 
 export interface CreatePoolConfig {
 	/** Override the resolved connection string (defaults to the env contract). */

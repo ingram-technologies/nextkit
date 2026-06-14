@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { dbEnv, getDatabaseUrl, isConfigured } from "./keys";
+import { dbEnv, getDatabaseUrl, isConfigured } from "./keys.js";
 
 const DB_KEYS = [
 	"DATABASE_URL",
