@@ -14,7 +14,8 @@
  *   3. POSTGRES_URL                 — Supabase integration's pooled URL
  *
  * Optional TLS / pool controls:
- *   DATABASE_SSL        — "true" to require TLS (managed hosts)
+ *   DATABASE_SSL        — booleanish flag; only "true" sets DbEnv.ssl, but other
+ *                         libpq values (disable/require/…) are tolerated, not rejected
  *   DATABASE_CA_CERT    — PEM CA; when set, verify the server cert + hostname
  *   DATABASE_POOL_MAX   — pool size cap; keep small on serverless (e.g. 5)
  */
@@ -25,7 +26,10 @@ const schema = z.object({
 	DATABASE_URL: z.string().min(1).optional(),
 	POSTGRES_URL_NON_POOLING: z.string().min(1).optional(),
 	POSTGRES_URL: z.string().min(1).optional(),
-	DATABASE_SSL: z.enum(["true", "false"]).optional(),
+	// Booleanish, but tolerant: only "true" flips DbEnv.ssl, yet libpq-style
+	// values (disable/require/prefer/…) are accepted rather than throwing —
+	// createPool decides TLS from the CA cert + host, never from this flag.
+	DATABASE_SSL: z.string().optional(),
 	DATABASE_CA_CERT: z.string().min(1).optional(),
 	DATABASE_POOL_MAX: z.coerce.number().int().positive().optional(),
 });

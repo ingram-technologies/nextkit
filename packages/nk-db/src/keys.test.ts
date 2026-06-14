@@ -61,4 +61,11 @@ describe("connection-string precedence", () => {
 		expect(env.caCert).toBe("PEM");
 		expect(env.poolMax).toBe(5);
 	});
+
+	it("tolerates a libpq-style DATABASE_SSL instead of throwing", () => {
+		process.env.DATABASE_URL = "postgres://x";
+		process.env.DATABASE_SSL = "disable";
+		const env = dbEnv();
+		expect(env.ssl).toBe(false);
+	});
 });

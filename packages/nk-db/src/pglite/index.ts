@@ -10,7 +10,7 @@
 
 import { existsSync } from "node:fs";
 import { rm } from "node:fs/promises";
-import { PGlite } from "@electric-sql/pglite";
+import { PGlite, type Extensions } from "@electric-sql/pglite";
 import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
 import type { Pool } from "pg";
 
@@ -27,6 +27,13 @@ export interface PgliteServerOptions {
 	migrationsFolder?: string;
 	/** Override how migrations are applied (e.g. raw-SQL apps). */
 	migrate?: (db: PGlite) => Promise<void>;
+	/**
+	 * PGlite contrib/extension modules to register at create time — e.g.
+	 * `{ pg_trgm }` from `@electric-sql/pglite/contrib/pg_trgm` or `{ vector }`
+	 * from `@electric-sql/pglite/vector`. Required when your migrations
+	 * `CREATE EXTENSION` them: PGlite only knows the extensions passed here.
+	 */
+	extensions?: Extensions;
 }
 
 export interface PgliteServer {
@@ -64,7 +71,9 @@ export const createPgliteServer = async (
 		await rm(dataDir, { recursive: true, force: true });
 	}
 	const needsMigrations = !dataDir || !existsSync(dataDir);
-	const db = dataDir ? await PGlite.create({ dataDir }) : await PGlite.create();
+	const db = dataDir
+		? await PGlite.create({ dataDir, extensions: options.extensions })
+		: await PGlite.create({ extensions: options.extensions });
 	if (needsMigrations) {
 		await (options.migrate ?? defaultMigrate(migrationsFolder))(db);
 	}
