@@ -8,8 +8,8 @@ const USAGE = `nk — the nextkit CLI
 Usage: nk <command> [options]
 
 Commands:
-  dev                 Start the Next dev server. If supabase/config.toml exists,
-                      boots local Supabase first and wires its env in.
+  dev                 Start the Next dev server. Boots local PGlite first when
+                      @ingram-tech/nk-db is installed (no Docker); else plain dev.
   format [--check]    Format code with the configured formatter (oxfmt) and SQL
                       with Prettier. --check verifies without writing (for CI).
   lint                Lint with the configured formatter.

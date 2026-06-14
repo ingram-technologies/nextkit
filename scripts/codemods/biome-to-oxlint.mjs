@@ -90,11 +90,15 @@ pkg.devDependencies = Object.fromEntries(
 );
 
 // Rewrite any direct `biome …` scripts (sites on `nk` won't have these).
+// Match only up to the subcommand word (\b) and let the rest of the line (a
+// path arg, or " .") survive — otherwise `biome format --write src/x.ts`
+// rewrites to `oxfmt --write .src/x.ts` (the replacement's trailing "." glues
+// onto the path). Order matters: `format --write` before bare `format`.
 const SCRIPT_REWRITES = [
-	[/\bbiome\s+check\s+\.?/g, "oxlint && oxfmt --check ."],
-	[/\bbiome\s+format\s+--write\s+\.?/g, "oxfmt --write ."],
-	[/\bbiome\s+format\s+\.?/g, "oxfmt --check ."],
-	[/\bbiome\s+lint\s+\.?/g, "oxlint"],
+	[/\bbiome\s+check\b/g, "oxlint && oxfmt --check"],
+	[/\bbiome\s+format\s+--write\b/g, "oxfmt --write"],
+	[/\bbiome\s+format\b/g, "oxfmt --check"],
+	[/\bbiome\s+lint\b/g, "oxlint"],
 ];
 if (pkg.scripts) {
 	for (const [name, body] of Object.entries(pkg.scripts)) {

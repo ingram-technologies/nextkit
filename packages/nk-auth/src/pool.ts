@@ -1,39 +1,26 @@
-import { Pool } from "pg";
-
-const isLocal = (connectionString: string): boolean =>
-	connectionString.includes("127.0.0.1") || connectionString.includes("localhost");
+import { createPool } from "@ingram-tech/nk-db";
+import type { Pool } from "pg";
 
 /**
- * A `pg` Pool for Better Auth's direct database connection, with the right TLS
- * for each kind of host:
+ * A `pg` Pool for Better Auth's direct database connection.
  *
- *   - `caCert` set → verify the server cert + hostname against it
- *     (equivalent to `sslmode=verify-full`).
- *   - local (`127.0.0.1`/`localhost`) → no TLS.
- *   - otherwise (managed Postgres like Supabase) → TLS **without** chain
- *     verification. Supabase's cert chain isn't in Node's trust store, so plain
- *     verification fails with "self-signed certificate in certificate chain";
- *     the connection is still encrypted. `sslmode` is stripped from the URL
- *     because `pg` ignores the `ssl` object when the URL carries SSL settings.
+ * @deprecated Thin alias for `createPool` from `@ingram-tech/nk-db` — the one
+ * place pool construction and TLS handling live. Kept so existing call sites
+ * (`lib/db.ts` calling `createAuthPool({ connectionString, caCert })`) keep
+ * working, and so Better Auth shares the **exact same pool implementation** as
+ * app queries — the "one pool per process" rule. Prefer importing `createPool`
+ * directly in new code.
+ *
+ * TLS handling (CA-verified when `caCert` is set; plain-TLS for other managed
+ * hosts; no TLS for localhost), and the local `max: 1` cap (for the PGlite
+ * socket), all live in `createPool`.
  */
 export const createAuthPool = (config: {
 	connectionString: string;
 	/** PEM CA cert; when set, the server cert + hostname are verified. */
 	caCert?: string;
-}): Pool => {
-	if (config.caCert) {
-		return new Pool({
-			connectionString: config.connectionString,
-			ssl: { ca: config.caCert, rejectUnauthorized: true },
-		});
-	}
-	if (isLocal(config.connectionString)) {
-		return new Pool({ connectionString: config.connectionString });
-	}
-	const url = new URL(config.connectionString);
-	url.searchParams.delete("sslmode");
-	return new Pool({
-		connectionString: url.toString(),
-		ssl: { rejectUnauthorized: false },
+}): Pool =>
+	createPool({
+		connectionString: config.connectionString,
+		caCert: config.caCert,
 	});
-};

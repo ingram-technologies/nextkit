@@ -78,6 +78,7 @@
       "name": "@ingram-tech/nk-auth",
       "version": "0.3.0",
       "dependencies": {
+        "@ingram-tech/nk-db": "^0.1.0",
         "bcrypt": "^5.1.1",
         "jose": "^6.0.0",
         "zod": "^4.0.0",
@@ -123,6 +124,37 @@
       "devDependencies": {
         "vitest": "^4.1.6",
       },
+    },
+    "packages/nk-db": {
+      "name": "@ingram-tech/nk-db",
+      "version": "0.1.0",
+      "bin": {
+        "nk-pglite-dev": "./dist/pglite/dev.js",
+      },
+      "dependencies": {
+        "zod": "^4.0.0",
+      },
+      "devDependencies": {
+        "@electric-sql/pglite": "^0.5.0",
+        "@electric-sql/pglite-socket": "^0.0.10",
+        "@ingram-tech/typescript-config": "workspace:*",
+        "@types/node": "^20.0.0",
+        "@types/pg": "^8.11.0",
+        "drizzle-orm": "^0.45.0",
+        "pg": "^8.13.0",
+        "typescript": "^6.0.3",
+        "vitest": "^4.1.6",
+      },
+      "peerDependencies": {
+        "@electric-sql/pglite": ">=0.5.0",
+        "@electric-sql/pglite-socket": ">=0.0.10",
+        "drizzle-orm": ">=0.44.0",
+        "pg": "^8.13.0",
+      },
+      "optionalPeers": [
+        "@electric-sql/pglite",
+        "@electric-sql/pglite-socket",
+      ],
     },
     "packages/oxlint-config": {
       "name": "@ingram-tech/oxlint-config",
@@ -241,6 +273,10 @@
 
     "@csstools/css-tokenizer": ["@csstools/css-tokenizer@4.0.0", "", {}, "sha512-QxULHAm7cNu72w97JUNCBFODFaXpbDg+dP8b/oWFAZ2MTRppA3U00Y2L1HqaS4J6yBqxwa/Y3nMBaxVKbB/NsA=="],
 
+    "@electric-sql/pglite": ["@electric-sql/pglite@0.5.2", "", {}, "sha512-y6ySdFE7FQB7BkVaSNaPINgY7mXCyvi+3GQB5ySX9WGwgrdh31WXMP5RM40oAyYff47lIr7xdcW8UbCW5NHDmw=="],
+
+    "@electric-sql/pglite-socket": ["@electric-sql/pglite-socket@0.0.10", "", { "peerDependencies": { "@electric-sql/pglite": "0.3.5" }, "bin": { "pglite-server": "dist/scripts/server.js" } }, "sha512-18rUszuOQa8Aeoz+p5Pe/0fzBicipFRkCfm8oRWFVyinZ5oy9ELM2PtFls2FPgvBqdfBxXjDpXL+uU/pYajzGg=="],
+
     "@emnapi/core": ["@emnapi/core@1.10.0", "", { "dependencies": { "@emnapi/wasi-threads": "1.2.1", "tslib": "^2.4.0" } }, "sha512-yq6OkJ4p82CAfPl0u9mQebQHKPJkY7WrIuk205cTYnYe+k2Z8YBh11FrbRG/H6ihirqcacOgl2BIO8oyMQLeXw=="],
 
     "@emnapi/runtime": ["@emnapi/runtime@1.10.0", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-ewvYlk86xUoGI0zQRNq/mC+16R1QeDlKQy21Ki3oSYXNgLb45GV1P6A0M+/s6nyCuNDqe5VpaY84BzXGwVbwFA=="],
@@ -266,6 +302,8 @@
     "@ingram-tech/nk-auth": ["@ingram-tech/nk-auth@workspace:packages/nk-auth"],
 
     "@ingram-tech/nk-cli": ["@ingram-tech/nk-cli@workspace:packages/nk-cli"],
+
+    "@ingram-tech/nk-db": ["@ingram-tech/nk-db@workspace:packages/nk-db"],
 
     "@ingram-tech/oxlint-config": ["@ingram-tech/oxlint-config@workspace:packages/oxlint-config"],
 
@@ -572,6 +610,8 @@
     "discontinuous-range": ["discontinuous-range@1.0.0", "", {}, "sha512-c68LpLbO+7kP/b1Hr1qs8/BJ09F5khZGTxqxZuhzxpmwJKOgRFHJWIb9/KmqnqHhLdO55aOxFH/EGBvUQbL/RQ=="],
 
     "dom-accessibility-api": ["dom-accessibility-api@0.6.3", "", {}, "sha512-7ZgogeTnjuHbo+ct10G9Ffp0mif17idi0IyWNVA/wcwcm7NPOD/WEHVP3n7n3MhXqxoIYm8d6MuZohYWIZ4T3w=="],
+
+    "drizzle-orm": ["drizzle-orm@0.45.2", "", { "peerDependencies": { "@aws-sdk/client-rds-data": ">=3", "@cloudflare/workers-types": ">=4", "@electric-sql/pglite": ">=0.2.0", "@libsql/client": ">=0.10.0", "@libsql/client-wasm": ">=0.10.0", "@neondatabase/serverless": ">=0.10.0", "@op-engineering/op-sqlite": ">=2", "@opentelemetry/api": "^1.4.1", "@planetscale/database": ">=1.13", "@prisma/client": "*", "@tidbcloud/serverless": "*", "@types/better-sqlite3": "*", "@types/pg": "*", "@types/sql.js": "*", "@upstash/redis": ">=1.34.7", "@vercel/postgres": ">=0.8.0", "@xata.io/client": "*", "better-sqlite3": ">=7", "bun-types": "*", "expo-sqlite": ">=14.0.0", "gel": ">=2", "knex": "*", "kysely": "*", "mysql2": ">=2", "pg": ">=8", "postgres": ">=3", "prisma": "*", "sql.js": ">=1", "sqlite3": ">=5" }, "optionalPeers": ["@aws-sdk/client-rds-data", "@cloudflare/workers-types", "@electric-sql/pglite", "@libsql/client", "@libsql/client-wasm", "@neondatabase/serverless", "@op-engineering/op-sqlite", "@opentelemetry/api", "@planetscale/database", "@prisma/client", "@tidbcloud/serverless", "@types/better-sqlite3", "@types/pg", "@types/sql.js", "@upstash/redis", "@vercel/postgres", "@xata.io/client", "better-sqlite3", "bun-types", "expo-sqlite", "gel", "knex", "kysely", "mysql2", "pg", "postgres", "prisma", "sql.js", "sqlite3"] }, "sha512-kY0BSaTNYWnoDMVoyY8uxmyHjpJW1geOmBMdSSicKo9CIIWkSxMIj2rkeSR51b8KAPB7m+qysjuHme5nKP+E5Q=="],
 
     "emoji-regex": ["emoji-regex@8.0.0", "", {}, "sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A=="],
 
@@ -974,6 +1014,8 @@
     "@changesets/write/prettier": ["prettier@2.8.8", "", { "bin": { "prettier": "bin-prettier.js" } }, "sha512-tdN8qQGvNjw4CHbY+XXk0JgCXn9QiF21a55rBe5LJAU+kDyC4WQn4+awm2Xfk2lQMk5fKup9XgzTZtGkjBdP9Q=="],
 
     "@ingram-tech/nk-auth/zod": ["zod@4.4.3", "", {}, "sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ=="],
+
+    "@ingram-tech/nk-db/zod": ["zod@4.4.3", "", {}, "sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ=="],
 
     "@manypkg/find-root/@types/node": ["@types/node@12.20.55", "", {}, "sha512-J8xLz7q2OFulZ2cyGTLE1TbbZcjpno7FaN6zdJNrgAdrJ+DZzh/uFR6YrTb4C+nXakvud8Q4+rbhoIWlYQbUFQ=="],
 

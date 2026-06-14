@@ -36,11 +36,16 @@ tsc, Supabase), so versions stay under each site's control — nk just orchestra
 
 ## Commands
 
-- **`nk dev`** — start the Next dev server. If `supabase/config.toml` is present,
-  it runs `supabase start`, reads `supabase status` into the env var names our
-  apps expect (`SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`,
-  `SUPABASE_SECRET_KEY`), then launches `next dev --turbopack`. No Supabase dir →
-  it just starts Next. Replaces hand-written `scripts/dev.sh`.
+- **`nk dev`** — start the Next dev server on the golden-path local database
+  (see [`db-package.md`](https://github.com/ingram-technologies/nextkit/blob/main/docs/db-package.md)):
+  - **PGlite** — if `@ingram-tech/nk-db`'s `nk-pglite-dev` bin resolves, hand off
+    to it: boot Postgres-in-WASM, apply the `drizzle/` migrations, set
+    `DATABASE_URL`, then `next dev --turbopack`. No Docker, no daemon. Replaces
+    hand-written `scripts/pglite-dev.ts`.
+  - **Plain** — otherwise just `next dev` (static/marketing sites with no DB).
+
+  `nk dev` no longer boots local Supabase — the fleet has moved off it; any
+  Supabase-Postgres holdouts start Supabase themselves until they migrate.
 - **`nk format` / `nk format --check`** — formats code (JS/TS/JSON/CSS) with
   oxfmt and SQL with Prettier. `--check` verifies without writing (CI).
 - **`nk lint`** — `oxlint`

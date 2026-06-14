@@ -1,0 +1,64 @@
+{
+	"name": "@ingram-tech/nk-db",
+	"version": "0.1.0",
+	"description": "The Ingram Postgres data layer: one TLS-aware pg pool, raw-SQL helpers, Drizzle wiring, and a PGlite (no-Docker) dev/test harness for Next.js sites.",
+	"license": "MIT",
+	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ingram-technologies/nextkit.git",
+		"directory": "packages/nk-db"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"files": [
+		"dist"
+	],
+	"bin": {
+		"nk-pglite-dev": "./dist/pglite/dev.js"
+	},
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./pglite": {
+			"types": "./dist/pglite/index.d.ts",
+			"import": "./dist/pglite/index.js"
+		}
+	},
+	"scripts": {
+		"build": "tsc -p tsconfig.json",
+		"type-check": "tsc -p tsconfig.json --noEmit",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"zod": "^4.0.0"
+	},
+	"peerDependencies": {
+		"@electric-sql/pglite": ">=0.5.0",
+		"@electric-sql/pglite-socket": ">=0.0.10",
+		"drizzle-orm": ">=0.44.0",
+		"pg": "^8.13.0"
+	},
+	"peerDependenciesMeta": {
+		"@electric-sql/pglite": {
+			"optional": true
+		},
+		"@electric-sql/pglite-socket": {
+			"optional": true
+		}
+	},
+	"devDependencies": {
+		"@electric-sql/pglite": "^0.5.0",
+		"@electric-sql/pglite-socket": "^0.0.10",
+		"@ingram-tech/typescript-config": "workspace:*",
+		"@types/node": "^20.0.0",
+		"@types/pg": "^8.11.0",
+		"drizzle-orm": "^0.45.0",
+		"pg": "^8.13.0",
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.6"
+	}
+}

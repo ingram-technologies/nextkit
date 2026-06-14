@@ -1,66 +1,42 @@
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
 import { resolve } from "node:path";
-import { capture, fail, run } from "./run.js";
-
-const SUPABASE_CONFIG = "supabase/config.toml";
-
-// The house mapping from Supabase's local status output to the env var names our
-// apps actually read (the publishable/secret-key naming @supabase/ssr expects).
-// Undocumented `supabase status` override keys — see peppost's old dev.sh.
-const STATUS_OVERRIDES = [
-	"--override-name",
-	"api.url=SUPABASE_URL",
-	"--override-name",
-	"auth.publishable_key=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
-	"--override-name",
-	"auth.secret_key=SUPABASE_SECRET_KEY",
-];
 
 /**
- * `nk dev` — start the Next dev server. If the site has a local Supabase
- * (`supabase/config.toml`), boot it first and inject its connection env so the
- * app talks to the local stack. The standard, correct way to run a Supabase +
- * Next site locally, so no per-site dev.sh to maintain.
+ * Whether the site has `@ingram-tech/nk-db` installed — i.e. its `nk-pglite-dev`
+ * bin is available. Resolved from the site's own `node_modules`, so `nk` only
+ * orchestrates a tool the site already provides (the carve-out).
  */
-export function dev(extraArgs = []) {
-	const env = { ...process.env };
-
-	if (existsSync(resolve(process.cwd(), SUPABASE_CONFIG))) {
-		console.log("nk: supabase/config.toml found — starting local Supabase…");
-		if (run("supabase", ["start"]) !== 0) fail("`supabase start` failed.");
-		const statusEnv = capture("supabase", [
-			"status",
-			"-o",
-			"env",
-			...STATUS_OVERRIDES,
-		]);
-		Object.assign(env, parseEnv(statusEnv));
+function hasPgliteDev() {
+	try {
+		const require = createRequire(resolve(process.cwd(), "package.json"));
+		require.resolve("@ingram-tech/nk-db");
+		return true;
+	} catch {
+		return false;
 	}
-
-	// Hand off to Next. spawnSync inherits stdio and blocks until exit, so
-	// Ctrl-C reaches the dev server.
-	const res = spawnSync("bunx", ["next", "dev", "--turbopack", ...extraArgs], {
-		stdio: "inherit",
-		env,
-	});
-	process.exit(res.status ?? 0);
 }
 
-/** Parse `KEY=value` / `KEY="value"` lines from `supabase status -o env`. */
-function parseEnv(text) {
-	const out = {};
-	for (const line of text.split("\n")) {
-		const match = line.match(/^([A-Z0-9_]+)=(.*)$/);
-		if (!match) continue;
-		let value = match[2].trim();
-		if (
-			(value.startsWith('"') && value.endsWith('"')) ||
-			(value.startsWith("'") && value.endsWith("'"))
-		) {
-			value = value.slice(1, -1);
-		}
-		out[match[1]] = value;
+/**
+ * `nk dev` — start the Next dev server on the golden-path local database.
+ *
+ * If `@ingram-tech/nk-db` is installed, hand off to its `nk-pglite-dev` bin: it
+ * boots PGlite (Postgres-in-WASM, no Docker), applies the `drizzle/` migrations,
+ * sets `DATABASE_URL`, and runs `next dev` itself. Otherwise just `next dev`
+ * (static/marketing sites with no database). PGlite logic lives in nk-db, not
+ * here — `nk` only orchestrates.
+ *
+ * `nk dev` does not boot local Supabase; the fleet has moved off it. The few
+ * Supabase-Postgres holdouts start it themselves until they migrate.
+ */
+export function dev(extraArgs = []) {
+	const command = hasPgliteDev()
+		? ["nk-pglite-dev", ...extraArgs]
+		: ["next", "dev", "--turbopack", ...extraArgs];
+	if (command[0] === "nk-pglite-dev") {
+		console.log("nk: @ingram-tech/nk-db found — booting local PGlite (no Docker)…");
 	}
-	return out;
+	// spawnSync inherits stdio and blocks until exit, so Ctrl-C reaches the child.
+	const res = spawnSync("bunx", command, { stdio: "inherit" });
+	process.exit(res.status ?? 0);
 }

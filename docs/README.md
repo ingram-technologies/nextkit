@@ -14,8 +14,12 @@ with the philosophy, then dip into specifics as needed.
   nextkit.
 - **[oxlint-migration.md](./oxlint-migration.md)** — moving a site from Biome to
   the oxc toolchain (oxlint + oxfmt), with a codemod.
-- **[better-auth-migration.md](./better-auth-migration.md)** — plan for moving
-  the fleet from Supabase Auth to Better Auth while keeping RLS.
+- **[db-package.md](./db-package.md)** — the `@ingram-tech/nk-db` plan: the shared
+  Postgres pool, Drizzle, and the PGlite dev/test harness (`nk dev`).
+- **[better-auth-migration.md](./better-auth-migration.md)** — moving the fleet
+  from Supabase Auth to Better Auth. The RLS-bridge path here now applies to the
+  Supabase-Postgres holdouts (fabrile/financica); migrated apps went to DO
+  Postgres outright.
 - **[creating-a-package.md](./creating-a-package.md)** — checklist for new
   packages.
 - **[releasing.md](./releasing.md)** — versioning + npm Trusted Publishing flow.
