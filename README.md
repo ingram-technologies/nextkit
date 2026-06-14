@@ -27,15 +27,21 @@ Read **[docs/philosophy.md](./docs/philosophy.md)** for the full reasoning.
 | [`@ingram-tech/git-hooks`](./packages/git-hooks) | oxfmt format-on-commit hook |
 | [`@ingram-tech/email`](./packages/email) | Zero-dep Cloudflare email client |
 | [`@ingram-tech/bot-protection`](./packages/bot-protection) | Invisible form bot protection (honeypot + timing + BotID) |
-| [`@ingram-tech/newsletter`](./packages/newsletter) | Supabase-backed newsletter subscriptions + sending (RFC 8058) |
+| [`@ingram-tech/nk-db`](./packages/nk-db) | Postgres data layer: shared `pg` pool, raw-SQL helpers, Drizzle wiring, PGlite (no-Docker) dev/test harness |
+| [`@ingram-tech/nk-auth`](./packages/nk-auth) | Better Auth foundation: composable presets a site spreads into its own `betterAuth()` |
+| [`@ingram-tech/nk-cli`](./packages/nk-cli) | Optional `nk` command that *orchestrates* the standard tools (`nk dev`, `nk check`, …) — never required |
+| [`@ingram-tech/newsletter`](./packages/newsletter) | Newsletter subscriptions + sending, RFC 8058 one-click unsubscribe (re-platforming onto nk-db) |
 | [`@ingram-tech/agent-guide`](./packages/agent-guide) | Brief nextkit conventions for AI agents, imported into a site's CLAUDE.md |
 
-More to come (blog, supabase). See [docs/](./docs/README.md).
+More to come (blog). See [docs/](./docs/README.md).
 
 ## Stack & stance
 
-Next.js + Bun + Vercel, oxlint + oxfmt + Vitest + Playwright, Cloudflare (email)
-and Supabase (when a DB is needed). EU-first, self-hostable, no per-seat US SaaS.
+Next.js + Bun + Vercel, oxlint + oxfmt + Vitest + Playwright, Cloudflare (email).
+When a site needs a database or auth: a shared DigitalOcean Managed Postgres
+cluster reached directly via `pg` + Drizzle (`nk-db`), Better Auth (`nk-auth`),
+and PGlite for local dev/test — no hosted REST/auth product. EU-first,
+self-hostable, no per-seat US SaaS.
 
 ## Develop
 

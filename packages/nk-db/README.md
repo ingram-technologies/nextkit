@@ -2,8 +2,8 @@
 
 The Ingram **Postgres data layer**: one TLS-aware `pg` pool, raw-SQL helpers,
 Drizzle wiring, and a **PGlite** (no-Docker) dev/test harness. It consolidates
-the `src/lib/db/` layer that integrain, orbitr.ee, peppost, and thornhill each
-hand-rolled when they moved off Supabase. Design + rationale:
+the `src/lib/db/` layer that several products each hand-rolled when they moved
+off Supabase. Design + rationale:
 [`docs/db-package.md`](https://github.com/ingram-technologies/nextkit/blob/main/docs/db-package.md).
 
 `pg` and `drizzle-orm` are **peer dependencies** (one copy in the app).

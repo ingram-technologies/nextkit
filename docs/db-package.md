@@ -1,9 +1,9 @@
 # The `@ingram-tech/nk-db` package: Postgres, Drizzle, and PGlite dev
 
-**Status:** plan-of-record. The package does not exist yet; this doc is the
-agreed design. It extracts the data layer that integrain, orbitr.ee, peppost,
-and thornhill each hand-rolled during the Supabase→Postgres move into one
-versioned slice. Read [`philosophy.md`](./philosophy.md) (vendor stance +
+**Status:** shipped. `@ingram-tech/nk-db` is built and published; this doc is its
+design + rationale. It extracts the data layer that several products each
+hand-rolled during the Supabase→Postgres move into one versioned slice. Tier-B
+adoption (replacing the hand-rolled `src/lib/db/` layers) is in progress. Read [`philosophy.md`](./philosophy.md) (vendor stance +
 Django-app model) first.
 
 ## Why this package exists
@@ -17,8 +17,9 @@ Every product that moved off Supabase re-implemented the same three things:
 3. A `scripts/pglite-dev.ts` — boot Postgres-in-WASM for local dev, apply
    migrations, expose it on `127.0.0.1:5432`, persist to `.pglite/`.
 
-They drifted immediately (thornhill stayed on Docker; integrain has no local DB;
-peppost and orbitr.ee have near-identical but separately-maintained copies). This
+They drifted immediately (different local-DB strategies — one stayed on Docker,
+one had no local DB, others kept near-identical but separately-maintained
+copies). This
 is exactly the [single-source-of-truth](./philosophy.md#single-source-of-truth-propagated)
 problem nextkit exists to solve. `@ingram-tech/nk-db` is the one copy; sites get the
 pool, the helpers, the Drizzle wiring, and the PGlite harness on a version bump.
@@ -116,8 +117,8 @@ export const { query, one, maybeOne, execute, withTx } = createQueries(pool);
 
 The raw helpers (`createQueries(pool)`) stay available for the cases Drizzle is
 awkward at — `pgmq`-style queue draining, trigger/function calls, `pg_trgm`
-search (the SQL integrain keeps in frozen `db/migrations/*.sql`). Their
-signatures match what peppost/orbitr.ee already hand-rolled, so adoption is a
+search (the SQL some apps keep in frozen `db/migrations/*.sql`). Their
+signatures match what apps already hand-rolled, so adoption is a
 find-and-replace of the import:
 
 ```ts
@@ -198,8 +199,7 @@ nk dev:
 ```
 
 `nk dev` no longer boots local Supabase — the fleet has moved off it. The
-Supabase-Postgres holdouts (fabrile/financica) run `supabase start` themselves
-until they migrate.
+Supabase-Postgres holdouts run `supabase start` themselves until they migrate.
 
 ## Relationship to nk-auth
 
@@ -233,12 +233,20 @@ Per [enforce-what-you-can](./philosophy.md#enforce-what-you-can-document-what-yo
 - **oxlint rule (Tier B):** ban `@supabase/supabase-js` imports for data access
   once a site is on the golden path.
 
-## Open decisions before building
+## Decisions (locked)
 
-- **Drizzle migration runner in prod:** `drizzle-kit migrate` vs a hand-rolled
-  `scripts/migrate.ts`. Lean `scripts/migrate.ts` — it's what thornhill/integrain
-  already do and it avoids shipping `drizzle-kit` to prod.
-- **`uuidv7()` vs `gen_random_uuid()`** as the default id. nk-auth uses UUIDv7
-  ids; align app tables to match for index locality.
-- **Should the raw helpers expose a transaction wrapper** (`withTx`)? Likely yes;
-  several apps hand-roll `BEGIN/COMMIT`.
+- **Drizzle is the source of truth; raw SQL is the escape hatch.** Drizzle owns
+  the schema, the generated migrations, and the row types for Tier-B apps. The
+  `query/one/maybeOne/execute` helpers stay for SQL the ORM is awkward at
+  (`select fn($1,…)` calls, `pgmq` draining, `pg_trgm`) — not as a parallel query
+  path.
+- **nk-db is mandatory for Tier-B.** Products import `createPool` / `createDb` /
+  `createQueries` from here instead of hand-rolling a `src/lib/db/` layer; that is
+  the whole point of extracting this slice.
+- **Default primary-key id: `uuidv7()`.** Align app tables with nk-auth's ids for
+  index/B-tree locality (pg18 / PGlite both provide `uuidv7()`).
+- **Prod migrations run via `drizzle-kit migrate`,** invoked from a release/build
+  step rather than imported at runtime, so `drizzle-kit` stays a `devDependency`
+  and never reaches the serverless bundle.
+- **Transaction wrapper:** `createQueries` exposes `withTx` (apps were
+  hand-rolling `BEGIN/COMMIT`).

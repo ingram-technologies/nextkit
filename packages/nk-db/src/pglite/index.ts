@@ -1,6 +1,6 @@
-// PGlite dev/test harness — Postgres-in-WASM, no Docker. Ported from the proven
-// peppost `scripts/pglite-dev.ts` (which its own comment said should "move into
-// @ingram-tech/nk-cli so the whole fleet inherits it"). PGlite 0.5.x is
+// PGlite dev/test harness — Postgres-in-WASM, no Docker. Ported from a proven
+// app-level `scripts/pglite-dev.ts` (whose own comment said it should "move into
+// the shared package so the whole fleet inherits it"). PGlite 0.5.x is
 // PostgreSQL 18.3, so plpgsql / gen_random_uuid() / RLS all work and dev matches
 // a pg18 prod target.
 //

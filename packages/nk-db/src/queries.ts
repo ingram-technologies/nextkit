@@ -69,7 +69,7 @@ export interface PoolQueries extends Queries {
 
 /**
  * Bind the raw-SQL helpers (`query` / `one` / `maybeOne` / `execute` / `withTx`)
- * to a pool. Signatures match what peppost/orbitr.ee hand-rolled, so adopting
+ * to a pool. Signatures match what apps hand-rolled, so adopting
  * this is a find-and-replace of the import. Drizzle (via `createDb`) is the
  * default query path; these are the escape hatch for SQL the ORM is awkward at
  * (Postgres-function `select fn($1,…)` calls, `pgmq` draining, `pg_trgm`).

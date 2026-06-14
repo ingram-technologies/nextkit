@@ -147,10 +147,9 @@ Postgres — self-hosted on our own cluster — and drops the bundle:
   [`better-auth-migration.md`](./better-auth-migration.md)).
 - Local Supabase (Docker) → PGlite.
 
-Most products have already moved (integrain, orbitr.ee, peppost, thornhill). The
-two that lean on Supabase-the-product the most — **fabrile** (pgvector) and
-**financica** (Storage + heavy RLS) — are scheduled as their **own migration
-projects**, not part of this re-baseline. The mechanics, gotchas, and the safe
+Most products have already moved. A couple that lean on Supabase-the-product the
+most — one for `pgvector`, one for Storage + heavy RLS — are scheduled as their
+**own migration projects**, not part of this re-baseline. The mechanics, gotchas, and the safe
 per-app runbook are captured in the Supabase→Postgres playbook (ops notes;
 should graduate into this `docs/` directory).
 

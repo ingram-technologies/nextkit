@@ -1,16 +1,15 @@
 # Migrating from Supabase Auth to Better Auth (without losing RLS)
 
-**Status:** partially shipped. `@ingram-tech/nk-auth` exists and four products
-(integrain, orbitr.ee, peppost, thornhill) are on Better Auth. **Most of them
-went further than this doc** — they left Supabase Postgres entirely for our
-shared DigitalOcean cluster (direct `pg` + Drizzle, see
+**Status:** partially shipped. `@ingram-tech/nk-auth` exists and several products
+are on Better Auth. **Most went further than this doc** — they left Supabase
+Postgres entirely for our shared DigitalOcean cluster (direct `pg` + Drizzle, see
 [`db-package.md`](./db-package.md)), so the RLS-bridge below was unnecessary for
 them (tenant isolation is RLS via a dedicated app role, or app-layer `where
 owner_id = …`).
 
-**The RLS-bridge approach in this doc now applies specifically to the
-Supabase-Postgres holdouts** — **fabrile** and **financica** — which keep
-Supabase Storage/pgvector/RLS and are scheduled as their own migration projects.
+**The RLS-bridge approach in this doc now applies specifically to the remaining
+Supabase-Postgres holdouts** — the apps that keep Supabase Storage/pgvector/RLS
+and are scheduled as their own migration projects.
 For everything else, "migrate auth" and "leave Supabase" happen together; read
 the Supabase→Postgres playbook alongside this. Read [`philosophy.md`](./philosophy.md)
 (vendor stance + Django-app model) first; this builds on it.

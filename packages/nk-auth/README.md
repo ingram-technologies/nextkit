@@ -22,7 +22,7 @@ only what you need from focused subpaths.
 > [`docs/better-auth-migration.md`](../../docs/better-auth-migration.md) — the
 > RLS bridge, the migration runbook, and the gotchas.
 >
-> **Backend-JWT + org sites** (e.g. integrain): compose `createAuthPool`,
+> **Backend-JWT + org sites** (a backend API plus the org plugin): compose `createAuthPool`,
 > `backendJwtOptions({ audience })`, `nkOrganizationDefaults`, and
 > `lastActiveOrganizationHooks(pool)` in your `betterAuth()`; verify backend
 > tokens with `verifyBackendJwt`. Keep app-specific bits (SSO restrictions,
