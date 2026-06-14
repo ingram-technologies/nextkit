@@ -19,6 +19,14 @@ package. Stay a thin, standard Next.js app (bun · oxlint + oxfmt · strict TS).
 
 Keep the URL namespace honest about **who calls each route**:
 
+- **`/auth/…` — sign-in, via `@ingram-tech/nk-auth`.** Better Auth mounts here
+  through `basePath: authBasePath` (handler at `app/auth/[...all]/route.ts`,
+  client `createAuthClient({ basePath: authBasePath })`) — **not** the framework
+  default `/api/auth`. So **login / social OAuth callbacks are
+  `<site>/auth/callback/<provider>`** (e.g. Google `…/auth/callback/google`) —
+  that's the redirect URI you register with the IdP. Don't confuse it with
+  *connector* OAuth (the app acting as a client to a provider), which lives at
+  `/internal/connect/<provider>/callback` below.
 - **`/api/…` — the app's public API only.** Routes that external clients or your
   own frontend consume *as an API*. Nothing else belongs here.
 - **`/internal/…` — all plumbing the public never calls as your API.** This is
@@ -43,6 +51,7 @@ the UI/page tree, and never expose internal plumbing under `/api/`.
 ## What nextkit provides (reach for these)
 
 - `@ingram-tech/email` — Cloudflare email: `sendEmail`, `fromAddress`
+- `@ingram-tech/nk-auth` — Better Auth foundation: presets you spread into your own `betterAuth()` (mounts at `/auth` via `authBasePath`; org / JWT / passkey / pool / client helpers)
 - `@ingram-tech/bot-protection` — invisible form protection (honeypot + timing + Vercel BotID)
 - `@ingram-tech/newsletter` — Supabase newsletter: subscribe / send, 1-click unsubscribe
 - `@ingram-tech/nk-cli` — the `nk` command: `nk dev` (Next + local Supabase), plus `nk format` / `lint` / `check` / `type-check` / `build`
