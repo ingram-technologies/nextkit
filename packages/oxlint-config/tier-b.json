@@ -1,0 +1,28 @@
+{
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	"rules": {
+		"no-restricted-imports": [
+			"error",
+			{
+				"paths": [
+					{
+						"name": "@supabase/supabase-js",
+						"message": "Golden-path data access uses @ingram-tech/nk-db (direct pg + Drizzle), not supabase-js."
+					},
+					{
+						"name": "pg",
+						"importNames": ["Pool", "Client"],
+						"allowTypeImports": true,
+						"message": "Build the pool with createPool() from @ingram-tech/nk-db, not `new Pool`/`new Client`. (`import type { Pool }` is fine.)"
+					}
+				]
+			}
+		]
+	},
+	"overrides": [
+		{
+			"files": ["**/scripts/**"],
+			"rules": { "no-restricted-imports": "off" }
+		}
+	]
+}

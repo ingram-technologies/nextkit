@@ -1,6 +1,6 @@
 {
 	"name": "@ingram-tech/oxlint-config",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"description": "Shared oxlint + oxfmt configuration for Ingram Technologies Next.js projects.",
 	"license": "MIT",
 	"repository": {
@@ -13,11 +13,13 @@
 	},
 	"files": [
 		"oxlintrc.json",
-		"oxfmtrc.json"
+		"oxfmtrc.json",
+		"tier-b.json"
 	],
 	"exports": {
 		"./oxlintrc.json": "./oxlintrc.json",
-		"./oxfmtrc.json": "./oxfmtrc.json"
+		"./oxfmtrc.json": "./oxfmtrc.json",
+		"./tier-b.json": "./tier-b.json"
 	},
 	"scripts": {
 		"build": "true",
