@@ -96,6 +96,11 @@ export const auth = betterAuth({
 	baseURL: env.baseURL,
 	basePath: authBasePath, // mount at /auth, not the framework default /api/auth
 	advanced: { database: { generateId: uuidGenerateId } }, // UUIDv7 ids
+	// ^ stored as hyphenated UUIDv7 (uuid columns / Supabase RLS stay valid).
+	// To show those same ids as prefixed base58 on the wire/UI — `team_…`,
+	// matching the Ingram Cloud API's `agt_`/`smt_` ids — skin them with
+	// `toPrefixedId(uuid, "team")` / recover with `fromPrefixedId`. `base58Id`
+	// mints a fresh one directly for text-id sites. All from `@ingram-tech/nk-auth`.
 	emailAndPassword: {
 		enabled: true,
 		password: bcryptPassword, // verifies migrated Supabase bcrypt hashes

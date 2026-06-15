@@ -9,6 +9,7 @@ export {
 	rlsJwtOptions,
 	verifyBackendJwt,
 } from "./jwt";
+export { base58Id, fromPrefixedId, toPrefixedId } from "./id";
 export { type AuthEnv, authEnv, isConfigured } from "./keys";
 export {
 	bcryptPassword,

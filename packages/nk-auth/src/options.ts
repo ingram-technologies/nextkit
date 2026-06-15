@@ -13,7 +13,9 @@ import bcrypt from "bcrypt";
  *
  * `uuidGenerateId` keeps new-user ids UUID-shaped (so Supabase `auth.uid()::uuid`
  * keeps working on RLS sites) — and specifically **UUIDv7**: time-ordered, so ids
- * cluster by creation time for index locality instead of scattering like v4.
+ * cluster by creation time for index locality instead of scattering like v4. To
+ * surface those same ids as prefixed base58 (`team_…`) on the wire/UI without
+ * giving up the uuid column, skin them with `toPrefixedId` from `./id`.
  */
 
 /**
