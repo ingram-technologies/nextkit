@@ -1,5 +1,28 @@
 # @ingram-tech/nk-auth
 
+## 0.4.0
+
+### Minor Changes
+
+- Add the base58 id codec on a new dependency-light `./id` subpath: `base58Id`,
+  `toPrefixedId`, `fromPrefixedId` — a UUIDv7 rendered as a fixed-width 22-char
+  Bitcoin-alphabet base58 body, matching the Ingram Cloud API's `agt_`/`smt_` ids
+  (the same encoding of the same 16 bytes; cross-impl test vectors are shared).
+  `uuidGenerateId` moves to `./id` too and is re-exported from the package root, so
+  existing imports are unchanged. `./id` depends only on `node:crypto`, so a site
+  can mint prefixed base58 ids without pulling bcrypt/passkey from `./options`.
+
+### Patch Changes
+
+- 258cd15: `createAuthPool` now delegates to `createPool` from the new `@ingram-tech/nk-db`
+  dependency, so Better Auth and app queries share one pool implementation and TLS
+  code path (the "one pool per process" rule). Its signature is unchanged. One
+  behaviour change: connections to a local host (`127.0.0.1`/`localhost`) now cap
+  at `max: 1` (required by the PGlite socket); non-local pools are unchanged.
+- 0a8812a: Docs & comments: remove references to private product names (nextkit is open
+  source — it describes the shared foundation generically, not the apps that
+  consume it). No code or API changes.
+
 ## 0.3.0
 
 ### Minor Changes

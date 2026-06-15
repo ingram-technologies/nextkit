@@ -1,5 +1,14 @@
 # @ingram-tech/bot-protection
 
+## 0.3.1
+
+### Patch Changes
+
+- 3904231: Clarify in the timing-token docs that it is a _timing-window_ gate, not a
+  per-submission nonce: a token can be replayed within its `[minMs, maxMs]` window,
+  so it composes with the honeypot and BotID layers rather than providing single-use
+  semantics on its own.
+
 ## 0.3.0
 
 ### Minor Changes

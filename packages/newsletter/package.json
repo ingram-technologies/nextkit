@@ -1,6 +1,6 @@
 {
 	"name": "@ingram-tech/newsletter",
-	"version": "0.2.0",
+	"version": "0.3.0",
 	"description": "Supabase-backed newsletter subscriptions + sending, with RFC 8058 one-click unsubscribe.",
 	"license": "MIT",
 	"type": "module",
