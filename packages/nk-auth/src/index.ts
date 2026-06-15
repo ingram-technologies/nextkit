@@ -9,7 +9,7 @@ export {
 	rlsJwtOptions,
 	verifyBackendJwt,
 } from "./jwt";
-export { base58Id, fromPrefixedId, toPrefixedId } from "./id";
+export { base58Id, fromPrefixedId, toPrefixedId, uuidGenerateId } from "./id";
 export { type AuthEnv, authEnv, isConfigured } from "./keys";
 export {
 	bcryptPassword,
@@ -17,7 +17,6 @@ export {
 	makePasskeyOptions,
 	type PasskeyConfig,
 	type SendEmail,
-	uuidGenerateId,
 } from "./options";
 export {
 	lastActiveOrganizationHooks,

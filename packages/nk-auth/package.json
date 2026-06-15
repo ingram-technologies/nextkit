@@ -21,6 +21,10 @@
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js"
 		},
+		"./id": {
+			"types": "./dist/id.d.ts",
+			"import": "./dist/id.js"
+		},
 		"./jwt": {
 			"types": "./dist/jwt.d.ts",
 			"import": "./dist/jwt.js"

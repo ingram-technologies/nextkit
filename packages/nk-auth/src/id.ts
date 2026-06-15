@@ -1,7 +1,9 @@
-import { uuidGenerateId } from "./options";
+import { randomBytes } from "node:crypto";
 
 /**
- * The Ingram id codec — a UUIDv7 rendered as fixed-width base58.
+ * The Ingram id codec — a UUIDv7 and its base58 skin. Dependency-light on
+ * purpose (only `node:crypto`), so a site can import it without pulling the
+ * bcrypt / passkey machinery in `./options`: `@ingram-tech/nk-auth/id`.
  *
  * The Python twin lives in cloud.ingram.tech's `v1/core.py` (`new_id`); the
  * byte → string vectors in `id.test.ts` and that repo's `tests/test_ids.py` are
@@ -15,6 +17,27 @@ import { uuidGenerateId } from "./options";
  * {@link fromPrefixedId} to recover it. {@link base58Id} mints a fresh one
  * directly, for text-id sites that want API-style ids natively.
  */
+
+/**
+ * `advanced.database.generateId` for Better Auth — mints a **UUIDv7** (RFC 9562):
+ * a 48-bit Unix-ms timestamp prefix + random tail, version `7`, variant `10`.
+ * Keeps ids UUID-shaped (Supabase `auth.uid()::uuid`) while staying time-ordered
+ * for index locality. Node/Bun's `randomUUID` is v4-only, so we lay the bytes out
+ * by hand.
+ */
+export const uuidGenerateId = (): string => {
+	const bytes = randomBytes(16);
+	const ts = Date.now();
+	bytes[0] = Math.floor(ts / 2 ** 40) & 0xff;
+	bytes[1] = Math.floor(ts / 2 ** 32) & 0xff;
+	bytes[2] = Math.floor(ts / 2 ** 24) & 0xff;
+	bytes[3] = Math.floor(ts / 2 ** 16) & 0xff;
+	bytes[4] = Math.floor(ts / 2 ** 8) & 0xff;
+	bytes[5] = ts & 0xff;
+	bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x70; // version 7
+	bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80; // variant 10
+	return bytesToUuid(bytes);
+};
 
 const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 // ceil(128 / log2(58)): a 16-byte value never needs more than 22 digits. We
