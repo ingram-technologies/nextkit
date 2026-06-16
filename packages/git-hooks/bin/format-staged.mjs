@@ -15,7 +15,7 @@
  */
 import { execFileSync } from "node:child_process";
 
-const FORMATTABLE = /\.(jsx?|tsx?|mts|cts|json|jsonc|css|graphql|gql)$/;
+const FORMATTABLE = /\.(jsx?|mjs|cjs|tsx?|mts|cts|json|jsonc|css|graphql|gql)$/;
 
 const git = (args) => execFileSync("git", args, { encoding: "utf8" }).trim();
 
