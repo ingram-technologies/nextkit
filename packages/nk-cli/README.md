@@ -32,7 +32,7 @@ tsc, Supabase), so versions stay under each site's control — nk just orchestra
 > and runnable with plain `next build` / `next dev` if `nk` is removed — see the
 > [`nk` carve-out](https://github.com/ingram-technologies/nextkit/blob/main/docs/philosophy.md)
 > in the philosophy doc. The orchestration tests in this package check that the
-> formatter resolves to standard oxlint/oxfmt (or biome) invocations and nothing more.
+> formatter resolves to standard oxlint/oxfmt invocations and nothing more.
 
 ## Commands
 
@@ -62,12 +62,3 @@ JS/TS. But oxfmt can't format SQL, so `nk` bundles `prettier` +
 files. Prettier therefore never lands in any app's `package.json`. A site's own
 `.prettierrc` / package.json `"prettier"` settings are honored if present;
 otherwise nk defaults to tabs + the Postgres dialect.
-
-## Swapping the formatter
-
-oxc (oxlint + oxfmt) is the default. The toolchain is behind a small
-indirection, so a site not yet migrated can fall back to Biome with:
-
-```jsonc
-{ "nk": { "formatter": "biome" } }
-```

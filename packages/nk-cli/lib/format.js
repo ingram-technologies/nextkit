@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join, relative } from "node:path";
-import { resolveFormatter } from "./formatter.js";
+import { FORMATTER } from "./formatter.js";
 import { run } from "./run.js";
 
 const require = createRequire(import.meta.url);
@@ -14,24 +14,15 @@ const SQL_DEFAULTS = { useTabs: true, language: "postgresql" };
 /**
  * `nk format` / `nk format --check`.
  *
- * Code (JS/TS/JSON/CSS) goes through the configured formatter (oxfmt); SQL goes
- * through Prettier, which the code formatter (oxfmt) can't format. Prettier +
- * prettier-plugin-sql are bundled with nk-cli, so they never appear in any app's
- * dependencies — the "no Prettier for code" rule still holds, it's just the one
- * file type oxfmt lacks.
+ * Code (JS/TS/JSON/CSS) goes through oxfmt; SQL goes through Prettier, which
+ * oxfmt can't format. Prettier + prettier-plugin-sql are bundled with nk-cli,
+ * so they never appear in any app's dependencies — the "no Prettier for code"
+ * rule still holds, it's just the one file type oxfmt lacks.
  */
 export async function format({ check }) {
-	const formatter = resolveFormatter();
-
-	const op = check ? formatter.checkFormat : formatter.write;
-	if (op) {
-		const code = run(op[0], op[1]);
-		if (code !== 0) process.exitCode = code;
-	} else {
-		console.warn(
-			`nk: formatter "${formatter.name}" can't format code yet — skipping (SQL still handled).`,
-		);
-	}
+	const op = check ? FORMATTER.checkFormat : FORMATTER.write;
+	const code = run(op[0], op[1]);
+	if (code !== 0) process.exitCode = code;
 
 	await formatSql({ check });
 }

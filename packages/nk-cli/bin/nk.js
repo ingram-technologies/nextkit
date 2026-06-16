@@ -10,16 +10,15 @@ Usage: nk <command> [options]
 Commands:
   dev                 Start the Next dev server. Boots local PGlite first when
                       @ingram-tech/nk-db is installed (no Docker); else plain dev.
-  format [--check]    Format code with the configured formatter (oxfmt) and SQL
-                      with Prettier. --check verifies without writing (for CI).
-  lint                Lint with the configured formatter.
+  format [--check]    Format code with oxfmt and SQL with Prettier. --check
+                      verifies without writing (for CI).
+  lint                Lint with oxlint.
   check               Lint + format verification, plus the agent-guide import
                       gate (the CI gate).
   type-check          next typegen && tsc --noEmit.
   build [...]         next build (extra args passed through).
 
-The formatter is oxc (oxlint + oxfmt) by default. Switch it per-site with
-{ "nk": { "formatter": "biome" } } in package.json.`;
+Code formats with oxfmt and lints with oxlint; SQL formats with Prettier.`;
 
 const [cmd, ...rest] = process.argv.slice(2);
 

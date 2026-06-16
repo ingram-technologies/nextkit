@@ -74,15 +74,10 @@ and safe; commit it on its own if you want a clean diff.
 
 ## `nk` users
 
-If the site uses `@ingram-tech/nk-cli`, the default formatter is now **oxc** —
-`nk format` / `nk lint` / `nk check` invoke oxfmt + oxlint automatically. A site
-not ready to move can pin Biome for now:
-
-```jsonc
-{ "nk": { "formatter": "biome" } }
-```
-
-(Keep `@ingram-tech/biome-config` + `@biomejs/biome` installed in that case.)
+If the site uses `@ingram-tech/nk-cli`, the formatter is **oxc** — `nk format` /
+`nk lint` / `nk check` invoke oxfmt + oxlint automatically. There is no Biome
+fallback in `nk`: a site not ready to move off Biome must drive `biome` directly
+(via its own package.json scripts) rather than through `nk`.
 
 ## Verify
 

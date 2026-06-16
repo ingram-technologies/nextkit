@@ -1,24 +1,19 @@
 import { checkAgentGuideImport } from "./agent-guide.js";
 import { formatSql } from "./format.js";
-import { resolveFormatter } from "./formatter.js";
+import { FORMATTER } from "./formatter.js";
 import { run } from "./run.js";
 
-/** `nk lint` — lint with the configured formatter. */
+/** `nk lint` — oxlint. */
 export function lint() {
-	const formatter = resolveFormatter();
-	process.exit(run(formatter.lint[0], formatter.lint[1]));
+	process.exit(run(FORMATTER.lint[0], FORMATTER.lint[1]));
 }
 
 /** `nk check` — the CI gate: lint + format verify (code) plus SQL format verify. */
 export async function check() {
-	const formatter = resolveFormatter();
 	// Run every gate before deciding (no short-circuit), so one failure doesn't
-	// hide another. oxc splits lint (oxlint) and format (oxfmt); biome could do
-	// both in one pass, but running them separately keeps one code path.
-	const lintFailed = run(formatter.lint[0], formatter.lint[1]) !== 0;
-	const fmtFailed = formatter.checkFormat
-		? run(formatter.checkFormat[0], formatter.checkFormat[1]) !== 0
-		: false;
+	// hide another. oxc splits lint (oxlint) and format (oxfmt), so we run both.
+	const lintFailed = run(FORMATTER.lint[0], FORMATTER.lint[1]) !== 0;
+	const fmtFailed = run(FORMATTER.checkFormat[0], FORMATTER.checkFormat[1]) !== 0;
 	await formatSql({ check: true });
 	const sqlFailed = Boolean(process.exitCode);
 	// Keep the site on the shared-guidance channel: if it depends on
