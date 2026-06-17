@@ -26,13 +26,13 @@
 		"prepare": "git config core.hooksPath .githooks || true"
 	},
 	"devDependencies": {
-		"@changesets/cli": "^2.27.0",
-		"oxfmt": "^0.54.0",
-		"oxlint": "^1.69.0",
+		"@changesets/cli": "^2.31.0",
+		"oxfmt": "^0.55.0",
+		"oxlint": "^1.70.0",
 		"typescript": "^6.0.3"
 	},
 	"packageManager": "bun@1.2.0",
 	"engines": {
-		"node": ">=20"
+		"node": ">=24"
 	}
 }

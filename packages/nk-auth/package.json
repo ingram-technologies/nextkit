@@ -54,7 +54,7 @@
 	},
 	"dependencies": {
 		"@ingram-tech/nk-db": "^0.2.0",
-		"bcrypt": "^5.1.1",
+		"bcrypt": "^6.0.0",
 		"jose": "^6.0.0",
 		"zod": "^4.0.0"
 	},
@@ -83,8 +83,8 @@
 		"@better-auth/passkey": "^1.6.0",
 		"@ingram-tech/typescript-config": "workspace:*",
 		"@supabase/supabase-js": "^2.45.0",
-		"@types/bcrypt": "^5.0.2",
-		"@types/node": "^20.0.0",
+		"@types/bcrypt": "^6.0.0",
+		"@types/node": "^25.0.0",
 		"@types/pg": "^8.11.0",
 		"@types/react": "^19.0.0",
 		"better-auth": "^1.6.0",

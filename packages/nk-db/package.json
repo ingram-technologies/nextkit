@@ -38,7 +38,7 @@
 	},
 	"peerDependencies": {
 		"@electric-sql/pglite": ">=0.5.0",
-		"@electric-sql/pglite-socket": ">=0.0.10",
+		"@electric-sql/pglite-socket": ">=0.2.4",
 		"drizzle-orm": ">=0.44.0",
 		"pg": "^8.13.0"
 	},
@@ -52,9 +52,9 @@
 	},
 	"devDependencies": {
 		"@electric-sql/pglite": "^0.5.0",
-		"@electric-sql/pglite-socket": "^0.0.10",
+		"@electric-sql/pglite-socket": "^0.2.4",
 		"@ingram-tech/typescript-config": "workspace:*",
-		"@types/node": "^20.0.0",
+		"@types/node": "^25.0.0",
 		"@types/pg": "^8.11.0",
 		"drizzle-orm": "^0.45.0",
 		"pg": "^8.13.0",
