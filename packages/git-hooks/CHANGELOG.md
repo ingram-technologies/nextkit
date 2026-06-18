@@ -1,5 +1,14 @@
 # @ingram-tech/git-hooks
 
+## 0.2.1
+
+### Patch Changes
+
+- 366fb6d: Format staged `.mjs` / `.cjs` files in `nextkit-format-staged`. oxfmt handles
+  them, but they were missing from the extension filter, so config/scripts in
+  those formats were skipped on commit (and only caught later by CI's `oxfmt
+--check`).
+
 ## 0.2.0
 
 ### Minor Changes
