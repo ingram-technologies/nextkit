@@ -13,6 +13,7 @@ import { rm } from "node:fs/promises";
 import { PGlite, type Extensions } from "@electric-sql/pglite";
 import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
 import type { Pool } from "pg";
+import { resetPublicTables } from "./reset.js";
 
 export interface PgliteServerOptions {
 	/** Persisted data dir; omit for an in-memory database (tests). */
@@ -136,6 +137,14 @@ export interface TestDb {
  * An in-memory PGlite for integration tests. Real Postgres semantics, instant,
  * no cleanup. Run with Vitest `fileParallelism: false` (the socket is
  * single-connection) and close in `afterAll` (modules are isolated per file).
+ *
+ * Transport note: this harness is socket + `pg.Pool`, which is what a Next site
+ * dialing `DATABASE_URL` wants — but that single-connection socket is also why it
+ * needs serial files. A pure in-process Drizzle/PGlite harness (no socket) runs
+ * files in parallel and is faster, which is what an actual service reached for.
+ * Both share `resetPublicTables`. If a second in-process consumer appears, the
+ * move is to promote an in-process harness to first-class here, not to bolt one
+ * beside this socket default.
  */
 export const createTestDb = async (
 	options: PgliteServerOptions = {},
@@ -143,14 +152,8 @@ export const createTestDb = async (
 	const { Pool } = await import("pg");
 	const { databaseUrl, stop } = await createPgliteServer(options);
 	const pool = new Pool({ connectionString: databaseUrl, max: 1 });
-	const reset = async (): Promise<void> => {
-		const result = await pool.query<{ tablename: string }>(
-			"select tablename from pg_tables where schemaname = 'public'",
-		);
-		if (result.rows.length === 0) return;
-		const list = result.rows.map((row) => `"${row.tablename}"`).join(", ");
-		await pool.query(`truncate table ${list} restart identity cascade`);
-	};
+	const reset = (): Promise<void> =>
+		resetPublicTables((sql) => pool.query<{ tablename: string }>(sql));
 	const close = async (): Promise<void> => {
 		await pool.end();
 		await stop();

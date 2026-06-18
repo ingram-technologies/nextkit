@@ -26,6 +26,10 @@
 		"./pglite": {
 			"types": "./dist/pglite/index.d.ts",
 			"import": "./dist/pglite/index.js"
+		},
+		"./pglite/reset": {
+			"types": "./dist/pglite/reset.d.ts",
+			"import": "./dist/pglite/reset.js"
 		}
 	},
 	"scripts": {
