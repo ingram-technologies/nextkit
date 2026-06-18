@@ -1,5 +1,12 @@
 # @ingram-tech/oxlint-config
 
+## 0.2.2
+
+### Patch Changes
+
+- 5e1fab2: Raise the `oxlint` (`^1.70.0`) and `oxfmt` (`^0.55.0`) peer floors to the latest
+  releases.
+
 ## 0.2.1
 
 ### Patch Changes

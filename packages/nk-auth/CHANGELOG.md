@@ -1,5 +1,15 @@
 # @ingram-tech/nk-auth
 
+## 0.4.1
+
+### Patch Changes
+
+- 5e1fab2: Bump the bundled `bcrypt` dependency from v5 to v6. Internal change only —
+  the hash format is unchanged, so existing password hashes continue to verify.
+- Updated dependencies [5e1fab2]
+- Updated dependencies [5e2c767]
+  - @ingram-tech/nk-db@0.3.0
+
 ## 0.4.0
 
 ### Minor Changes
