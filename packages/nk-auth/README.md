@@ -17,6 +17,8 @@ only what you need from focused subpaths.
 | `createAuthPool` (`./pool`) | `pg` Pool with optional SSL CA verification |
 | `bcryptPassword`, `makeEmailSenders`, `makePasskeyOptions`, `uuidGenerateId` (`./`) | password migration, email hooks, passkeys, UUID ids |
 | `createServerSupabase` (`./`) | RLS-aware supabase-js client (attaches the session JWT) |
+| `createAuthHelpers` (`./server`) | validated App Router session helpers: `getSession` / `getUser` / `requireUser` / `redirectIfAuthenticated` |
+| `createAuthMiddleware` (`./middleware`) | loop-safe edge middleware that only gates *unauthenticated* users off protected paths |
 
 > **Supabase Auth → Better Auth + RLS migration?** Read
 > [`docs/better-auth-migration.md`](../../docs/better-auth-migration.md) — the
@@ -175,6 +177,69 @@ export const authClient = createAuthClient({
 });
 // authClient.signIn.email(...), signIn.social(...), useSession(), passkey.*
 ```
+
+## 5. Gate routes (without the redirect loop)
+
+Two layers, **one rule that keeps them from fighting**: only the *validated*
+layer may redirect a request *away from* the sign-in page.
+
+The validated layer (server helpers) — bind once to your instance:
+
+```ts
+// lib/auth/session.ts
+import { createAuthHelpers } from "@ingram-tech/nk-auth/server";
+import { auth } from "@/lib/auth";
+
+export const { getSession, getUser, requireUser, redirectIfAuthenticated } =
+	createAuthHelpers(auth);
+```
+
+```tsx
+// app/dashboard/page.tsx — gate a protected page (validated, DB-backed).
+import { requireUser } from "@/lib/auth/session";
+export default async function Dashboard() {
+	const user = await requireUser(); // -> /login when signed out
+	return <main>Hi {user.email}</main>;
+}
+
+// app/login/page.tsx — gate the sign-in page HERE, never in middleware.
+import { redirectIfAuthenticated } from "@/lib/auth/session";
+import { LoginForm } from "./login-form";
+export default async function Login() {
+	await redirectIfAuthenticated("/dashboard"); // validated: a stale cookie
+	return <LoginForm />; // resolves to "signed out" and falls through to the form
+}
+```
+
+The optimistic layer (middleware) is a fast edge short-circuit on cookie
+*presence*. It can save a render for users with no cookie at all — but it must
+never decide the sign-in page, because a present-but-invalid cookie there is
+exactly what loops. `createAuthMiddleware` enforces that **at construction**: it
+throws if you try to protect or front-door the sign-in path.
+
+```ts
+// middleware.ts
+import { createAuthMiddleware } from "@ingram-tech/nk-auth/middleware";
+
+export const middleware = createAuthMiddleware({
+	protectedPaths: ["/dashboard", "/memory"], // cookie-less -> signInPath
+	signInPath: "/login",
+	frontDoorPaths: ["/"], // optional: cookie-bearing "/" -> signedInRedirect
+	signedInRedirect: "/dashboard",
+});
+
+export const config = {
+	matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.svg).*)"],
+};
+```
+
+Why the split: middleware runs before render and can't afford a DB lookup, so it
+can only trust the cookie *exists*. The server helpers hit `auth.api.getSession`
+and check the session *contents*. When those disagree (revoked session, rotated
+secret, wiped DB) the validated layer wins and parks the user on `/login` — and
+because middleware refuses to bounce `/login`, the form renders instead of
+ping-ponging. Middleware is optional; sites that prefer one source of truth can
+use the server helpers alone.
 
 ## RLS bridge (the important part)
 
