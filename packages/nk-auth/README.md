@@ -17,7 +17,7 @@ only what you need from focused subpaths.
 | `createAuthPool` (`./pool`) | `pg` Pool with optional SSL CA verification |
 | `bcryptPassword`, `makeEmailSenders`, `makePasskeyOptions`, `uuidGenerateId` (`./`) | password migration, email hooks, passkeys, UUID ids |
 | `createServerSupabase` (`./`) | RLS-aware supabase-js client (attaches the session JWT) |
-| `createAuthHelpers` (`./server`) | validated App Router session helpers: `getSession` / `getUser` / `requireUser` / `redirectIfAuthenticated` |
+| `createAuthHelpers` (`./server`) | validated App Router session helpers: `getSession` / `getUser` / `requireSession` / `requireUser` / `redirectIfAuthenticated` |
 | `createAuthMiddleware` (`./middleware`) | loop-safe edge middleware that only gates *unauthenticated* users off protected paths |
 
 > **Supabase Auth → Better Auth + RLS migration?** Read
@@ -190,8 +190,13 @@ The validated layer (server helpers) — bind once to your instance:
 import { createAuthHelpers } from "@ingram-tech/nk-auth/server";
 import { auth } from "@/lib/auth";
 
-export const { getSession, getUser, requireUser, redirectIfAuthenticated } =
-	createAuthHelpers(auth);
+export const {
+	getSession,
+	getUser,
+	requireSession,
+	requireUser,
+	redirectIfAuthenticated,
+} = createAuthHelpers(auth);
 ```
 
 ```tsx

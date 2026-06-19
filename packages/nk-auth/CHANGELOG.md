@@ -1,5 +1,13 @@
 # @ingram-tech/nk-auth
 
+## 0.6.0
+
+### Minor Changes
+
+- `createAuthHelpers` now also returns `requireSession(redirectTo?)` — like
+  `requireUser` but returns the full validated session, for callers that need the
+  session id or active organization, not just the user.
+
 ## 0.5.0
 
 ### Minor Changes

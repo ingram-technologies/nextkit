@@ -44,6 +44,17 @@ export function createAuthHelpers<S extends SessionLike>(auth: AuthLike<S>) {
 		return auth.api.getSession({ headers: await headers() });
 	}
 
+	/**
+	 * Require a session or redirect, returning the full validated session (use
+	 * when the caller needs more than the user — session id, active org, …).
+	 */
+	async function requireSession(redirectTo = "/login"): Promise<S> {
+		const session = await getSession();
+		// redirect() is typed `never`, so `session` narrows to non-null below.
+		if (!session) redirect(redirectTo);
+		return session;
+	}
+
 	/** The authenticated user, or null. */
 	async function getUser(): Promise<S["user"] | null> {
 		const session = await getSession();
@@ -72,5 +83,11 @@ export function createAuthHelpers<S extends SessionLike>(auth: AuthLike<S>) {
 		if (await getSession()) redirect(to);
 	}
 
-	return { getSession, getUser, requireUser, redirectIfAuthenticated };
+	return {
+		getSession,
+		getUser,
+		requireSession,
+		requireUser,
+		redirectIfAuthenticated,
+	};
 }
