@@ -1,8 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createAuthHelpers } from "./server";
 
+// Request-scoped reads the helpers depend on; reset per test.
+let headerStore = new Headers();
+let cookieList: { name: string; value: string }[] = [];
+
 vi.mock("next/headers", () => ({
-	headers: async () => new Headers(),
+	headers: async () => headerStore,
+	cookies: async () => ({ getAll: () => cookieList }),
 }));
 
 // Model next/navigation's redirect(): it throws a `never`-typed control-flow
@@ -18,9 +23,16 @@ vi.mock("next/navigation", () => ({
 	},
 }));
 
+beforeEach(() => {
+	headerStore = new Headers();
+	cookieList = [];
+});
+
 const session = { user: { id: "u1", email: "a@b.com" }, session: { id: "s1" } };
-const helpers = (value: typeof session | null) =>
-	createAuthHelpers({ api: { getSession: async () => value } });
+const helpers = (
+	value: typeof session | null,
+	options?: Parameters<typeof createAuthHelpers>[1],
+) => createAuthHelpers({ api: { getSession: async () => value } }, options);
 
 describe("createAuthHelpers", () => {
 	it("getSession / getUser return the validated values", async () => {
@@ -37,16 +49,31 @@ describe("createAuthHelpers", () => {
 		expect(await helpers(session).requireUser()).toBe(session.user);
 	});
 
-	it("requireUser redirects to /login (default) when signed out", async () => {
+	it("requireUser redirects to the bare sign-in path when truly signed out", async () => {
 		await expect(helpers(null).requireUser()).rejects.toMatchObject({
 			to: "/login",
 		});
 	});
 
-	it("requireUser honors a custom redirect target", async () => {
-		await expect(helpers(null).requireUser("/signin")).rejects.toMatchObject({
-			to: "/signin",
+	it("requireUser preserves the requested path as next (from the injected header)", async () => {
+		headerStore = new Headers({ "x-nk-auth-path": "/memory" });
+		await expect(helpers(null).requireUser()).rejects.toMatchObject({
+			to: "/login?next=%2Fmemory",
 		});
+	});
+
+	it("requireUser flags stale=1 when a session cookie is present but invalid", async () => {
+		headerStore = new Headers({ "x-nk-auth-path": "/memory" });
+		cookieList = [{ name: "__Secure-better-auth.session_token", value: "dead" }];
+		await expect(helpers(null).requireUser()).rejects.toMatchObject({
+			to: "/login?next=%2Fmemory&stale=1",
+		});
+	});
+
+	it("honors a custom signInPath", async () => {
+		await expect(
+			helpers(null, { signInPath: "/signin" }).requireUser(),
+		).rejects.toMatchObject({ to: "/signin" });
 	});
 
 	it("requireSession returns the full session when present", async () => {

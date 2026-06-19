@@ -13,8 +13,14 @@ afterEach(() => {
 	cookiePresent = false;
 });
 
-const req = (path: string) => new NextRequest(new URL(`https://example.com${path}`));
-const location = (res: { headers: Headers }) => res.headers.get("location");
+const req = (path: string, init?: { cookie?: string }) =>
+	new NextRequest(new URL(`https://example.com${path}`), {
+		headers: init?.cookie ? { cookie: init.cookie } : undefined,
+	});
+const loc = (res: { headers: Headers }) => {
+	const l = res.headers.get("location");
+	return l ? new URL(l) : null;
+};
 
 describe("createAuthMiddleware — construction-time loop safety", () => {
 	it("rejects a signInPath that falls under protectedPaths (cookie-less self-loop)", () => {
@@ -48,30 +54,52 @@ describe("createAuthMiddleware — request behavior", () => {
 		signedInRedirect: "/app",
 	});
 
-	it("redirects a cookie-less request off a protected path to signInPath", () => {
+	it("redirects a cookie-less request off a protected path, preserving next", () => {
 		cookiePresent = false;
-		expect(location(mw(req("/dashboard")))).toBe("https://example.com/login");
+		const url = loc(mw(req("/dashboard")));
+		expect(url?.pathname).toBe("/login");
+		expect(url?.searchParams.get("next")).toBe("/dashboard");
 	});
 
 	it("lets a cookie-less request through on a public path", () => {
 		cookiePresent = false;
-		expect(location(mw(req("/about")))).toBeNull();
+		expect(loc(mw(req("/about")))).toBeNull();
 	});
 
 	it("redirects a cookie-bearing request off the front door to the app", () => {
 		cookiePresent = true;
-		expect(location(mw(req("/")))).toBe("https://example.com/app");
+		expect(loc(mw(req("/")))?.pathname).toBe("/app");
 	});
 
 	it("NEVER bounces the sign-in page, even with a cookie (anti-loop)", () => {
-		// This is the whole point: a stale-but-present cookie lands on /login and
-		// stays, so the validated server guard can render the form.
+		// A stale-but-present cookie lands on /login and stays, so the validated
+		// server guard can render the form.
 		cookiePresent = true;
-		expect(location(mw(req("/login")))).toBeNull();
+		expect(loc(mw(req("/login")))).toBeNull();
 	});
 
 	it("lets a cookie-bearing request through on a protected path (server validates)", () => {
 		cookiePresent = true;
-		expect(location(mw(req("/app/settings")))).toBeNull();
+		expect(loc(mw(req("/app/settings")))).toBeNull();
+	});
+
+	it("clears the dead cookie on the stale handshake and keeps next", () => {
+		// The validated guard parks an invalid session at /login?stale=1&next=…
+		cookiePresent = true;
+		const res = mw(
+			req("/login?stale=1&next=/dashboard", {
+				cookie: "__Secure-better-auth.session_token=dead.sig",
+			}),
+		);
+		const url = loc(res);
+		expect(url?.pathname).toBe("/login");
+		expect(url?.searchParams.get("stale")).toBeNull();
+		expect(url?.searchParams.get("next")).toBe("/dashboard");
+		// The Better Auth cookie is expired on the redirect response.
+		expect(
+			res.headers
+				.getSetCookie()
+				.some((c) => c.includes("__Secure-better-auth.session_token=")),
+		).toBe(true);
 	});
 });

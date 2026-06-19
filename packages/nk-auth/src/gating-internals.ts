@@ -1,0 +1,40 @@
+/**
+ * Internal helpers shared by the server helpers and the middleware. Kept in a
+ * zero-`next` module so neither subpath imports the other (server pulls
+ * next/navigation, middleware pulls next/server — mixing them breaks the
+ * respective runtimes). Not a public export.
+ */
+
+/**
+ * Request header the middleware sets to the originally-requested path so a
+ * server-component guard — which Next.js otherwise gives no way to learn its own
+ * URL — can preserve it as a `next` param when it redirects to sign-in.
+ */
+export const NK_AUTH_PATH_HEADER = "x-nk-auth-path";
+
+/**
+ * Accept only an internal, non-protocol-relative path as a post-login redirect,
+ * so `next` can never be turned into an open redirect to another origin.
+ */
+export function safeNextParam(value: string | null | undefined): string | null {
+	if (!value) return null;
+	if (!value.startsWith("/") || value.startsWith("//")) return null;
+	return value;
+}
+
+/**
+ * Build a sign-in URL: `signInPath`, plus `next` (when safe) so the user returns
+ * to where they were headed, plus a `stale=1` marker when a session cookie is
+ * present but invalid — the signal the middleware uses to clear the dead cookie.
+ */
+export function signInUrl(
+	signInPath: string,
+	opts: { next?: string | null; stale?: boolean },
+): string {
+	const params = new URLSearchParams();
+	const next = safeNextParam(opts.next);
+	if (next) params.set("next", next);
+	if (opts.stale) params.set("stale", "1");
+	const qs = params.toString();
+	return qs ? `${signInPath}?${qs}` : signInPath;
+}

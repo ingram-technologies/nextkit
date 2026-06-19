@@ -14,14 +14,20 @@
  *
  *   The sign-in path is never the target of an optimistic redirect.
  *
- * It will only ever (a) push *cookie-less* requests off `protectedPaths`, and
- * optionally (b) push *cookie-bearing* requests off a front door to the app. It
- * refuses to protect or front-door the sign-in path, because either would
- * reintroduce the loop. Sending a *signed-in* user away from /login is the job
- * of `redirectIfAuthenticated` in the server helpers, which validates first.
+ * It also owns the two things only middleware can do here:
+ *
+ *  - **Preserve the destination.** When it sends an unauthenticated user to
+ *    sign-in, it appends `?next=<requested path>`; and it injects an
+ *    `x-nk-auth-path` request header so the server guards can do the same for
+ *    the cookie-present-but-invalid case (an RSC can't otherwise learn its URL).
+ *  - **Clear a stale cookie.** The guard parks an invalid session at
+ *    `${signInPath}?stale=1`; middleware (the only pre-render place that can set
+ *    cookies) deletes the dead Better Auth cookies and bounces to a clean
+ *    sign-in URL, so a bad session self-heals instead of failing every request.
  */
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
+import { NK_AUTH_PATH_HEADER, safeNextParam } from "./gating-internals";
 
 export interface AuthMiddlewareConfig {
 	/**
@@ -39,11 +45,18 @@ export interface AuthMiddlewareConfig {
 	frontDoorPaths?: string[];
 	/** Destination for the front-door redirect. Required when `frontDoorPaths` is set. */
 	signedInRedirect?: string;
+	/**
+	 * Cookie-name fragment for the cookies cleared on a stale session. Default
+	 * `better-auth`, which matches `better-auth.session_token` and the
+	 * `__Secure-…` production variant.
+	 */
+	sessionCookiePrefix?: string;
 }
 
 export function createAuthMiddleware(config: AuthMiddlewareConfig) {
 	const signInPath = config.signInPath ?? "/login";
 	const frontDoorPaths = config.frontDoorPaths ?? [];
+	const cookiePrefix = config.sessionCookiePrefix ?? "better-auth";
 
 	// Loop-safety, enforced once at construction rather than hoped-for per
 	// request. The sign-in path is where the validated guard parks an
@@ -66,28 +79,55 @@ export function createAuthMiddleware(config: AuthMiddlewareConfig) {
 	}
 
 	return function middleware(request: NextRequest): NextResponse {
-		const hasSessionCookie = !!getSessionCookie(request);
 		const path = request.nextUrl.pathname;
 
+		// 1. Stale-session handshake. The validated guard sends an invalid session
+		//    to `${signInPath}?stale=1&next=…`. Clear the dead Better Auth cookies
+		//    (only middleware can, pre-render) and bounce to a clean sign-in URL
+		//    that keeps `next`. After this the cookie is gone, so it can't re-arm.
+		if (path === signInPath && request.nextUrl.searchParams.get("stale") === "1") {
+			const to = request.nextUrl.clone();
+			to.searchParams.delete("stale");
+			const res = NextResponse.redirect(to);
+			for (const cookie of request.cookies.getAll()) {
+				if (cookie.name.includes(cookiePrefix)) res.cookies.delete(cookie.name);
+			}
+			return res;
+		}
+
+		const hasSessionCookie = !!getSessionCookie(request);
+
+		// 2. Unauthenticated (no cookie) on a protected path -> sign in, and
+		//    remember where they were going.
 		if (
 			!hasSessionCookie &&
 			config.protectedPaths.some((p) => path.startsWith(p))
 		) {
-			const url = request.nextUrl.clone();
-			url.pathname = signInPath;
-			return NextResponse.redirect(url);
+			const original = request.nextUrl.pathname + request.nextUrl.search;
+			const to = request.nextUrl.clone();
+			to.pathname = signInPath;
+			to.search = "";
+			const next = safeNextParam(original);
+			if (next) to.searchParams.set("next", next);
+			return NextResponse.redirect(to);
 		}
 
+		// 3. Front door: a cookie-bearing visit to "/" (or configured) -> the app.
 		if (
 			hasSessionCookie &&
 			config.signedInRedirect &&
 			frontDoorPaths.includes(path)
 		) {
-			const url = request.nextUrl.clone();
-			url.pathname = config.signedInRedirect;
-			return NextResponse.redirect(url);
+			const to = request.nextUrl.clone();
+			to.pathname = config.signedInRedirect;
+			to.search = "";
+			return NextResponse.redirect(to);
 		}
 
-		return NextResponse.next();
+		// 4. Pass through, injecting the requested path so server guards can build
+		//    `next` for the cookie-present-but-invalid case.
+		const requestHeaders = new Headers(request.headers);
+		requestHeaders.set(NK_AUTH_PATH_HEADER, path + request.nextUrl.search);
+		return NextResponse.next({ request: { headers: requestHeaders } });
 	};
 }

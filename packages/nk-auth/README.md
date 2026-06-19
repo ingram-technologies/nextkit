@@ -17,8 +17,8 @@ only what you need from focused subpaths.
 | `createAuthPool` (`./pool`) | `pg` Pool with optional SSL CA verification |
 | `bcryptPassword`, `makeEmailSenders`, `makePasskeyOptions`, `uuidGenerateId` (`./`) | password migration, email hooks, passkeys, UUID ids |
 | `createServerSupabase` (`./`) | RLS-aware supabase-js client (attaches the session JWT) |
-| `createAuthHelpers` (`./server`) | validated App Router session helpers: `getSession` / `getUser` / `requireSession` / `requireUser` / `redirectIfAuthenticated` |
-| `createAuthMiddleware` (`./middleware`) | loop-safe edge middleware that only gates *unauthenticated* users off protected paths |
+| `createAuthHelpers`, `safeNext` (`./server`) | validated App Router session helpers (`getSession` / `getUser` / `requireSession` / `requireUser` / `redirectIfAuthenticated`) with automatic `next` + stale-cookie signalling; `safeNext` validates a `?next=` param |
+| `createAuthMiddleware` (`./middleware`) | loop-safe edge middleware: gates unauthenticated users off protected paths, preserves `next`, and clears a stale session cookie so a bad session self-heals |
 
 > **Supabase Auth → Better Auth + RLS migration?** Read
 > [`docs/better-auth-migration.md`](../../docs/better-auth-migration.md) — the
@@ -203,16 +203,25 @@ export const {
 // app/dashboard/page.tsx — gate a protected page (validated, DB-backed).
 import { requireUser } from "@/lib/auth/session";
 export default async function Dashboard() {
-	const user = await requireUser(); // -> /login when signed out
+	// -> /login?next=/dashboard when signed out (and ?stale=1 when the cookie is
+	// present-but-invalid, so middleware clears it). next/stale are automatic.
+	const user = await requireUser();
 	return <main>Hi {user.email}</main>;
 }
 
-// app/login/page.tsx — gate the sign-in page HERE, never in middleware.
+// app/login/page.tsx — gate the sign-in page HERE, never in middleware. Honor
+// `next` so sign-in returns the user to where they were headed.
 import { redirectIfAuthenticated } from "@/lib/auth/session";
+import { safeNext } from "@ingram-tech/nk-auth/server";
 import { LoginForm } from "./login-form";
-export default async function Login() {
-	await redirectIfAuthenticated("/dashboard"); // validated: a stale cookie
-	return <LoginForm />; // resolves to "signed out" and falls through to the form
+export default async function Login({
+	searchParams,
+}: {
+	searchParams: Promise<{ next?: string }>;
+}) {
+	const next = safeNext((await searchParams).next) ?? "/dashboard";
+	await redirectIfAuthenticated(next); // validated: a stale cookie resolves to
+	return <LoginForm next={next} />; // "signed out" and falls through to the form
 }
 ```
 
@@ -243,8 +252,17 @@ can only trust the cookie *exists*. The server helpers hit `auth.api.getSession`
 and check the session *contents*. When those disagree (revoked session, rotated
 secret, wiped DB) the validated layer wins and parks the user on `/login` — and
 because middleware refuses to bounce `/login`, the form renders instead of
-ping-ponging. Middleware is optional; sites that prefer one source of truth can
-use the server helpers alone.
+ping-ponging.
+
+**Self-heal.** A bad session doesn't strand the user. The guard redirects to
+`/login?next=<where they were>&stale=1`; middleware (the only pre-render place
+that can touch cookies) deletes the dead Better Auth cookies on the `stale`
+marker and bounces to a clean `/login?next=…`; signing in returns them to
+`next`. `next` for the cookie-less case is filled in by middleware directly; for
+the cookie-present case the guard reads it from the `x-nk-auth-path` header
+middleware injects — so the self-heal (next + clearing) needs the middleware.
+Sites that skip middleware still get validated gating from the server helpers,
+just without automatic `next`/clearing.
 
 ## RLS bridge (the important part)
 
