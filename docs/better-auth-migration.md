@@ -139,10 +139,22 @@ deprecation path, and sharing it widens the blast radius if leaked.
 
 ### Do NOT need: rewriting policies
 
-Because we keep `auth.uid()` populated, **existing RLS policies are unchanged.**
-We do not introduce a custom `current_user_id()` helper or `SET LOCAL` GUCs —
-those are only needed for direct-Postgres access, which our sites don't use for
-app data. (Better Auth itself connects directly; see the table-lockdown gotcha.)
+Because we keep `auth.uid()` populated, **existing RLS policies are unchanged** —
+whichever bridge you use.
+
+> **Direct-Postgres sites (the common case now): keep RLS without PostgREST.**
+> Most sites have left supabase-js/PostgREST for direct `pg` + Drizzle (see
+> [`db-package.md`](./db-package.md)), so the bridges above don't apply — there's
+> no PostgREST to set `request.jwt.claims`. **You still don't have to rewrite
+> policies:** use **`withRlsTransaction` / `withRls` from
+> [`@ingram-tech/nk-db`](./db-package.md#row-level-security-on-a-direct-connection-withrls--withrlstransaction)**,
+> which set `request.jwt.claims` + `SET LOCAL ROLE` per transaction (claims taken
+> straight from the Better Auth session — no JWT minting, no JWKS issuer). The
+> same `auth.uid()` policies fire unchanged, and it works identically once the
+> data moves to DO. App-layer `where owner_id = …` remains the alternative. (This
+> is the `SET LOCAL` GUC path; nk-db owns it so apps don't hand-roll it. Better
+> Auth itself still connects directly and privileged — see the table-lockdown
+> gotcha.)
 
 ## Non-obvious gotchas (the silent killers)
 

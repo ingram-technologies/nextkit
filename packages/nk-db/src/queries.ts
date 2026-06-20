@@ -1,4 +1,10 @@
 import type { Pool, PoolClient, QueryResultRow } from "pg";
+import {
+	type RlsClaims,
+	type RlsOptions,
+	resolveRlsConfig,
+	rlsPreamble,
+} from "./rls.js";
 
 /** Anything that can run a query: a Pool, a PoolClient, or a tx scope. */
 type Executor = Pick<Pool, "query">;
@@ -65,6 +71,19 @@ export interface PoolQueries extends Queries {
 	 * statements that must be atomic.
 	 */
 	withTx: <T>(fn: (tx: Queries) => Promise<T>) => Promise<T>;
+	/**
+	 * Like `withTx`, but first **scopes the transaction to a user** so RLS
+	 * policies apply: it sets `request.jwt.claims` + `SET LOCAL ROLE` (default
+	 * `authenticated`) before `fn`, reproducing what PostgREST did. Use this for
+	 * user-facing reads/writes on a direct connection; keep `withTx` / `query`
+	 * for service-role paths that should bypass RLS. The connection role must not
+	 * bypass RLS for the rows touched — see `rls.ts`.
+	 */
+	withRls: <T>(
+		claims: RlsClaims,
+		fn: (tx: Queries) => Promise<T>,
+		options?: RlsOptions,
+	) => Promise<T>;
 }
 
 /**
@@ -76,10 +95,16 @@ export interface PoolQueries extends Queries {
  */
 export const createQueries = (pool: Pool): PoolQueries => {
 	const base = bind(pool);
-	const withTx = async <T>(fn: (tx: Queries) => Promise<T>): Promise<T> => {
+	// One transaction runner; `setup` (if any) runs after `begin`, before `fn` —
+	// that's where withRls injects the claims/role GUCs.
+	const runTx = async <T>(
+		setup: ((client: PoolClient) => Promise<void>) | undefined,
+		fn: (tx: Queries) => Promise<T>,
+	): Promise<T> => {
 		const client: PoolClient = await pool.connect();
 		try {
 			await client.query("begin");
+			if (setup) await setup(client);
 			const result = await fn(bind(client));
 			await client.query("commit");
 			return result;
@@ -90,5 +115,16 @@ export const createQueries = (pool: Pool): PoolQueries => {
 			client.release();
 		}
 	};
-	return { ...base, withTx };
+	const withTx = <T>(fn: (tx: Queries) => Promise<T>): Promise<T> =>
+		runTx(undefined, fn);
+	const withRls = <T>(
+		claims: RlsClaims,
+		fn: (tx: Queries) => Promise<T>,
+		options?: RlsOptions,
+	): Promise<T> =>
+		runTx(async (client) => {
+			const { text, values } = rlsPreamble(resolveRlsConfig(claims, options));
+			await client.query(text, values);
+		}, fn);
+	return { ...base, withTx, withRls };
 };
