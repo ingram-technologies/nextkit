@@ -1,4 +1,5 @@
 import type { Pool, PoolClient, QueryResultRow } from "pg";
+import { z } from "zod";
 import {
 	type RlsClaims,
 	type RlsOptions,
@@ -9,58 +10,168 @@ import {
 /** Anything that can run a query: a Pool, a PoolClient, or a tx scope. */
 type Executor = Pick<Pool, "query">;
 
+/**
+ * A raw result shaped like pg's `QueryResult` or Drizzle's `tx.execute()` output
+ * — just the `rows`. Consumed by {@link parseRows} / {@link parseMaybeRow} /
+ * {@link parseOneRow}, which validate that array against a Zod schema.
+ */
+export interface RowsResult {
+	rows: readonly unknown[];
+}
+
 export interface Queries {
-	/** Run a query and return all rows. */
-	query: <T extends QueryResultRow = QueryResultRow>(
-		text: string,
-		params?: unknown[],
-	) => Promise<T[]>;
+	/**
+	 * Run a query and return all rows. Pass a Zod row `schema` as the third
+	 * argument to validate (and coerce) every row instead of trusting a `<T>`
+	 * cast — the schema is also where `numeric`/timestamp coercion belongs
+	 * (`z.coerce.number()`, an ISO transform), per the no-`as`-on-external-input
+	 * rule.
+	 */
+	query: {
+		<T extends QueryResultRow = QueryResultRow>(
+			text: string,
+			params?: unknown[],
+		): Promise<T[]>;
+		<S extends z.ZodType>(
+			text: string,
+			params: unknown[] | undefined,
+			schema: S,
+		): Promise<z.output<S>[]>;
+	};
 	/** Run a query expected to return at most one row; `null` when none. */
-	maybeOne: <T extends QueryResultRow = QueryResultRow>(
-		text: string,
-		params?: unknown[],
-	) => Promise<T | null>;
+	maybeOne: {
+		<T extends QueryResultRow = QueryResultRow>(
+			text: string,
+			params?: unknown[],
+		): Promise<T | null>;
+		<S extends z.ZodType>(
+			text: string,
+			params: unknown[] | undefined,
+			schema: S,
+		): Promise<z.output<S> | null>;
+	};
 	/** Run a query that must return exactly one row; throws otherwise. */
-	one: <T extends QueryResultRow = QueryResultRow>(
-		text: string,
-		params?: unknown[],
-	) => Promise<T>;
+	one: {
+		<T extends QueryResultRow = QueryResultRow>(
+			text: string,
+			params?: unknown[],
+		): Promise<T>;
+		<S extends z.ZodType>(
+			text: string,
+			params: unknown[] | undefined,
+			schema: S,
+		): Promise<z.output<S>>;
+	};
 	/** Run a write and return the affected row count. */
 	execute: (text: string, params?: unknown[]) => Promise<number>;
 }
 
 const bind = (executor: Executor): Queries => {
-	const query = async <T extends QueryResultRow = QueryResultRow>(
+	function query<T extends QueryResultRow = QueryResultRow>(
+		text: string,
+		params?: unknown[],
+	): Promise<T[]>;
+	function query<S extends z.ZodType>(
+		text: string,
+		params: unknown[] | undefined,
+		schema: S,
+	): Promise<z.output<S>[]>;
+	async function query(
 		text: string,
 		params: unknown[] = [],
-	): Promise<T[]> => {
-		const result = await executor.query<T>(text, params);
-		return result.rows;
-	};
-	const maybeOne = async <T extends QueryResultRow = QueryResultRow>(
+		schema?: z.ZodType,
+	): Promise<unknown[]> {
+		const result = await executor.query(text, params);
+		return schema ? result.rows.map((row) => schema.parse(row)) : result.rows;
+	}
+
+	function maybeOne<T extends QueryResultRow = QueryResultRow>(
+		text: string,
+		params?: unknown[],
+	): Promise<T | null>;
+	function maybeOne<S extends z.ZodType>(
+		text: string,
+		params: unknown[] | undefined,
+		schema: S,
+	): Promise<z.output<S> | null>;
+	async function maybeOne(
 		text: string,
 		params: unknown[] = [],
-	): Promise<T | null> => {
-		const rows = await query<T>(text, params);
-		return rows[0] ?? null;
-	};
-	const one = async <T extends QueryResultRow = QueryResultRow>(
+		schema?: z.ZodType,
+	): Promise<unknown> {
+		const result = await executor.query(text, params);
+		const first = result.rows[0];
+		if (first === undefined) return null;
+		return schema ? schema.parse(first) : first;
+	}
+
+	function one<T extends QueryResultRow = QueryResultRow>(
+		text: string,
+		params?: unknown[],
+	): Promise<T>;
+	function one<S extends z.ZodType>(
+		text: string,
+		params: unknown[] | undefined,
+		schema: S,
+	): Promise<z.output<S>>;
+	async function one(
 		text: string,
 		params: unknown[] = [],
-	): Promise<T> => {
-		const rows = await query<T>(text, params);
-		const row = rows[0];
-		if (!row) throw new Error("Expected exactly one row, got none");
-		if (rows.length > 1) {
-			throw new Error(`Expected exactly one row, got ${rows.length}`);
+		schema?: z.ZodType,
+	): Promise<unknown> {
+		const result = await executor.query(text, params);
+		if (result.rows.length === 0) {
+			throw new Error("Expected exactly one row, got none");
 		}
-		return row;
-	};
+		if (result.rows.length > 1) {
+			throw new Error(`Expected exactly one row, got ${result.rows.length}`);
+		}
+		const row = result.rows[0];
+		return schema ? schema.parse(row) : row;
+	}
+
 	const execute = async (text: string, params: unknown[] = []): Promise<number> => {
 		const result = await executor.query(text, params);
 		return result.rowCount ?? 0;
 	};
 	return { query, maybeOne, one, execute };
+};
+
+/**
+ * Validate the `rows` of a raw result (a pg `QueryResult` or the output of
+ * Drizzle's `tx.execute()`) against a Zod row schema, returning the parsed rows.
+ *
+ * This is the result-side counterpart to {@link Queries.query}'s `schema` arg,
+ * for the Drizzle RLS path: inside `withRlsTransaction`, `tx.execute()` hands
+ * back an untyped `{ rows }`, and this gives it the same validated/coerced
+ * result the pool helpers have. The schema doubles as the coercion layer.
+ */
+export const parseRows = <S extends z.ZodType>(
+	result: RowsResult,
+	schema: S,
+): z.output<S>[] => result.rows.map((row) => schema.parse(row));
+
+/** Like {@link parseRows} but for at most one row; `null` when none. */
+export const parseMaybeRow = <S extends z.ZodType>(
+	result: RowsResult,
+	schema: S,
+): z.output<S> | null => {
+	const first = result.rows[0];
+	return first === undefined ? null : schema.parse(first);
+};
+
+/** Like {@link parseRows} but requires exactly one row; throws otherwise. */
+export const parseOneRow = <S extends z.ZodType>(
+	result: RowsResult,
+	schema: S,
+): z.output<S> => {
+	if (result.rows.length === 0) {
+		throw new Error("Expected exactly one row, got none");
+	}
+	if (result.rows.length > 1) {
+		throw new Error(`Expected exactly one row, got ${result.rows.length}`);
+	}
+	return schema.parse(result.rows[0]);
 };
 
 export interface PoolQueries extends Queries {

@@ -128,6 +128,55 @@ const rows = await query<Row>("select … where … order by … limit $1", [n])
 const row = await maybeOne<Row>("select … where id = $1", [id]);
 ```
 
+#### Validate the result instead of casting it (the `<T>` is a lie)
+
+`query<Row>(…)` asserts the row shape at compile time and validates **nothing** at
+runtime — it is an `as Row` on the wire, and DB rows are external input, which the
+[no-`as`-casts rule](./code-style.md) says to validate with Zod. So every raw
+helper takes an optional Zod **row schema** as its last argument; pass it and you
+get parsed, typed rows instead of a cast:
+
+```ts
+import { z } from "zod";
+
+const Balance = z.object({ currency: z.string(), amount: z.coerce.number() });
+
+// validated + coerced; return type is z.infer<typeof Balance>[]
+const rows = await query("select currency, amount from report_account_balances($1, $2)", [orgId, acctId], Balance);
+const quota = await maybeOne("select consume_unique_user_quota($1, $2, $3) as result", [orgId, uid, cap], QuotaResult);
+```
+
+The schema **doubles as the coercion layer**: `z.coerce.number()` for `numeric`
+(which `pg` returns as a string) and an ISO transform for timestamps fold into the
+same parse, so the `pgNumericToNumber` / `pgTimestampToIso` mapping disappears from
+the call site. (The omit-the-schema overload keeps the `<T>` form working
+unchanged — this is purely additive.)
+
+On the **Drizzle RLS path** you don't have these helpers — inside
+`withRlsTransaction`, `tx.execute()` returns an untyped `{ rows }`. The
+result-side `parseRows` / `parseMaybeRow` / `parseOneRow(result, schema)` give it
+the same validated/coerced result without wrapping Drizzle's builder:
+
+```ts
+import { parseMaybeRow } from "@ingram-tech/nk-db";
+
+const role = parseMaybeRow(
+	await withRlsTransaction(db, { sub: userId }, (tx) =>
+		tx.execute(sql`select user_organization_role(${orgId}::uuid) as role`),
+	),
+	z.object({ role: OrganizationRole.nullable() }),
+)?.role ?? null;
+```
+
+#### Inspecting Postgres errors (`isPgError` / `isUniqueViolation`)
+
+`pg` puts the SQLSTATE on `error.code`, but wrappers re-throw with the original
+nested under `.cause`, so a flat `err.code === '23505'` check silently misses it.
+`isPgError(err, code)` walks the `.cause` chain; `isUniqueViolation(err)` is the
+`23505` shorthand. Reach for `ON CONFLICT` first (see the pooled-connection
+footgun under [PGlite gotchas](#pglite-gotchas-these-cost-real-time--encoded-in-the-harness)),
+but use these where you genuinely must branch on the failure.
+
 ### Row-Level Security on a direct connection (`withRls` / `withRlsTransaction`)
 
 The thing every "keep RLS, drop PostgREST" migration re-derives by hand. On
@@ -274,7 +323,9 @@ Per [enforce-what-you-can](./philosophy.md#enforce-what-you-can-document-what-yo
 - **oxlint rule:** ban `new Pool(` / `new Client(` outside `src/lib/db.ts` —
   force the shared `createPool()`.
 - **oxlint rule:** flag `=== '23505'` (and `.code === ` on caught pg errors) used
-  as control flow — steer to `ON CONFLICT`.
+  as control flow — steer to `ON CONFLICT`, or to `isPgError` / `isUniqueViolation`
+  for the cases that legitimately must branch on the failure (they also walk the
+  `.cause` chain a flat check misses).
 - **oxlint rule (Tier B):** ban `@supabase/supabase-js` imports for data access
   once a site is on the golden path.
 
@@ -284,7 +335,9 @@ Per [enforce-what-you-can](./philosophy.md#enforce-what-you-can-document-what-yo
   the schema, the generated migrations, and the row types for Tier-B apps. The
   `query/one/maybeOne/execute` helpers stay for SQL the ORM is awkward at
   (`select fn($1,…)` calls, `pgmq` draining, `pg_trgm`) — not as a parallel query
-  path.
+  path. They take an optional Zod **row schema** (validate + coerce the result
+  instead of casting `<T>`); `parseRows`/`parseMaybeRow`/`parseOneRow` give the
+  Drizzle `tx.execute()` path the same on the RLS side.
 - **nk-db is mandatory for Tier-B.** Products import `createPool` / `createDb` /
   `createQueries` from here instead of hand-rolling a `src/lib/db/` layer; that is
   the whole point of extracting this slice.
