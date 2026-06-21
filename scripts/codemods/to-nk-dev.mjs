@@ -133,8 +133,8 @@ log("package.json updated (old dev packages → @ingram-tech/nk-dev).");
 // 2. Rewrite extends / import paths to the new package.
 rewriteFile(".oxlintrc.json", [
 	[
-		/@ingram-tech\/oxlint-config\/oxlintrc\.json/g,
-		"@ingram-tech/nk-dev/oxlintrc.json",
+		/@ingram-tech\/oxlint-config\/(oxlintrc|oxfmtrc|tier-b)\.json/g,
+		"@ingram-tech/nk-dev/$1.json",
 	],
 ]);
 rewriteFile("tsconfig.json", [
