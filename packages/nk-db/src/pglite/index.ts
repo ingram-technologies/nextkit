@@ -10,6 +10,7 @@
 
 import { existsSync } from "node:fs";
 import { rm } from "node:fs/promises";
+import { createServer } from "node:net";
 import { PGlite, type Extensions } from "@electric-sql/pglite";
 import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
 import type { Pool } from "pg";
@@ -44,6 +45,19 @@ export interface PgliteServer {
 	databaseUrl: string;
 	stop: () => Promise<void>;
 }
+
+/** Ask the OS for a currently-free TCP port (bind :0, read it back, release).
+ *  Used so the test harness never collides with a dev Postgres on 5432. */
+const freePort = (host: string): Promise<number> =>
+	new Promise((resolve, reject) => {
+		const srv = createServer();
+		srv.once("error", reject);
+		srv.listen(0, host, () => {
+			const addr = srv.address();
+			const port = typeof addr === "object" && addr ? addr.port : 0;
+			srv.close((err) => (err ? reject(err) : resolve(port)));
+		});
+	});
 
 const defaultMigrate =
 	(migrationsFolder: string) =>
@@ -145,12 +159,25 @@ export interface TestDb {
  * Both share `resetPublicTables`. If a second in-process consumer appears, the
  * move is to promote an in-process harness to first-class here, not to bolt one
  * beside this socket default.
+ *
+ * Port: unlike `startPgliteDev` (which wants the stable 5432 the app dials),
+ * tests reach the db through the returned `pool`/`databaseUrl`, so the socket
+ * port is irrelevant — it defaults to an **ephemeral free port** so the harness
+ * never collides with a developer's real Postgres on 5432 (the EADDRINUSE that
+ * otherwise kills the suite). An explicit `port` option or `PGLITE_PORT` still
+ * wins.
  */
 export const createTestDb = async (
 	options: PgliteServerOptions = {},
 ): Promise<TestDb> => {
 	const { Pool } = await import("pg");
-	const { databaseUrl, stop } = await createPgliteServer(options);
+	const host = options.host ?? "127.0.0.1";
+	const port =
+		options.port ??
+		(process.env.PGLITE_PORT
+			? Number(process.env.PGLITE_PORT)
+			: await freePort(host));
+	const { databaseUrl, stop } = await createPgliteServer({ ...options, host, port });
 	const pool = new Pool({ connectionString: databaseUrl, max: 1 });
 	const reset = (): Promise<void> =>
 		resetPublicTables((sql) => pool.query<{ tablename: string }>(sql));

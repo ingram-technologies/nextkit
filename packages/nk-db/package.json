@@ -1,6 +1,6 @@
 {
 	"name": "@ingram-tech/nk-db",
-	"version": "0.5.0",
+	"version": "0.6.0",
 	"description": "The Ingram Postgres data layer: one TLS-aware pg pool, raw-SQL helpers, Drizzle wiring, and a PGlite (no-Docker) dev/test harness for Next.js sites.",
 	"license": "MIT",
 	"type": "module",
@@ -16,7 +16,8 @@
 		"dist"
 	],
 	"bin": {
-		"nk-pglite-dev": "./dist/pglite/dev.js"
+		"nk-pglite-dev": "./dist/pglite/dev.js",
+		"nk-pg-migrate": "./dist/migrate-bin.js"
 	},
 	"exports": {
 		".": {
@@ -26,6 +27,10 @@
 		"./id": {
 			"types": "./dist/id.d.ts",
 			"import": "./dist/id.js"
+		},
+		"./migrate": {
+			"types": "./dist/migrate.d.ts",
+			"import": "./dist/migrate.js"
 		},
 		"./pglite": {
 			"types": "./dist/pglite/index.d.ts",
