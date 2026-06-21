@@ -20,14 +20,15 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import type { Env, ErrorHandler } from "hono";
 import { handleError, HttpError } from "./errors";
 
-export interface CreateApiAppOptions<E extends Env> {
+export interface CreateApiAppOptions<E extends Env, BasePath extends string> {
 	/** OpenAPI document title. */
 	title: string;
 	/** OpenAPI document version (e.g. "1.0.0"). */
 	version: string;
 	/** Mount prefix, e.g. "/api/v1". The doc, Swagger UI, and health check are
-	 *  all served beneath it. */
-	basePath: string;
+	 *  all served beneath it. Captured as a literal type (see `createApiApp`'s
+	 *  `const BasePath`) so the typed `hc` client can reconstruct the path. */
+	basePath: BasePath;
 	/** OpenAPI document description. */
 	description?: string;
 	/** OpenAPI `servers` list (absolute URLs the spec advertises). */
@@ -42,7 +43,10 @@ export interface CreateApiAppOptions<E extends Env> {
 	onError?: ErrorHandler<E>;
 }
 
-export function createApiApp<E extends Env = Env>(options: CreateApiAppOptions<E>) {
+export function createApiApp<
+	E extends Env = Env,
+	const BasePath extends string = string,
+>(options: CreateApiAppOptions<E, BasePath>) {
 	const {
 		title,
 		version,

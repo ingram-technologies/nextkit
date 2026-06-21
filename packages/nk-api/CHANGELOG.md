@@ -1,5 +1,15 @@
 # @ingram-tech/nk-api
 
+## 0.1.2
+
+### Patch Changes
+
+- Capture `createApiApp`'s `basePath` as a literal type (via a `const` type
+  parameter) so the typed `hc` client can reconstruct the prefixed path
+  (`hc<AppType>("/").api.v1...`). Previously `basePath` was typed as a wide
+  `string`, which erased the literal and left the client routes inaccessible
+  through the prefix.
+
 ## 0.1.1
 
 ### Patch Changes
