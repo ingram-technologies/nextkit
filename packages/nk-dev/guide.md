@@ -51,13 +51,34 @@ if your frontend fetches it as an API, it's **`/api/…`**; if a provider, cron,
 queue calls it, it's **`/internal/…`**. Never put OAuth callbacks or webhooks in
 the UI/page tree, and never expose internal plumbing under `/api/`.
 
+## Data & migrations
+
+- **IDs are UUIDv7** — never UUIDv4 / `gen_random_uuid()` / `defaultRandom()` /
+  nanoids. UUIDv7 is time-ordered, so it keeps index locality instead of
+  fragmenting the B-tree on random inserts, and one uniform id format spans every
+  table. On Postgres ≥18 the column default is native `uuidv7()`
+  (`uuid("id").primaryKey().default(sql\`uuidv7()\`)`); set Better Auth
+  `advanced.database.generateId: false` so the DB — not Better Auth's JS nanoid —
+  mints ids. Ids that cross a **public contract** are skinned to `prefix_base58`
+  via `@ingram-tech/nk-db/id` (`createIdRegistry`) — never expose a raw UUID.
+  External ids you don't mint (Stripe `cus_`, OAuth) stay `text`.
+- **Migrations don't auto-apply on deploy.** Code ships ahead of the prod schema
+  unless someone runs the migration against the target DB — a page that reads a
+  newly-added column 500s in prod until then. Apply migrations with
+  `@ingram-tech/nk-db`'s drift-aware runner (`@ingram-tech/nk-db/migrate`), which
+  surfaces the real Postgres error and pre-flights journal drift. Generate **and
+  apply** in the same step; don't leave "run the migration" as a handoff.
+
 ## What nextkit provides (reach for these)
 
 - `@ingram-tech/email` — Cloudflare email: `sendEmail`, `fromAddress`
-- `@ingram-tech/nk-auth` — Better Auth foundation: presets you spread into your own `betterAuth()` (mounts at `/auth` via `authBasePath`; org / JWT / passkey / pool / client helpers)
-- `@ingram-tech/nk-db` — Postgres data layer: `createPool` (one TLS-aware pool) + `createQueries` (raw SQL) + `createDb` (Drizzle), plus a PGlite dev/test harness at `@ingram-tech/nk-db/pglite`
+- `@ingram-tech/nk-auth` — Better Auth foundation: presets you spread into your own `betterAuth()` (mounts at `/auth` via `authBasePath`; org / JWT / passkey / pool / client helpers). Don't hand-roll session reads or auth middleware — bind `createAuthHelpers` (`getUser` / `requireUser` / `redirectIfAuthenticated`, from `@ingram-tech/nk-auth/server`) and gate routes with the loop-safe `createAuthMiddleware`
+- `@ingram-tech/nk-db` — Postgres data layer: `createPool` (one TLS-aware pool) + `createQueries` (raw SQL) + `createDb` (Drizzle), the PGlite dev/test harness at `@ingram-tech/nk-db/pglite`, the prefixed-id codec at `@ingram-tech/nk-db/id`, and the drift-aware migration runner at `@ingram-tech/nk-db/migrate`
+- `@ingram-tech/nk-api` — the standard HTTP API seam (Hono + `@hono/zod-openapi`): one `{ error, details? }` envelope, `createApiApp` / `createRouter`, auth + multi-tenant resource-scope middleware, pagination helpers, and an emitted OpenAPI/Swagger doc. Reach for it instead of hand-rolling route handlers
+- `@ingram-tech/nk-billing` — Stripe primitives: subscriptions, a Stripe-side wallet, and an optional Postgres credit ledger behind the `/credits` subpath. Prices resolve at runtime by Stripe `lookup_key` — **never hardcode a price id**, so test and live share one code path
 - `@ingram-tech/bot-protection` — invisible form protection (honeypot + timing + Vercel BotID)
 - `@ingram-tech/newsletter` — Supabase newsletter: subscribe / send, 1-click unsubscribe
+- `@ingram-tech/nk-i18n` — type-safe, English-as-key i18n: the English source text *is* the key (no `en.json`), ICU MessageFormat, colocated JSON catalogs; routing is left to the site
 - `@ingram-tech/nk-dev` — the whole dev toolchain in one devDependency: the `nk` command (`nk dev` boots local PGlite via `@ingram-tech/nk-db` if installed, then Next; plus `nk format` / `lint` / `knip` / `check` / `type-check` / `build`), the shared oxlint + oxfmt / TypeScript / Vitest config, knip, the oxfmt format-on-commit hook, and this guide. `nk check` runs every fast checker (oxlint, oxfmt, SQL, knip) in one gate. `nk init` scaffolds a site to use it all.
 
 For detail on any package, read its README in `node_modules/@ingram-tech/<pkg>/`.

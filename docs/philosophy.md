@@ -49,7 +49,7 @@ boundary to keep it honest:
   somewhere else.
 
 This boundary is enforced, not just stated: see the orchestration tests in
-`packages/nk-cli`.
+`packages/nk-dev`.
 
 ## Single source of truth, propagated
 

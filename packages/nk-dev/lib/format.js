@@ -15,7 +15,7 @@ const SQL_DEFAULTS = { useTabs: true, language: "postgresql" };
  * `nk format` / `nk format --check`.
  *
  * Code (JS/TS/JSON/CSS) goes through oxfmt; SQL goes through Prettier, which
- * oxfmt can't format. Prettier + prettier-plugin-sql are bundled with nk-cli,
+ * oxfmt can't format. Prettier + prettier-plugin-sql are bundled with nk-dev,
  * so they never appear in any app's dependencies — the "no Prettier for code"
  * rule still holds, it's just the one file type oxfmt lacks.
  */
