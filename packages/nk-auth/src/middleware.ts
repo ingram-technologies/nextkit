@@ -27,7 +27,7 @@
  */
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
-import { NK_AUTH_PATH_HEADER, safeNextParam } from "./gating-internals";
+import { NK_AUTH_PATH_HEADER, safeNextParam } from "./gating-internals.js";
 
 export interface AuthMiddlewareConfig {
 	/**

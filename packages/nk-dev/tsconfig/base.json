@@ -4,8 +4,14 @@
 	"compilerOptions": {
 		"target": "ESNext",
 		"lib": ["esnext"],
-		"module": "esnext",
-		"moduleResolution": "bundler",
+		// NodeNext so published packages ("type": "module") emit real Node ESM and
+		// tsc ENFORCES explicit .js extensions on relative imports (TS2835).
+		// "bundler" silently tolerates extensionless imports and emits them
+		// verbatim — invalid under Node ESM / Turbopack, a recurring break source.
+		// App consumers override back to "bundler" in nextjs.json (Next resolves
+		// modules itself and must not require .js extensions in app source).
+		"module": "nodenext",
+		"moduleResolution": "nodenext",
 		"allowJs": true,
 		"skipLibCheck": true,
 		"strict": true,

@@ -4,7 +4,7 @@ import {
 	derivePreviewText,
 	renderNewsletterHtml,
 	renderNewsletterText,
-} from "./render";
+} from "./render.js";
 
 const base = {
 	newsletterName: "Acme Updates",

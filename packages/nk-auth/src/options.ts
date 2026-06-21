@@ -4,7 +4,7 @@ import bcrypt from "bcrypt";
 // `uuidGenerateId` (the `advanced.database.generateId` UUIDv7 generator) and the
 // base58 skin now live in the dependency-light `./id` module; re-exported here so
 // existing `from "@ingram-tech/nk-auth"` imports keep resolving.
-export { uuidGenerateId } from "./id";
+export { uuidGenerateId } from "./id.js";
 
 /**
  * Portable Better Auth building blocks for Ingram sites.

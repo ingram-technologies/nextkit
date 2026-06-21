@@ -8,21 +8,21 @@ export {
 	backendJwtOptions,
 	rlsJwtOptions,
 	verifyBackendJwt,
-} from "./jwt";
-export { base58Id, fromPrefixedId, toPrefixedId, uuidGenerateId } from "./id";
-export { type AuthEnv, authEnv, isConfigured } from "./keys";
+} from "./jwt.js";
+export { base58Id, fromPrefixedId, toPrefixedId, uuidGenerateId } from "./id.js";
+export { type AuthEnv, authEnv, isConfigured } from "./keys.js";
 export {
 	bcryptPassword,
 	makeEmailSenders,
 	makePasskeyOptions,
 	type PasskeyConfig,
 	type SendEmail,
-} from "./options";
+} from "./options.js";
 export {
 	lastActiveOrganizationHooks,
 	lastActiveOrganizationUserField,
 	nkOrganizationDefaults,
-} from "./organization";
-export { authBasePath } from "./paths";
-export { createAuthPool } from "./pool";
-export { createServerSupabase, type ServerSupabaseConfig } from "./supabase";
+} from "./organization.js";
+export { authBasePath } from "./paths.js";
+export { createAuthPool } from "./pool.js";
+export { createServerSupabase, type ServerSupabaseConfig } from "./supabase.js";

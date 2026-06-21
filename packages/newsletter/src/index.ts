@@ -4,12 +4,12 @@ export {
 	type SendOptions,
 	type SendResult,
 	type SubscribeOptions,
-} from "./client";
+} from "./client.js";
 export {
 	buildListUnsubscribeHeaders,
 	derivePreviewText,
 	type NewsletterRenderInput,
 	renderNewsletterHtml,
 	renderNewsletterText,
-} from "./render";
-export type { Newsletter, Subscription } from "./types";
+} from "./render.js";
+export type { Newsletter, Subscription } from "./types.js";

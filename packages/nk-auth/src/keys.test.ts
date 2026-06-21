@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { authEnv, isConfigured } from "./keys";
+import { authEnv, isConfigured } from "./keys.js";
 
 const VALID = {
 	BETTER_AUTH_SECRET: "s".repeat(32),

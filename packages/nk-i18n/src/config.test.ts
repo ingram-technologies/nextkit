@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { defineI18nConfig, deriveLocaleConstants, localeMap } from "./config";
+import { defineI18nConfig, deriveLocaleConstants, localeMap } from "./config.js";
 
 const i18nConfig = defineI18nConfig({
 	baseLocale: "en",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { negotiateAcceptLanguage } from "./negotiate";
+import { negotiateAcceptLanguage } from "./negotiate.js";
 
 const supported = ["en", "nl", "fr", "de"];
 

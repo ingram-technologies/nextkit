@@ -3,6 +3,13 @@
 	"compilerOptions": {
 		"outDir": "dist",
 		"rootDir": "src",
+		// Override the base's "nodenext": this package imports next/server,
+		// next/headers and next/navigation, whose type exports don't resolve under
+		// NodeNext. Build with "bundler" resolution like a Next app. Relative
+		// imports still carry explicit .js extensions (tsc emits them verbatim), so
+		// the published dist is valid Node ESM regardless.
+		"module": "esnext",
+		"moduleResolution": "bundler",
 		"jsx": "react-jsx",
 		// The client export touches better-auth/react (DOM/fetch types).
 		"lib": ["esnext", "dom", "dom.iterable"],

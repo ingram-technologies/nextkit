@@ -6,13 +6,13 @@ import {
 	type NewsletterRenderInput,
 	renderNewsletterHtml,
 	renderNewsletterText,
-} from "./render";
+} from "./render.js";
 import {
 	type Newsletter,
 	newsletterSchema,
 	type Subscription,
 	subscriptionSchema,
-} from "./types";
+} from "./types.js";
 
 export interface NewsletterConfig {
 	/** A Supabase client with service-role access (writes bypass RLS). */

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { uuidGenerateId } from "./id";
+import { uuidGenerateId } from "./id.js";
 
 describe("uuidGenerateId", () => {
 	it("returns a canonical UUID string", () => {

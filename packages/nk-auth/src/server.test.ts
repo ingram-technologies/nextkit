@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createAuthHelpers } from "./server";
+import { createAuthHelpers } from "./server.js";
 
 // Request-scoped reads the helpers depend on; reset per test.
 let headerStore = new Headers();

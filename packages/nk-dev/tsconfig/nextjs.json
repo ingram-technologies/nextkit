@@ -4,6 +4,11 @@
 	"extends": "./base.json",
 	"compilerOptions": {
 		"lib": ["dom", "dom.iterable", "esnext"],
+		// Next apps let the bundler resolve modules — keep "bundler" here so app
+		// source needn't use .js import extensions. (base.json is "nodenext" for
+		// published packages; this override insulates apps from that.)
+		"module": "esnext",
+		"moduleResolution": "bundler",
 		"jsx": "preserve",
 		"noEmit": true,
 		"declaration": false,

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createAuthMiddleware } from "./middleware";
+import { createAuthMiddleware } from "./middleware.js";
 
 // Control the optimistic cookie-presence check without coupling to better-auth's
 // cookie-name internals: the middleware's logic is what we're testing.

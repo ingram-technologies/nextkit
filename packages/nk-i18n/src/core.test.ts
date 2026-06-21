@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createT, defineI18nScope } from "./core";
+import { createT, defineI18nScope } from "./core.js";
 
 const fr = {
 	Hello: "Bonjour",

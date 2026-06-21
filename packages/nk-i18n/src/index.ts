@@ -8,7 +8,7 @@ export {
 	type MessageSource,
 	type TranslationKey,
 	type Translator,
-} from "./core";
+} from "./core.js";
 export {
 	defineI18nConfig,
 	deriveLocaleConstants,
@@ -16,5 +16,5 @@ export {
 	localeMap,
 	type LocaleDefinition,
 	type MissingKeysPolicy,
-} from "./config";
-export { negotiateAcceptLanguage } from "./negotiate";
+} from "./config.js";
+export { negotiateAcceptLanguage } from "./negotiate.js";

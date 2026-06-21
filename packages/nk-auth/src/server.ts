@@ -24,14 +24,14 @@
  */
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { NK_AUTH_PATH_HEADER, signInUrl } from "./gating-internals";
+import { NK_AUTH_PATH_HEADER, signInUrl } from "./gating-internals.js";
 
 /**
  * Validate a `next` redirect param: returns it only if it's an internal,
  * non-protocol-relative path, else null. Use on the login page before honoring
  * `?next=` so it can't become an open redirect.
  */
-export { safeNextParam as safeNext } from "./gating-internals";
+export { safeNextParam as safeNext } from "./gating-internals.js";
 
 /** The shape we need from a session: anything carrying a `user`. */
 interface SessionLike {

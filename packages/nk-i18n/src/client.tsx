@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, type ReactNode, useContext, useMemo, useRef } from "react";
-import { createT, type I18nScope, type Messages, type Translator } from "./core";
+import { createT, type I18nScope, type Messages, type Translator } from "./core.js";
 
 const LocaleContext = createContext<string>("en");
 
