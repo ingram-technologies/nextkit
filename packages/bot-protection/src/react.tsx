@@ -1,7 +1,7 @@
 "use client";
 
 import { type RefObject, useEffect, useRef, useState } from "react";
-import { HONEYPOT_FIELD, TOKEN_FIELD } from "./fields";
+import { HONEYPOT_FIELD, TOKEN_FIELD } from "./fields.js";
 
 /**
  * Client-side bot protection for forms that POST JSON to your own route.

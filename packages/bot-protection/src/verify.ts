@@ -1,7 +1,7 @@
-import { checkBot } from "./botid";
-import { HONEYPOT_FIELD, TOKEN_FIELD } from "./fields";
-import { isConfigured } from "./keys";
-import { type TokenCheck, verifyFormToken } from "./token";
+import { checkBot } from "./botid.js";
+import { HONEYPOT_FIELD, TOKEN_FIELD } from "./fields.js";
+import { isConfigured } from "./keys.js";
+import { type TokenCheck, verifyFormToken } from "./token.js";
 
 export interface VerifyResult {
 	ok: boolean;

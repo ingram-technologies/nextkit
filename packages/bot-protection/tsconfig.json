@@ -3,6 +3,13 @@
 	"compilerOptions": {
 		"outDir": "dist",
 		"rootDir": "src",
+		// This package is "type": "module", so emit real Node ESM and make tsc
+		// ENFORCE explicit .js extensions on relative imports. The shared base uses
+		// moduleResolution "bundler", which silently tolerates extensionless
+		// relative imports and emits them verbatim — invalid under Node ESM /
+		// Turbopack, the recurring source of "Cannot find module './x'" breaks.
+		"module": "nodenext",
+		"moduleResolution": "nodenext",
 		"jsx": "react-jsx",
 		// The client export (react.tsx) touches fetch + DOM element types.
 		"lib": ["esnext", "dom", "dom.iterable"],

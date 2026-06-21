@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { HONEYPOT_FIELD, TOKEN_FIELD } from "./fields";
+import { HONEYPOT_FIELD, TOKEN_FIELD } from "./fields.js";
 
 /**
  * Visually-hidden honeypot + signed timing token, dropped inside any <form>.

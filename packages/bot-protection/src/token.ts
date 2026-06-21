@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { getSecret, isConfigured } from "./keys";
+import { getSecret, isConfigured } from "./keys.js";
 
 /**
  * Signed timing token: `<timestamp>.<hmac>`. The timestamp records when the

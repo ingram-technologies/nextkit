@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { HONEYPOT_FIELD, TOKEN_FIELD } from "./fields";
-import { createFormToken, verifyFormToken } from "./token";
-import { verifyHuman } from "./verify";
+import { HONEYPOT_FIELD, TOKEN_FIELD } from "./fields.js";
+import { createFormToken, verifyFormToken } from "./token.js";
+import { verifyHuman } from "./verify.js";
 
 const ORIGINAL = process.env.BOT_PROTECTION_SECRET;
 beforeAll(() => {
