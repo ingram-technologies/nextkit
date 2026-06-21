@@ -48,13 +48,7 @@ const TSCONFIG = {
 	exclude: ["node_modules"],
 };
 
-const VITEST_CONFIG = `import { mergeConfig } from "vitest/config";
-import { nextkitTestConfig } from "@ingram-tech/nk-dev/vitest";
-
-// The shared nextkit preset (jsdom, globals, jest-dom matchers, Next.js mocks).
-// Add project-specific overrides as a second mergeConfig argument.
-export default mergeConfig(nextkitTestConfig, {});
-`;
+const VITEST_HINT = `import { mergeConfig } from "vitest/config";\\nimport { nextkitTestConfig } from "@ingram-tech/nk-dev/vitest";\\nexport default mergeConfig(nextkitTestConfig, {});`;
 
 const PRE_COMMIT = `#!/bin/sh
 # nextkit pre-commit: format staged files with oxfmt, then re-stage them.
@@ -85,10 +79,9 @@ export function init() {
 	// 3. TypeScript config.
 	writeIfAbsent(resolve(cwd, "tsconfig.json"), (f) => writeJson(f, TSCONFIG));
 
-	// 4. Vitest config (the shared jsdom preset).
-	writeIfAbsent(resolve(cwd, "vitest.config.ts"), (f) =>
-		writeFileSync(f, VITEST_CONFIG),
-	);
+	// 4. Vitest config — only hint, never auto-write. Many sites test with
+	//    `bun:test` rather than Vitest, and an unused vitest.config.ts is noise.
+	hintVitestConfig(cwd);
 
 	// 5. Format-on-commit hook + git wiring.
 	setupGitHook(cwd);
@@ -135,6 +128,15 @@ function ensureGuideImport(cwd) {
 	}
 	writeFileSync(claudePath, `${body.replace(/\n*$/, "")}\n\n${GUIDE_IMPORT}\n`);
 	log("added the agent-guide import to CLAUDE.md");
+}
+
+function hintVitestConfig(cwd) {
+	if (existsSync(resolve(cwd, "vitest.config.ts"))) {
+		skip("vitest.config.ts");
+		return;
+	}
+	log("no vitest.config.ts — if you test with Vitest, create one:");
+	console.log(`      ${VITEST_HINT.replace(/\\n/g, "\n      ")}`);
 }
 
 function ensurePrepareScript(cwd) {

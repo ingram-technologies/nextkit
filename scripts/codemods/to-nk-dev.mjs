@@ -77,6 +77,19 @@ const OXLINTRC = {
 const writeJson = (file, value) =>
 	writeFileSync(file, `${JSON.stringify(value, null, "\t")}\n`);
 
+/**
+ * knip can't see config packages as "used" (they're consumed via config files,
+ * not imports), so sites list them in `ignoreDependencies`. Swap the old names
+ * for @ingram-tech/nk-dev. Returns the (possibly) new array.
+ */
+function migrateIgnoreDeps(arr) {
+	if (!Array.isArray(arr)) return arr;
+	const had = arr.some((d) => OLD_DEV_PACKAGES.includes(d));
+	const out = arr.filter((d) => !OLD_DEV_PACKAGES.includes(d));
+	if (had && !out.includes("@ingram-tech/nk-dev")) out.push("@ingram-tech/nk-dev");
+	return out;
+}
+
 /** Replace each [regex, replacement] pair in a file if it exists and changed. */
 function rewriteFile(rel, pairs) {
 	const file = resolve(cwd, rel);
@@ -127,6 +140,10 @@ if (pkg.scripts) {
 		}
 	}
 }
+// knip config can live in package.json under a "knip" key.
+if (pkg.knip?.ignoreDependencies) {
+	pkg.knip.ignoreDependencies = migrateIgnoreDeps(pkg.knip.ignoreDependencies);
+}
 writeJson(pkgPath, pkg);
 log("package.json updated (old dev packages → @ingram-tech/nk-dev).");
 
@@ -154,6 +171,23 @@ for (const vc of ["vitest.config.ts", "vitest.config.js", "vitest.config.mjs"]) 
 rewriteFile("CLAUDE.md", [
 	[/@ingram-tech\/agent-guide\/guide\.md/g, "@ingram-tech/nk-dev/guide.md"],
 ]);
+
+// 3b. Standalone knip.json — migrate its ignoreDependencies too.
+const knipPath = resolve(cwd, "knip.json");
+if (existsSync(knipPath)) {
+	try {
+		const knip = JSON.parse(readFileSync(knipPath, "utf8"));
+		if (knip.ignoreDependencies) {
+			knip.ignoreDependencies = migrateIgnoreDeps(knip.ignoreDependencies);
+			writeJson(knipPath, knip);
+			log("rewrote knip.json (ignoreDependencies)");
+		}
+	} catch {
+		log(
+			"knip.json present but not parseable as JSON — update ignoreDependencies by hand.",
+		);
+	}
+}
 
 // 4. Create missing base config; remove a leftover biome.json.
 const oxlintPath = resolve(cwd, ".oxlintrc.json");

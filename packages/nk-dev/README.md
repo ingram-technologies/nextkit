@@ -33,9 +33,12 @@ bun install   # the prepare script wires the git hook
 | `.oxlintrc.json` | `extends` the shared oxlint rules (relative path — oxlint doesn't resolve package specifiers) |
 | `.oxfmtrc.json` | a copy of the house format config (oxfmt has no `extends`) |
 | `tsconfig.json` | `extends` `@ingram-tech/nk-dev/tsconfig/nextjs.json` + the site's own `include`/`paths` |
-| `vitest.config.ts` | `mergeConfig(nextkitTestConfig, {})` |
 | `.githooks/pre-commit` + `prepare` script | oxfmt format-on-commit |
 | `CLAUDE.md` | the agent-guide `@import` |
+
+It also prints a `vitest.config.ts` snippet (`mergeConfig(nextkitTestConfig, {})`
+from `@ingram-tech/nk-dev/vitest`) rather than writing the file — add it only if
+you test with Vitest (many sites use `bun:test`).
 
 Everything is `extends`-based, so the house config is enforced by default but
 overridable — layer your own rules on top, or replace a stub entirely (e.g. drop

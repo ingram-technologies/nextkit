@@ -31,7 +31,10 @@ bun install   # the prepare script wires the git hook
 - **`tsconfig.json`** — extends `@ingram-tech/nk-dev/tsconfig/nextjs.json`
   (TypeScript *does* resolve package specifiers) with the site's own
   `include`/`exclude`/`paths`.
-- **`vitest.config.ts`** — `mergeConfig(nextkitTestConfig, {})`.
+- **Vitest** — `nk init` prints a `vitest.config.ts` snippet
+  (`mergeConfig(nextkitTestConfig, {})` from `@ingram-tech/nk-dev/vitest`) rather
+  than writing the file, since many sites test with `bun:test`. Add it only if
+  you use Vitest.
 - **`.githooks/pre-commit`** + a `prepare` script — the oxfmt format-on-commit
   hook (logic lives in nk-dev's `nextkit-format-staged` bin).
 - **`CLAUDE.md`** — the `@import` of the shared agent guide.
