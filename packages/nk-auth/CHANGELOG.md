@@ -1,5 +1,16 @@
 # @ingram-tech/nk-auth
 
+## 0.7.2
+
+### Patch Changes
+
+- Move the id codec down to `@ingram-tech/nk-db/id`; `@ingram-tech/nk-auth/id`
+  now re-exports it, so the public API is unchanged. The typed prefix registry
+  `createIdRegistry()` is available from `@ingram-tech/nk-db/id`. Requires
+  `@ingram-tech/nk-db@^0.5.0`.
+- Updated dependencies
+  - @ingram-tech/nk-db@0.5.0
+
 ## 0.7.1
 
 ### Patch Changes
