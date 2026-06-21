@@ -1,5 +1,18 @@
 # @ingram-tech/nk-db
 
+## 0.5.0
+
+### Minor Changes
+
+- Add the Ingram id codec at `@ingram-tech/nk-db/id` — moved down from
+  `@ingram-tech/nk-auth/id` (which now re-exports it) so a site can mint ids
+  without pulling the auth slice. The subpath is `node:crypto`-only (no `pg` /
+  `drizzle`). Exposes `uuidGenerateId`, `toPrefixedId`, `fromPrefixedId`,
+  `base58Id`, and a new `createIdRegistry()` that builds typed, prefix-validated
+  helpers (`mint` / `encode` / `decode` / `is`) for a project's entities. The
+  cross-impl base58 vectors (Python twin in cloud.ingram.tech's `v1/core.py`)
+  move with the codec and still guard the contract. Purely additive.
+
 ## 0.4.0
 
 ### Minor Changes
