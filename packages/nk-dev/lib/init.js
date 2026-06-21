@@ -50,6 +50,16 @@ const TSCONFIG = {
 
 const VITEST_HINT = `import { mergeConfig } from "vitest/config";\\nimport { nextkitTestConfig } from "@ingram-tech/nk-dev/vitest";\\nexport default mergeConfig(nextkitTestConfig, {});`;
 
+// knip has no shareable config, so each site carries its own. This seed ignores
+// @ingram-tech/nk-dev: a site that runs raw tools (not the `nk` bin) gives knip
+// no way to see nk-dev as used, so without this it'd fail as an unused
+// dependency. (Sites that do call `nk` in scripts can drop it — knip will hint.)
+// Add `entry`/`ignore` as the project grows.
+const KNIP = {
+	$schema: "https://unpkg.com/knip@6/schema.json",
+	ignoreDependencies: ["@ingram-tech/nk-dev"],
+};
+
 const PRE_COMMIT = `#!/bin/sh
 # nextkit pre-commit: format staged files with oxfmt, then re-stage them.
 # Logic lives in @ingram-tech/nk-dev, so a version bump updates it everywhere.
@@ -83,13 +93,16 @@ export function init() {
 	//    `bun:test` rather than Vitest, and an unused vitest.config.ts is noise.
 	hintVitestConfig(cwd);
 
-	// 5. Format-on-commit hook + git wiring.
+	// 5. knip config (unused deps/exports/files; run by `nk check`).
+	writeIfAbsent(resolve(cwd, "knip.json"), (f) => writeJson(f, KNIP));
+
+	// 6. Format-on-commit hook + git wiring.
 	setupGitHook(cwd);
 
-	// 6. Make sure the agent guide is imported into CLAUDE.md.
+	// 7. Make sure the agent guide is imported into CLAUDE.md.
 	ensureGuideImport(cwd);
 
-	// 7. A `prepare` script so the hook re-wires itself on every `bun install`.
+	// 8. A `prepare` script so the hook re-wires itself on every `bun install`.
 	ensurePrepareScript(cwd);
 
 	log("done. Next: `bun install`, then `nk check`.");

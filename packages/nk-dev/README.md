@@ -3,15 +3,16 @@
 The nextkit **dev toolchain in one package**. Everything a site needs at
 development time — and nothing that ships to production — lives here:
 
-- the **`nk` CLI** (`nk dev` / `format` / `lint` / `check` / `type-check` / `build`);
+- the **`nk` CLI** (`nk dev` / `format` / `lint` / `knip` / `check` / `type-check` / `build`);
 - the shared **oxlint + oxfmt**, **TypeScript**, and **Vitest** config;
+- **knip** (unused dependency / export / file detection), bundled and run by `nk check`;
 - the **oxfmt format-on-commit** git hook (`nextkit-format-staged`);
 - the **AI agent guide** (`guide.md`) imported into a site's `CLAUDE.md`;
 - **`nk init`**, which scaffolds a site to use all of the above.
 
 It's a single `devDependency` and pulls the toolchain (oxlint, oxfmt, tsc,
-vitest, jsdom, jest-dom) as hard dependencies — so one install gives you the
-whole stack instead of re-listing each tool per site.
+vitest, jsdom, jest-dom, knip) as hard dependencies — so one install gives you
+the whole stack instead of re-listing each tool per site.
 
 > **Runtime vs dev-time.** nk-dev is the *dev-time* bundle. Runtime features
 > (`@ingram-tech/email`, `nk-db`, `nk-auth`, …) stay separate packages that
@@ -33,6 +34,7 @@ bun install   # the prepare script wires the git hook
 | `.oxlintrc.json` | `extends` the shared oxlint rules (relative path — oxlint doesn't resolve package specifiers) |
 | `.oxfmtrc.json` | a copy of the house format config (oxfmt has no `extends`) |
 | `tsconfig.json` | `extends` `@ingram-tech/nk-dev/tsconfig/nextjs.json` + the site's own `include`/`paths` |
+| `knip.json` | seed config ignoring `@ingram-tech/nk-dev` (knip has no shareable config) |
 | `.githooks/pre-commit` + `prepare` script | oxfmt format-on-commit |
 | `CLAUDE.md` | the agent-guide `@import` |
 
@@ -88,8 +90,10 @@ tsc), so versions stay under each site's control — nk just orchestrates.
 - **`nk format` / `nk format --check`** — formats code (JS/TS/JSON/CSS) with
   oxfmt and SQL with Prettier. `--check` verifies without writing (CI).
 - **`nk lint`** — `oxlint`.
-- **`nk check`** — `oxlint` + `oxfmt --check` plus SQL format verification, plus
-  the agent-guide import gate. The CI gate.
+- **`nk knip`** — `knip` (unused dependencies / exports / files).
+- **`nk check`** — `oxlint` + `oxfmt --check` + SQL format verification + `knip`
+  (only when the repo has a knip config) + the agent-guide import gate. The CI
+  gate; runs every checker and reports them all before failing.
 - **`nk type-check`** — `next typegen && tsc --noEmit`.
 - **`nk build [...]`** — `next build`, extra args passed through.
 

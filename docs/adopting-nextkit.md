@@ -35,6 +35,9 @@ bun install   # the prepare script wires the git hook
   (`mergeConfig(nextkitTestConfig, {})` from `@ingram-tech/nk-dev/vitest`) rather
   than writing the file, since many sites test with `bun:test`. Add it only if
   you use Vitest.
+- **`knip.json`** — a seed knip config (ignores `@ingram-tech/nk-dev` and the
+  `nk` binary; knip has no shareable config). `nk check` runs knip whenever a
+  knip config is present.
 - **`.githooks/pre-commit`** + a `prepare` script — the oxfmt format-on-commit
   hook (logic lives in nk-dev's `nextkit-format-staged` bin).
 - **`CLAUDE.md`** — the `@import` of the shared agent guide.

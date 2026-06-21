@@ -2,6 +2,7 @@
 import { dev } from "../lib/dev.js";
 import { format } from "../lib/format.js";
 import { init } from "../lib/init.js";
+import { knip } from "../lib/knip.js";
 import { build, check, lint, typeCheck } from "../lib/passthrough.js";
 
 const USAGE = `nk — the nextkit CLI
@@ -17,8 +18,9 @@ Commands:
   format [--check]    Format code with oxfmt and SQL with Prettier. --check
                       verifies without writing (for CI).
   lint                Lint with oxlint.
-  check               Lint + format verification, plus the agent-guide import
-                      gate (the CI gate).
+  knip                Find unused dependencies / exports / files with knip.
+  check               The CI gate: lint + format verify + SQL + knip (when
+                      configured) + the agent-guide import gate.
   type-check          next typegen && tsc --noEmit.
   build [...]         next build (extra args passed through).
 
@@ -38,6 +40,9 @@ switch (cmd) {
 		break;
 	case "lint":
 		lint();
+		break;
+	case "knip":
+		knip(rest);
 		break;
 	case "check":
 		await check();
