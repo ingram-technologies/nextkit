@@ -33,9 +33,10 @@ service benefits.
   `assertResponseOk` / `parseErrorBody`. Import-safe in the browser: it pulls no
   server code.
 
-`hono`, `@hono/zod-openapi`, and `@hono/swagger-ui` are **peer dependencies** so
-your app controls (and shares) a single copy — duplicate Hono instances break
-type inference and `instanceof`.
+`hono` and `@hono/zod-openapi` are **peer dependencies** so your app controls
+(and shares) a single copy — duplicate Hono instances break type inference and
+`instanceof`. (`@hono/swagger-ui` is a normal dependency: it's used only inside
+nk-api, so consumers never install or import it.)
 
 ## Usage (Next.js)
 

@@ -1,5 +1,15 @@
 # @ingram-tech/nk-api
 
+## 0.1.1
+
+### Patch Changes
+
+- Make `@hono/swagger-ui` a regular dependency instead of a peer dependency. It's
+  used only inside nk-api (`createApiApp`), so consumers shouldn't have to install
+  it — and leaving it as a peer made it show up as an unused dependency in their
+  lint/knip. `hono` and `@hono/zod-openapi` stay peers (the consumer imports them
+  directly and must share a single instance).
+
 ## 0.1.0
 
 ### Minor Changes
