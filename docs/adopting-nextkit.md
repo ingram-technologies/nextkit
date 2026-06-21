@@ -3,52 +3,47 @@
 How to migrate an existing Ingram Next.js site (or set up a new one) onto
 nextkit. Adopt incrementally — each step is independent and low-risk.
 
-## 1. Shared tooling configs (do this first — highest ROI, lowest risk)
+## 1. The dev toolchain (do this first — highest ROI, lowest risk)
+
+The entire dev toolchain — oxlint + oxfmt, TypeScript, Vitest, the
+format-on-commit hook, the agent guide, and the `nk` CLI — ships as one package,
+[`@ingram-tech/nk-dev`](../packages/nk-dev). Install it, then let `nk init`
+scaffold the config:
 
 ```bash
-bun add -d @ingram-tech/oxlint-config @ingram-tech/typescript-config \
-	@ingram-tech/test-config @ingram-tech/git-hooks oxlint oxfmt typescript
+bun add -d @ingram-tech/nk-dev
+bunx nk init
+bun install   # the prepare script wires the git hook
 ```
 
-> Already on `@ingram-tech/biome-config`? Run the codemod instead — see
-> [`oxlint-migration.md`](./oxlint-migration.md). The steps below are for a
-> fresh adoption.
+> Already on the old split packages (`@ingram-tech/oxlint-config`,
+> `typescript-config`, `test-config`, `git-hooks`, `agent-guide`) or
+> `@ingram-tech/biome-config`? Run the codemod instead — see
+> [`oxlint-migration.md`](./oxlint-migration.md). The steps here are for a fresh
+> adoption.
 
-**Lint (oxlint)** — add `.oxlintrc.json`. Note oxlint's `extends` resolves
-**relative paths**, not package specifiers:
+`nk init` writes (and never clobbers existing files — it skips and warns):
 
-```json
-{
-	"$schema": "./node_modules/oxlint/configuration_schema.json",
-	"extends": ["./node_modules/@ingram-tech/oxlint-config/oxlintrc.json"],
-	"ignorePatterns": ["dist", ".next"]
-}
-```
+- **`.oxlintrc.json`** — extends the shared rules. oxlint's `extends` resolves a
+  **relative path**, not a package specifier, so it points into `node_modules`.
+- **`.oxfmtrc.json`** — a copy of the house format config. oxfmt has no
+  `extends`; the config is tiny and stable, and editors auto-discover it.
+- **`tsconfig.json`** — extends `@ingram-tech/nk-dev/tsconfig/nextjs.json`
+  (TypeScript *does* resolve package specifiers) with the site's own
+  `include`/`exclude`/`paths`.
+- **`vitest.config.ts`** — `mergeConfig(nextkitTestConfig, {})`.
+- **`.githooks/pre-commit`** + a `prepare` script — the oxfmt format-on-commit
+  hook (logic lives in nk-dev's `nextkit-format-staged` bin).
+- **`CLAUDE.md`** — the `@import` of the shared agent guide.
 
-**Format (oxfmt)** — oxfmt has no `extends`, so copy the shared config to a
-local `.oxfmtrc.json` (the codemod does this for you):
+Everything is `extends`-based, so it's enforced-by-default but overridable: layer
+your own rules on top, or swap a tool out by replacing the stub (e.g. delete the
+oxlint stub and drop in a `biome.json`).
 
-```bash
-cp node_modules/@ingram-tech/oxlint-config/oxfmtrc.json .oxfmtrc.json
-```
-
-Sites still on ESLint: just delete the ESLint config and deps — oxlint covers
-the common rule set out of the box. On Prettier or Biome? Seed your
-`.oxfmtrc.json` with `oxfmt --migrate=prettier` / `oxfmt --migrate=biome`, then
-reconcile against the shared config.
-
-**TypeScript** — point `tsconfig.json` at the shared preset:
-
-```json
-{ "extends": "@ingram-tech/typescript-config/nextjs.json" }
-```
-
-**Git hooks** — add `.githooks/pre-commit` (`exec bunx --bun nextkit-format-staged`),
-`chmod +x` it, and add the `prepare` script. See
-[`git-hooks` README](../packages/git-hooks/README.md).
-
-**Tests** — wire up `vitest.config.ts` via `mergeConfig(nextkitTestConfig, …)`.
-See [`test-config` README](../packages/test-config/README.md).
+Sites still on ESLint: delete the ESLint config and deps — oxlint covers the
+common rule set out of the box. On Prettier or Biome? Seed `.oxfmtrc.json` with
+`oxfmt --migrate=prettier` / `oxfmt --migrate=biome`, then reconcile against the
+shared config.
 
 ## 2. Email
 

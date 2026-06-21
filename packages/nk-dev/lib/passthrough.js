@@ -17,12 +17,12 @@ export async function check() {
 	await formatSql({ check: true });
 	const sqlFailed = Boolean(process.exitCode);
 	// Keep the site on the shared-guidance channel: if it depends on
-	// @ingram-tech/agent-guide, its CLAUDE.md must @import the guide.
+	// @ingram-tech/nk-dev, its CLAUDE.md must @import the guide.
 	const guide = checkAgentGuideImport();
 	if (!guide.ok) {
 		console.error(`nk check: ${guide.reason}`);
 		console.error(
-			"  → add `@./node_modules/@ingram-tech/agent-guide/guide.md` to your CLAUDE.md (see the agent-guide README).",
+			"  → add `@./node_modules/@ingram-tech/nk-dev/guide.md` to your CLAUDE.md (or run `nk init`).",
 		);
 	}
 	process.exit(lintFailed || fmtFailed || sqlFailed || !guide.ok ? 1 : 0);

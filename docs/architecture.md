@@ -16,40 +16,43 @@ packages, `bun run --filter '*'` is enough. Revisit only if builds get slow.
 ```
 nextkit/
   package.json            # workspace root: scripts + dev tooling
-  .oxlintrc.json          # dogfoods @ingram-tech/oxlint-config (lint)
+  .oxlintrc.json          # dogfoods @ingram-tech/nk-dev (lint)
   .oxfmtrc.json           # house format config (oxfmt has no "extends")
-  tsconfig.json           # dogfoods @ingram-tech/typescript-config
-  .githooks/pre-commit    # dogfoods @ingram-tech/git-hooks
+  tsconfig.json           # dogfoods @ingram-tech/nk-dev (tsconfig)
+  .githooks/pre-commit    # dogfoods @ingram-tech/nk-dev (format hook)
   .changeset/             # release config
   docs/                   # this directory — AI-facing docs
   packages/
-    oxlint-config/        # @ingram-tech/oxlint-config       (config)
-    typescript-config/    # @ingram-tech/typescript-config  (config)
-    test-config/          # @ingram-tech/test-config        (config)
-    git-hooks/            # @ingram-tech/git-hooks           (tooling)
+    nk-dev/               # @ingram-tech/nk-dev              (dev toolchain)
     email/                # @ingram-tech/email               (runtime)
 ```
 
 ## Package categories
 
-- **Config packages** (`oxlint-config`, `typescript-config`, `test-config`):
-  ship JSON/preset files that sites *extend* (or, for oxfmt, copy). No build step.
-- **Tooling packages** (`git-hooks`): ship an executable bin. No build step.
-- **Runtime packages** (`email`, and future `newsletter`, `bot-protection`,
-  `blog`, `supabase`): ship compiled JS + `.d.ts` from `src/`, built with `tsc`.
+- **The dev toolchain** (`nk-dev`): one package holding everything dev-time —
+  the oxlint/oxfmt, TypeScript, and Vitest config files sites *extend* (or, for
+  oxfmt, copy); the `nextkit-format-staged` git-hook bin; the agent `guide.md`;
+  and the `nk` CLI (`bin` + `lib`). No build step. `nk init` scaffolds a site.
+  See [`philosophy.md`](./philosophy.md) for why dev-time config is one bundle
+  while runtime stays vertical slices.
+- **Runtime packages** (`email`, `nk-db`, `nk-auth`, `nk-billing`, `nk-api`,
+  `nk-i18n`, `bot-protection`, `newsletter`): ship compiled JS + `.d.ts` from
+  `src/`, built with `tsc`. These stay separate and peer-depend on
+  `next`/`react`.
 
 ## How consumption works (the thin-wrapper mechanism)
 
 Nothing here is magic — every integration point is a standard Next.js / tooling
-extension:
+extension. `nk init` writes these once; thereafter they are the site's own files.
 
 | Concern | Mechanism in the consuming site |
 | --- | --- |
-| Lint | `.oxlintrc.json` → `"extends": ["./node_modules/@ingram-tech/oxlint-config/oxlintrc.json"]` (oxlint resolves relative paths, not package specifiers) |
-| Format | `.oxfmtrc.json` — a copy of `@ingram-tech/oxlint-config/oxfmtrc.json` (oxfmt has no `extends`), or `oxfmt -c` that path |
-| TypeScript | `tsconfig.json` → `"extends": "@ingram-tech/typescript-config/nextjs.json"` |
-| Tests | `vitest.config.ts` → `mergeConfig(nextkitTestConfig, …)` |
+| Lint | `.oxlintrc.json` → `"extends": ["./node_modules/@ingram-tech/nk-dev/oxlintrc.json"]` (oxlint resolves relative paths, not package specifiers) |
+| Format | `.oxfmtrc.json` — a copy of `@ingram-tech/nk-dev/oxfmtrc.json` (oxfmt has no `extends`), or `oxfmt -c` that path |
+| TypeScript | `tsconfig.json` → `"extends": "@ingram-tech/nk-dev/tsconfig/nextjs.json"` |
+| Tests | `vitest.config.ts` → `mergeConfig(nextkitTestConfig, …)` from `@ingram-tech/nk-dev/vitest` |
 | Git hooks | `.githooks/pre-commit` → `bunx nextkit-format-staged` |
+| Agent guide | `CLAUDE.md` → `@./node_modules/@ingram-tech/nk-dev/guide.md` |
 | Email | `import { sendEmail } from "@ingram-tech/email"` |
 
 A new Next.js dev sees only standard config files pointing at `@ingram-tech/*`
@@ -57,8 +60,8 @@ packages. That is the whole point.
 
 ## Dogfooding
 
-nextkit uses its own config packages on itself (note the `extends` pointing at
-local workspace paths in the root `.oxlintrc.json` / `tsconfig.json`; the root
+nextkit uses nk-dev's own config on itself (note the `extends` pointing at the
+local workspace path in the root `.oxlintrc.json` / `tsconfig.json`; the root
 `.oxfmtrc.json` mirrors the shared oxfmt config, since oxfmt has no `extends`).
 If a config change breaks nextkit's own CI, it would break consumers too — so we
 feel it first.

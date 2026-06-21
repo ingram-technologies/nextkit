@@ -33,7 +33,7 @@
 		"zod": "^4.0.0"
 	},
 	"devDependencies": {
-		"@ingram-tech/typescript-config": "workspace:*",
+		"@ingram-tech/nk-dev": "workspace:*",
 		"@supabase/supabase-js": "^2.45.0",
 		"@types/node": "^25.0.0",
 		"typescript": "^6.0.3",

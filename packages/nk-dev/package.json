@@ -1,0 +1,58 @@
+{
+	"name": "@ingram-tech/nk-dev",
+	"version": "0.1.0",
+	"description": "The nextkit dev toolchain in one package: the `nk` CLI plus shared oxlint/oxfmt, TypeScript, and Vitest config, the format-on-commit hook, and the AI agent guide. `nk init` scaffolds a site to use it.",
+	"license": "MIT",
+	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ingram-technologies/nextkit.git",
+		"directory": "packages/nk-dev"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"files": [
+		"bin",
+		"lib",
+		"tsconfig",
+		"vitest",
+		"oxlintrc.json",
+		"oxfmtrc.json",
+		"tier-b.json",
+		"guide.md"
+	],
+	"bin": {
+		"nk": "bin/nk.js",
+		"nextkit-format-staged": "bin/format-staged.mjs"
+	},
+	"exports": {
+		"./oxlintrc.json": "./oxlintrc.json",
+		"./oxfmtrc.json": "./oxfmtrc.json",
+		"./tier-b.json": "./tier-b.json",
+		"./tsconfig": "./tsconfig/nextjs.json",
+		"./tsconfig/base.json": "./tsconfig/base.json",
+		"./tsconfig/nextjs.json": "./tsconfig/nextjs.json",
+		"./vitest": "./vitest/index.ts",
+		"./vitest/setup": "./vitest/setup.ts",
+		"./guide.md": "./guide.md"
+	},
+	"scripts": {
+		"build": "true",
+		"type-check": "true",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"@testing-library/jest-dom": "^6.9.1",
+		"jsdom": "^29.1.1",
+		"oxfmt": "^0.55.0",
+		"oxlint": "^1.70.0",
+		"prettier": "^3.8.3",
+		"prettier-plugin-sql": "^0.20.0",
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.6"
+	},
+	"engines": {
+		"node": ">=20"
+	}
+}

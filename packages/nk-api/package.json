@@ -43,7 +43,7 @@
 	},
 	"devDependencies": {
 		"@hono/zod-openapi": "^1.4.0",
-		"@ingram-tech/typescript-config": "workspace:*",
+		"@ingram-tech/nk-dev": "workspace:*",
 		"@types/node": "^25.0.0",
 		"hono": "^4.12.26",
 		"typescript": "^6.0.3",

@@ -93,7 +93,7 @@
 	},
 	"devDependencies": {
 		"@better-auth/passkey": "^1.6.0",
-		"@ingram-tech/typescript-config": "workspace:*",
+		"@ingram-tech/nk-dev": "workspace:*",
 		"@supabase/supabase-js": "^2.45.0",
 		"@types/bcrypt": "^6.0.0",
 		"@types/node": "^25.0.0",

@@ -2,9 +2,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 // A Claude Code `@import` of the shared guide, e.g.
-//   @./node_modules/@ingram-tech/agent-guide/guide.md
-//   @./web/node_modules/@ingram-tech/agent-guide/guide.md  (app in a subdir)
-const IMPORT_RE = /@\S*agent-guide\/guide\.md/;
+//   @./node_modules/@ingram-tech/nk-dev/guide.md
+//   @./web/node_modules/@ingram-tech/nk-dev/guide.md  (app in a subdir)
+const IMPORT_RE = /@\S*nk-dev\/guide\.md/;
 
 function readDeps(cwd) {
 	try {
@@ -26,29 +26,29 @@ function findClaudeMd(cwd) {
 }
 
 /**
- * nextkit's shared agent guidance (`@ingram-tech/agent-guide/guide.md`) only
- * reaches an AI agent if the site's CLAUDE.md `@import`s it. A site can depend on
- * the package yet forget the import line — then the guidance silently never loads.
- * When the package is a dependency, assert CLAUDE.md actually imports it.
+ * nextkit's shared agent guidance (`@ingram-tech/nk-dev/guide.md`) only reaches
+ * an AI agent if the site's CLAUDE.md `@import`s it. A site can depend on nk-dev
+ * yet forget the import line — then the guidance silently never loads. When the
+ * package is a dependency, assert CLAUDE.md actually imports it.
  *
  * Returns `{ ok, reason }`. `ok` is true when there's nothing to enforce (the
  * package isn't a dependency) or the import is present; `reason` explains a miss.
  */
 export function checkAgentGuideImport(cwd = process.cwd()) {
 	const deps = readDeps(cwd);
-	if (!deps || !deps["@ingram-tech/agent-guide"]) return { ok: true };
+	if (!deps || !deps["@ingram-tech/nk-dev"]) return { ok: true };
 
 	const claudePath = findClaudeMd(cwd);
 	if (!claudePath) {
 		return {
 			ok: false,
-			reason: "depends on @ingram-tech/agent-guide but has no CLAUDE.md importing it",
+			reason: "depends on @ingram-tech/nk-dev but has no CLAUDE.md importing its guide",
 		};
 	}
 	if (!IMPORT_RE.test(readFileSync(claudePath, "utf8"))) {
 		return {
 			ok: false,
-			reason: "CLAUDE.md does not @import @ingram-tech/agent-guide/guide.md (shared agent guidance won't load)",
+			reason: "CLAUDE.md does not @import @ingram-tech/nk-dev/guide.md (shared agent guidance won't load)",
 		};
 	}
 	return { ok: true };

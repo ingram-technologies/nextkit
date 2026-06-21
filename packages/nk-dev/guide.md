@@ -55,8 +55,6 @@ the UI/page tree, and never expose internal plumbing under `/api/`.
 - `@ingram-tech/nk-db` — Postgres data layer: `createPool` (one TLS-aware pool) + `createQueries` (raw SQL) + `createDb` (Drizzle), plus a PGlite dev/test harness at `@ingram-tech/nk-db/pglite`
 - `@ingram-tech/bot-protection` — invisible form protection (honeypot + timing + Vercel BotID)
 - `@ingram-tech/newsletter` — Supabase newsletter: subscribe / send, 1-click unsubscribe
-- `@ingram-tech/nk-cli` — the `nk` command: `nk dev` (boots local PGlite via `@ingram-tech/nk-db` if installed, then Next), plus `nk format` / `lint` / `check` / `type-check` / `build`
-- `@ingram-tech/oxlint-config` · `typescript-config` · `test-config` — shared config
-- `@ingram-tech/git-hooks` — oxfmt format-on-commit
+- `@ingram-tech/nk-dev` — the whole dev toolchain in one devDependency: the `nk` command (`nk dev` boots local PGlite via `@ingram-tech/nk-db` if installed, then Next; plus `nk format` / `lint` / `check` / `type-check` / `build`), the shared oxlint + oxfmt / TypeScript / Vitest config, the oxfmt format-on-commit hook, and this guide. `nk init` scaffolds a site to use it all.
 
 For detail on any package, read its README in `node_modules/@ingram-tech/<pkg>/`.

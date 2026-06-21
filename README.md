@@ -21,17 +21,13 @@ Read **[docs/philosophy.md](./docs/philosophy.md)** for the full reasoning.
 
 | Package | What |
 | --- | --- |
-| [`@ingram-tech/oxlint-config`](./packages/oxlint-config) | Shared oxlint + oxfmt lint/format config |
-| [`@ingram-tech/typescript-config`](./packages/typescript-config) | Strict TS configs (base + Next.js) |
-| [`@ingram-tech/test-config`](./packages/test-config) | Vitest preset + setup |
-| [`@ingram-tech/git-hooks`](./packages/git-hooks) | oxfmt format-on-commit hook |
+| [`@ingram-tech/nk-dev`](./packages/nk-dev) | The whole dev toolchain in one package: the `nk` CLI (`nk dev`/`check`/…, never required), shared oxlint + oxfmt / TypeScript / Vitest config, the format-on-commit hook, the AI agent guide, and `nk init` to scaffold a site |
 | [`@ingram-tech/email`](./packages/email) | Zero-dep Cloudflare email client |
 | [`@ingram-tech/bot-protection`](./packages/bot-protection) | Invisible form bot protection (honeypot + timing + BotID) |
 | [`@ingram-tech/nk-db`](./packages/nk-db) | Postgres data layer: shared `pg` pool, raw-SQL helpers, Drizzle wiring, PGlite (no-Docker) dev/test harness |
 | [`@ingram-tech/nk-auth`](./packages/nk-auth) | Better Auth foundation: composable presets a site spreads into its own `betterAuth()` |
-| [`@ingram-tech/nk-cli`](./packages/nk-cli) | Optional `nk` command that *orchestrates* the standard tools (`nk dev`, `nk check`, …) — never required |
+| [`@ingram-tech/nk-billing`](./packages/nk-billing) | Stripe primitives (client, customers, prices, currency, checkout, subscriptions, webhooks) + Stripe-side wallet + injection-based Postgres credit ledger |
 | [`@ingram-tech/newsletter`](./packages/newsletter) | Newsletter subscriptions + sending, RFC 8058 one-click unsubscribe (re-platforming onto nk-db) |
-| [`@ingram-tech/agent-guide`](./packages/agent-guide) | Brief nextkit conventions for AI agents, imported into a site's CLAUDE.md |
 
 More to come (blog). See [docs/](./docs/README.md).
 

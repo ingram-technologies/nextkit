@@ -1,5 +1,5 @@
 {
 	"$schema": "./node_modules/oxlint/configuration_schema.json",
-	"extends": ["./packages/oxlint-config/oxlintrc.json"],
+	"extends": ["./packages/nk-dev/oxlintrc.json"],
 	"ignorePatterns": ["dist", ".next"]
 }

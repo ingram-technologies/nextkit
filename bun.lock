@@ -11,19 +11,11 @@
         "typescript": "^6.0.3",
       },
     },
-    "packages/agent-guide": {
-      "name": "@ingram-tech/agent-guide",
-      "version": "0.2.0",
-    },
-    "packages/biome-config": {
-      "name": "@ingram-tech/biome-config",
-      "version": "0.1.1",
-    },
     "packages/bot-protection": {
       "name": "@ingram-tech/bot-protection",
       "version": "0.3.1",
       "devDependencies": {
-        "@ingram-tech/typescript-config": "workspace:*",
+        "@ingram-tech/nk-dev": "workspace:*",
         "@types/node": "^25.0.0",
         "@types/react": "^19.0.0",
         "react": "^19.0.0",
@@ -43,17 +35,10 @@
       "name": "@ingram-tech/email",
       "version": "0.1.2",
       "devDependencies": {
-        "@ingram-tech/typescript-config": "workspace:*",
+        "@ingram-tech/nk-dev": "workspace:*",
         "@types/node": "^25.0.0",
         "typescript": "^6.0.3",
         "vitest": "^4.1.6",
-      },
-    },
-    "packages/git-hooks": {
-      "name": "@ingram-tech/git-hooks",
-      "version": "0.2.1",
-      "bin": {
-        "nextkit-format-staged": "bin/format-staged.mjs",
       },
     },
     "packages/newsletter": {
@@ -64,7 +49,7 @@
         "zod": "^4.0.0",
       },
       "devDependencies": {
-        "@ingram-tech/typescript-config": "workspace:*",
+        "@ingram-tech/nk-dev": "workspace:*",
         "@supabase/supabase-js": "^2.45.0",
         "@types/node": "^25.0.0",
         "typescript": "^6.0.3",
@@ -76,13 +61,13 @@
     },
     "packages/nk-api": {
       "name": "@ingram-tech/nk-api",
-      "version": "0.1.0",
+      "version": "0.2.1",
       "dependencies": {
         "@hono/swagger-ui": "^0.6.1",
       },
       "devDependencies": {
         "@hono/zod-openapi": "^1.4.0",
-        "@ingram-tech/typescript-config": "workspace:*",
+        "@ingram-tech/nk-dev": "workspace:*",
         "@types/node": "^25.0.0",
         "hono": "^4.12.26",
         "typescript": "^6.0.3",
@@ -95,16 +80,16 @@
     },
     "packages/nk-auth": {
       "name": "@ingram-tech/nk-auth",
-      "version": "0.7.1",
+      "version": "0.7.2",
       "dependencies": {
-        "@ingram-tech/nk-db": "^0.3.0",
+        "@ingram-tech/nk-db": "^0.5.0",
         "bcrypt": "^6.0.0",
         "jose": "^6.0.0",
         "zod": "^4.0.0",
       },
       "devDependencies": {
         "@better-auth/passkey": "^1.6.0",
-        "@ingram-tech/typescript-config": "workspace:*",
+        "@ingram-tech/nk-dev": "workspace:*",
         "@supabase/supabase-js": "^2.45.0",
         "@types/bcrypt": "^6.0.0",
         "@types/node": "^25.0.0",
@@ -133,23 +118,23 @@
         "react",
       ],
     },
-    "packages/nk-cli": {
-      "name": "@ingram-tech/nk-cli",
-      "version": "0.3.0",
-      "bin": {
-        "nk": "bin/nk.js",
-      },
+    "packages/nk-billing": {
+      "name": "@ingram-tech/nk-billing",
+      "version": "0.1.0",
       "dependencies": {
-        "prettier": "^3.8.3",
-        "prettier-plugin-sql": "^0.20.0",
+        "stripe": "^22.0.0",
+        "zod": "^4.0.0",
       },
       "devDependencies": {
+        "@ingram-tech/nk-dev": "workspace:*",
+        "@types/node": "^25.0.0",
+        "typescript": "^6.0.3",
         "vitest": "^4.1.6",
       },
     },
     "packages/nk-db": {
       "name": "@ingram-tech/nk-db",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "bin": {
         "nk-pglite-dev": "./dist/pglite/dev.js",
       },
@@ -159,7 +144,7 @@
       "devDependencies": {
         "@electric-sql/pglite": "^0.5.0",
         "@electric-sql/pglite-socket": "^0.2.4",
-        "@ingram-tech/typescript-config": "workspace:*",
+        "@ingram-tech/nk-dev": "workspace:*",
         "@types/node": "^25.0.0",
         "@types/pg": "^8.11.0",
         "drizzle-orm": "^0.45.0",
@@ -178,6 +163,24 @@
         "@electric-sql/pglite-socket",
       ],
     },
+    "packages/nk-dev": {
+      "name": "@ingram-tech/nk-dev",
+      "version": "0.1.0",
+      "bin": {
+        "nk": "bin/nk.js",
+        "nextkit-format-staged": "bin/format-staged.mjs",
+      },
+      "dependencies": {
+        "@testing-library/jest-dom": "^6.9.1",
+        "jsdom": "^29.1.1",
+        "oxfmt": "^0.55.0",
+        "oxlint": "^1.70.0",
+        "prettier": "^3.8.3",
+        "prettier-plugin-sql": "^0.20.0",
+        "typescript": "^6.0.3",
+        "vitest": "^4.1.6",
+      },
+    },
     "packages/nk-i18n": {
       "name": "@ingram-tech/nk-i18n",
       "version": "0.1.1",
@@ -185,7 +188,7 @@
         "intl-messageformat": "^11.2.8",
       },
       "devDependencies": {
-        "@ingram-tech/typescript-config": "workspace:*",
+        "@ingram-tech/nk-dev": "workspace:*",
         "@types/react": "^19.0.0",
         "react": "^19.0.0",
         "typescript": "^6.0.3",
@@ -197,41 +200,6 @@
       "optionalPeers": [
         "react",
       ],
-    },
-    "packages/oxlint-config": {
-      "name": "@ingram-tech/oxlint-config",
-      "version": "0.2.2",
-      "peerDependencies": {
-        "oxfmt": "^0.55.0",
-        "oxlint": "^1.70.0",
-      },
-    },
-    "packages/test-config": {
-      "name": "@ingram-tech/test-config",
-      "version": "0.1.0",
-      "devDependencies": {
-        "@ingram-tech/typescript-config": "workspace:*",
-        "@testing-library/jest-dom": "^6.9.1",
-        "jsdom": "^29.1.1",
-        "typescript": "^6.0.3",
-        "vitest": "^4.1.6",
-      },
-      "peerDependencies": {
-        "@testing-library/jest-dom": "^6.0.0",
-        "jsdom": ">=26.0.0",
-        "vitest": "^4.0.0",
-      },
-      "optionalPeers": [
-        "@testing-library/jest-dom",
-        "jsdom",
-      ],
-    },
-    "packages/typescript-config": {
-      "name": "@ingram-tech/typescript-config",
-      "version": "0.1.0",
-      "peerDependencies": {
-        "typescript": ">=5.5.0",
-      },
     },
   },
   "packages": {
@@ -407,15 +375,9 @@
 
     "@img/sharp-win32-x64": ["@img/sharp-win32-x64@0.34.5", "", { "os": "win32", "cpu": "x64" }, "sha512-+29YMsqY2/9eFEiW93eqWnuLcWcufowXewwSNIT6UwZdUUCrM3oFjMWH/Z6/TMmb4hlFenmfAVbpWeup2jryCw=="],
 
-    "@ingram-tech/agent-guide": ["@ingram-tech/agent-guide@workspace:packages/agent-guide"],
-
-    "@ingram-tech/biome-config": ["@ingram-tech/biome-config@workspace:packages/biome-config"],
-
     "@ingram-tech/bot-protection": ["@ingram-tech/bot-protection@workspace:packages/bot-protection"],
 
     "@ingram-tech/email": ["@ingram-tech/email@workspace:packages/email"],
-
-    "@ingram-tech/git-hooks": ["@ingram-tech/git-hooks@workspace:packages/git-hooks"],
 
     "@ingram-tech/newsletter": ["@ingram-tech/newsletter@workspace:packages/newsletter"],
 
@@ -423,17 +385,13 @@
 
     "@ingram-tech/nk-auth": ["@ingram-tech/nk-auth@workspace:packages/nk-auth"],
 
-    "@ingram-tech/nk-cli": ["@ingram-tech/nk-cli@workspace:packages/nk-cli"],
+    "@ingram-tech/nk-billing": ["@ingram-tech/nk-billing@workspace:packages/nk-billing"],
 
     "@ingram-tech/nk-db": ["@ingram-tech/nk-db@workspace:packages/nk-db"],
 
+    "@ingram-tech/nk-dev": ["@ingram-tech/nk-dev@workspace:packages/nk-dev"],
+
     "@ingram-tech/nk-i18n": ["@ingram-tech/nk-i18n@workspace:packages/nk-i18n"],
-
-    "@ingram-tech/oxlint-config": ["@ingram-tech/oxlint-config@workspace:packages/oxlint-config"],
-
-    "@ingram-tech/test-config": ["@ingram-tech/test-config@workspace:packages/test-config"],
-
-    "@ingram-tech/typescript-config": ["@ingram-tech/typescript-config@workspace:packages/typescript-config"],
 
     "@inquirer/external-editor": ["@inquirer/external-editor@1.0.3", "", { "dependencies": { "chardet": "^2.1.1", "iconv-lite": "^0.7.0" }, "peerDependencies": { "@types/node": ">=18" }, "optionalPeers": ["@types/node"] }, "sha512-RWbSrDiYmO4LbejWY7ttpxczuwQyZLBUyygsA9Nsv95hpzUWwnNTVQmAq3xuh7vNwCp07UTmE5i11XAEExx4RA=="],
 
@@ -1018,6 +976,8 @@
     "strip-bom": ["strip-bom@3.0.0", "", {}, "sha512-vavAMRXOgBVNF6nyEEmL3DBK19iRpDcoIwW+swQ+CbGiu7lju6t+JklA1MHweoWtadgt4ISVUsXLyDq34ddcwA=="],
 
     "strip-indent": ["strip-indent@3.0.0", "", { "dependencies": { "min-indent": "^1.0.0" } }, "sha512-laJTa3Jb+VQpaC6DseHhF7dXVqHTfJPCRDaEbid/drOhgitgYku/letMUqOXFoWV0zIIUbjpdH2t+tYj4bQMRQ=="],
+
+    "stripe": ["stripe@22.2.2", "", { "peerDependencies": { "@types/node": ">=18" }, "optionalPeers": ["@types/node"] }, "sha512-lRXLiarjW/I2QVa6QuFfz1Ma7Dc2yBQ7vlYH6NEmp5htMJNQGfiWExmOv0McfqY5wMCGV8DLuCvsyVRIPJlUUQ=="],
 
     "styled-jsx": ["styled-jsx@5.1.6", "", { "dependencies": { "client-only": "0.0.1" }, "peerDependencies": { "@babel/core": "*", "babel-plugin-macros": "*", "react": ">= 16.8.0 || 17.x.x || ^18.0.0-0 || ^19.0.0-0" }, "optionalPeers": ["@babel/core", "babel-plugin-macros"] }, "sha512-qSVyDTeMotdvQYoHWLNGwRFJHC+i+ZvdBRYosOFgC+Wg1vx4frN2/RG/NA7SYqqvKNLf39P2LSRA2pu6n0XYZA=="],
 

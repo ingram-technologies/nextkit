@@ -1,5 +1,5 @@
 {
-	"extends": "@ingram-tech/typescript-config/base.json",
+	"extends": "@ingram-tech/nk-dev/tsconfig/base.json",
 	"compilerOptions": {
 		"outDir": "dist",
 		"rootDir": "src",

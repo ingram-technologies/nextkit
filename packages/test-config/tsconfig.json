@@ -1,8 +1,0 @@
-{
-	"extends": "@ingram-tech/typescript-config/base.json",
-	"compilerOptions": {
-		"noEmit": true,
-		"types": ["vitest/globals"]
-	},
-	"include": ["src"]
-}

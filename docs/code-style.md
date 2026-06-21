@@ -1,8 +1,8 @@
 # Code style & quality rules
 
 The house rules for every Ingram Next.js codebase. Most formatting is enforced
-mechanically by
-[`@ingram-tech/oxlint-config`](../packages/oxlint-config); the rules below are the
+mechanically by the oxlint + oxfmt config in
+[`@ingram-tech/nk-dev`](../packages/nk-dev); the rules below are the
 judgment-level conventions that humans and agents must follow.
 
 > **Enforce what you can, document what you can't.** Where a rule below can

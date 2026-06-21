@@ -20,10 +20,10 @@ We are **not** building a meta-framework. There is no custom router and no
 wrapper around the Next.js build. You can always run `next dev` and `next build`
 directly, exactly as in any Next.js app. nextkit only provides:
 
-- **Configuration** you extend (`.oxlintrc.json`, `.oxfmtrc.json`, `tsconfig.json`, Vitest preset).
+- **Configuration** you extend (`.oxlintrc.json`, `.oxfmtrc.json`, `tsconfig.json`, Vitest preset) — all shipped by `@ingram-tech/nk-dev`.
 - **Libraries** you import (`@ingram-tech/email`, …).
 - **Conventions** documented here for humans and agents to follow.
-- **An optional CLI** (`@ingram-tech/nk-cli`, the `nk` command) that *orchestrates*
+- **An optional CLI** (the `nk` command, also in `@ingram-tech/nk-dev`) that *orchestrates*
   the standard commands — see the carve-out below.
 
 If a feature would require us to intercept the Next.js build or hide Next.js
@@ -88,6 +88,34 @@ A nextkit package owns **everything it needs**, not just code:
 
 Install the slice → you get its code, its env validation, its schema, and the
 instructions for using it, together.
+
+### The carve-out: dev-time tooling ships as one bundle
+
+The vertical-slice rule governs **runtime** packages — the code a site ships to
+production (`email`, `nk-db`, `nk-auth`, …). It does **not** govern the
+**dev-time toolchain**, which is the other side of a single line: *does this run
+in the app, or only on the developer's machine and in CI?*
+
+Everything dev-time — oxlint + oxfmt config, the TypeScript presets, the Vitest
+preset, the format-on-commit hook, the agent `guide.md`, and the `nk` CLI —
+lives in **one** package, [`@ingram-tech/nk-dev`](../packages/nk-dev), installed
+as a single `devDependency`. We deliberately fold it together because:
+
+- It's all **devDependencies** — none of it enters the app's runtime bundle, so
+  bundling carries no production cost. The tools themselves (oxlint, oxfmt, tsc,
+  vitest) are **hard deps** of nk-dev: one install pulls the whole toolchain
+  instead of making each site re-list them.
+- The fleet is **homogeneous** — every site wants the same toolchain — so the
+  "I only want one piece" case the slice model protects barely arises here, and
+  we don't care about per-tool lockstep on dev config.
+- **Setup ergonomics win:** `bun add -d @ingram-tech/nk-dev && nk init` gives a
+  new site the entire preconfigured toolchain. No one has to know up front that
+  we use oxlint *and* oxfmt *and* Vitest *and* a specific tsconfig.
+
+This is still a thin wrapper: `nk init` writes standard `extends`-based config
+files the site owns and can override (or replace — e.g. swap oxfmt for Biome).
+The `nk` carve-out above still holds — `nk` only orchestrates, and a site stays
+buildable with plain `next build` if you remove it.
 
 ## The Django-app model for stateful packages
 

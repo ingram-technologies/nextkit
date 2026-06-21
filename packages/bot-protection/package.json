@@ -39,7 +39,7 @@
 		"test": "vitest run"
 	},
 	"devDependencies": {
-		"@ingram-tech/typescript-config": "workspace:*",
+		"@ingram-tech/nk-dev": "workspace:*",
 		"@types/node": "^25.0.0",
 		"@types/react": "^19.0.0",
 		"react": "^19.0.0",

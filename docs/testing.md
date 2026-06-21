@@ -1,6 +1,7 @@
 # Testing conventions
 
-Provided by [`@ingram-tech/test-config`](../packages/test-config).
+The shared Vitest preset is provided by
+[`@ingram-tech/nk-dev`](../packages/nk-dev) (`@ingram-tech/nk-dev/vitest`).
 
 ## Stack
 

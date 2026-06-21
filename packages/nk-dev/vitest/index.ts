@@ -9,7 +9,7 @@ import type { ViteUserConfig } from "vitest/config";
  *
  * ```ts
  * import { defineConfig, mergeConfig } from "vitest/config";
- * import { nextkitTestConfig } from "@ingram-tech/test-config";
+ * import { nextkitTestConfig } from "@ingram-tech/nk-dev/vitest";
  *
  * export default mergeConfig(
  *   nextkitTestConfig,
@@ -26,7 +26,7 @@ export const nextkitTestConfig: ViteUserConfig = {
 	test: {
 		environment: "jsdom",
 		globals: true,
-		setupFiles: ["@ingram-tech/test-config/setup"],
+		setupFiles: ["@ingram-tech/nk-dev/vitest/setup"],
 		include: ["src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
 		coverage: {
 			provider: "v8",

@@ -34,7 +34,7 @@
 		"intl-messageformat": "^11.2.8"
 	},
 	"devDependencies": {
-		"@ingram-tech/typescript-config": "workspace:*",
+		"@ingram-tech/nk-dev": "workspace:*",
 		"@types/react": "^19.0.0",
 		"react": "^19.0.0",
 		"typescript": "^6.0.3",
