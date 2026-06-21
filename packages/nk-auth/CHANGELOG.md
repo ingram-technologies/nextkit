@@ -1,5 +1,12 @@
 # @ingram-tech/nk-auth
 
+## 0.7.5
+
+### Patch Changes
+
+- Updated dependencies
+  - @ingram-tech/nk-db@0.8.0
+
 ## 0.7.3
 
 ### Patch Changes

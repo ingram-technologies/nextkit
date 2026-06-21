@@ -2,6 +2,7 @@
 // "@ingram-tech/nk-db/pglite" subpath so its WASM/dev-only deps never reach a
 // production bundle.
 
+export { pgNumericToNumber, pgTimestampToIso } from "./coerce.js";
 export { createDb, withRlsTransaction } from "./drizzle.js";
 export { type DbEnv, dbEnv, getDatabaseUrl, isConfigured } from "./keys.js";
 export { type CreatePoolConfig, createPool } from "./pool.js";

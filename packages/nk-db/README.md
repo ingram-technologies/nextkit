@@ -54,6 +54,11 @@ same pool: `betterAuth({ database: pool, … })`.
 - **`configureTimestampsAsStrings()`** — opt-in, for legacy row types that expect
   `timestamptz` as ISO strings (on the golden path, prefer Drizzle's
   `timestamp(..., { mode: "string" })` per column).
+- **`pgTimestampToIso(value)` / `pgNumericToNumber(value)`** — response-boundary
+  coercions for schemas written against supabase-js. `pg`/Drizzle return
+  `numeric` as a string and `timestamp(..., { mode: "string" })` as Postgres'
+  text form; these convert to the `z.number()` / strict `z.iso.datetime()` shapes
+  those schemas expect. Presentation only — keep money math on the decimal value.
 
 ## Keeping RLS on a direct connection (`withRls` / `withRlsTransaction`)
 

@@ -1,5 +1,17 @@
 # @ingram-tech/nk-db
 
+## 0.8.0
+
+### Minor Changes
+
+- Add `pgTimestampToIso` and `pgNumericToNumber` response-boundary coercion helpers.
+
+  Direct `pg`/Drizzle surface `numeric` as a string (to preserve precision) and
+  `timestamp(..., { mode: "string" })` as Postgres' own text form, neither of which
+  satisfies a schema written against supabase-js (`z.number()` / strict
+  `z.iso.datetime()`). These convert at the read/response boundary; they are
+  presentation coercions, not domain math.
+
 ## 0.7.0
 
 ### Minor Changes
