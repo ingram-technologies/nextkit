@@ -1,5 +1,30 @@
 # @ingram-tech/nk-api
 
+## 0.2.0
+
+### Minor Changes
+
+- Add four ergonomics/correctness helpers driven by real consumer use:
+
+  - **`createResourceScope`** — a resource/tenant authorization middleware factory
+    (the sibling of `createRequireAuth`). You supply the role lookup + hierarchy; it
+    validates the path param, resolves the caller's role, enforces a minimum role,
+    and exposes the id + role on the context. Crucially, if it runs without
+    `requireAuth` before it, it returns **401 instead of crashing** on an undefined
+    user — the most common middleware-ordering footgun, removed by construction.
+  - **`unwrap` (client)** — await a typed `hc` call and get its success body, or
+    throw the envelope's `error`. Collapses the `if (res.ok) { … } else throw`
+    narrowing dance every body-returning call would otherwise repeat. (`parseErrorBody`
+    / `assertResponseOk` now accept any `{ json() }`, so typed `hc` responses work.)
+  - **`setDefaultErrorLogger`** — set the crash logger once at startup so
+    `createApiApp` and every `createRouter` report unhandled 500s the same way,
+    without threading a custom `onError` into each (mounted routers don't bubble).
+  - **Pagination** — `paginationQuery`, `paginatedResponse(itemSchema)`,
+    `paginationMetaSchema`, `offsetFor()`, and `paginate()` so list endpoints don't
+    re-derive the offset math and `{ data, pagination }` envelope.
+
+  All additive; no breaking changes.
+
 ## 0.1.2
 
 ### Patch Changes

@@ -69,13 +69,30 @@ export class HttpError extends Error {
 /** How an nk-api app reports an unhandled (non-`HttpError`) crash. */
 export type ErrorLogger = (err: unknown, c: Context) => void;
 
-const defaultLogger: ErrorLogger = (err) =>
+let activeDefaultLogger: ErrorLogger = (err) =>
 	console.error("[nk-api] unhandled error:", err);
+
+/**
+ * Override the logger used for unhandled (non-`HttpError`) 500s by `handleError`
+ * and any `createErrorHandler()` left without an explicit logger. Call once at
+ * startup (e.g. to forward crashes to Sentry/GlitchTip or your app logger) so you
+ * do not have to thread a custom `onError` into `createApiApp` *and* every
+ * `createRouter` — a mounted router does not bubble errors to the parent, so this
+ * shared default is what keeps their crash logging consistent.
+ */
+export function setDefaultErrorLogger(logger: ErrorLogger): void {
+	activeDefaultLogger = logger;
+}
+
+// Delegates at call time, so `setDefaultErrorLogger` applies even to handlers
+// (like the module-level `handleError`) created before it runs.
+const defaultLogger: ErrorLogger = (err, c) => activeDefaultLogger(err, c);
 
 /**
  * Build a Hono `onError` handler that renders `HttpError` to the standard
  * envelope and everything else to a logged 500. Pass your own `logger` (e.g. a
- * Sentry/GlitchTip capture) to report crashes; defaults to `console.error`.
+ * Sentry/GlitchTip capture) to report crashes; defaults to the logger set by
+ * {@link setDefaultErrorLogger} (initially `console.error`).
  */
 export function createErrorHandler(logger: ErrorLogger = defaultLogger) {
 	return (err: Error, c: Context): Response => {

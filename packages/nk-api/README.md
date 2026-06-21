@@ -25,11 +25,24 @@ service benefits.
   lets you wire crash reporting (Sentry/GlitchTip) for the non-`HttpError` 500s.
 - **`createRequireAuth(resolveUser)`** — auth middleware parameterized by an
   identity resolver, so the API is decoupled from *how* the user is resolved.
+- **`createResourceScope(options)`** — the sibling of `createRequireAuth` for
+  multi-tenant routes: validate the resource id in the path, resolve the caller's
+  role (your lookup, under RLS), enforce a minimum role, and expose the id + role
+  on the context. Returns a `scope(minRole?)` you put in route middleware. If it
+  runs without `requireAuth` before it, it **401s instead of crashing** on an
+  undefined user — the common ordering footgun, removed by construction.
+- **`setDefaultErrorLogger(logger)`** — set the crash logger once at startup so
+  `createApiApp` **and** every `createRouter` report unhandled 500s the same way,
+  without threading a custom `onError` into each (mounted routers don't bubble).
+- **Pagination** — `paginationQuery` (the `page`/`limit` schema),
+  `paginatedResponse(itemSchema)` (the `{ data, pagination }` response schema),
+  `offsetFor()` and `paginate()` so list endpoints don't re-derive the math.
 - **Helpers** — `jsonContent`, `jsonBody`, `errorResponse`, `errorResponses`,
   `ErrorSchema` for terse, uniform `createRoute` definitions.
 - **`@ingram-tech/nk-api/next`** — `createNextHandlers(app)` for a Next.js
   catch-all route.
-- **`@ingram-tech/nk-api/client`** — `hc` (the typed RPC client) plus
+- **`@ingram-tech/nk-api/client`** — `hc` (the typed RPC client), `unwrap`
+  (await a typed call and get its success body or throw the envelope error), plus
   `assertResponseOk` / `parseErrorBody`. Import-safe in the browser: it pulls no
   server code.
 
@@ -97,6 +110,80 @@ import { hc } from "@ingram-tech/nk-api/client";
 import type { AppType } from "@/api/http/app"; // type-only: erased at build
 
 export const api = hc<AppType>("/").api.v1;
+```
+
+> **Client type-depth ceiling.** A single merged `hc<AppType>` works for a small
+> app, but past roughly a dozen routes TypeScript hits its instantiation-depth
+> limit (TS2589). When that happens, type the client **per route module** from
+> each module's exported route type and compose them into one facade — each tree
+> stays shallow:
+>
+> ```ts
+> const profileClient = hc<ProfileRoutes>(BASE);
+> const orgClient = hc<OrganizationRoutes>(BASE);
+> export const api = {
+>   me: profileClient.me,
+>   organizations: orgClient.organizations,
+> };
+> ```
+
+## Org-scoped routes (`createResourceScope`)
+
+Bind the scope once to your role lookup, then gate routes with `scope(minRole?)`.
+Always list `requireAuth` before it:
+
+```ts
+// src/api/http/org.ts
+import { createResourceScope } from "@ingram-tech/nk-api";
+import { z } from "@hono/zod-openapi";
+
+export const orgScope = createResourceScope({
+  param: "organizationId",
+  resolveRole: (user, id) => getOrgRole(user.id, id), // your RPC, under RLS
+  hierarchy: ["read_only", "member", "admin", "owner"],
+  validate: (v) => z.uuid().safeParse(v).success,
+});
+
+// in a route: middleware: [requireAuth, orgScope("admin")] as const
+// handler reads c.get("organizationId") and c.get("role")
+```
+
+## List endpoints (pagination)
+
+```ts
+import { jsonContent, offsetFor, paginate, paginatedResponse, paginationQuery } from "@ingram-tech/nk-api";
+
+const listRoute = createRoute({
+  method: "get",
+  path: "/things",
+  request: { query: paginationQuery.extend({ type: z.string().optional() }) },
+  responses: { 200: jsonContent(paginatedResponse(thingSchema), "Paginated things") },
+});
+
+// handler:
+const { page, limit } = c.req.valid("query");
+const rows = await q.range(offsetFor({ page, limit }), offsetFor({ page, limit }) + limit - 1);
+return c.json(paginate(rows, { page, limit, total }), 200);
+```
+
+## Consuming the API (`unwrap`)
+
+`unwrap` awaits a typed call and returns its success body, or throws the
+envelope's `error`. Use `assertResponseOk` for calls with no body (e.g. a 204):
+
+```ts
+import { unwrap } from "@ingram-tech/nk-api/client";
+
+const created = await unwrap(api.things.$post({ json }), "Failed to create thing");
+// `created` is the 2xx body, fully typed
+```
+
+## Consistent crash logging (`setDefaultErrorLogger`)
+
+```ts
+// src/api/http/app.ts (or instrumentation) — once at startup
+import { setDefaultErrorLogger } from "@ingram-tech/nk-api";
+setDefaultErrorLogger((err) => captureException(err)); // Sentry/GlitchTip/your logger
 ```
 
 ## Usage (standalone, e.g. `@hono/node-server`)
