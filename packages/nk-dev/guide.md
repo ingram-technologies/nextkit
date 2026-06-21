@@ -10,7 +10,10 @@ package. Stay a thin, standard Next.js app (bun · oxlint + oxfmt · strict TS).
   (server: `verifyHuman` → silently drop bots; client: honeypot + signed token).
   Never ship a form without it.
 - **Send email only via `@ingram-tech/email`** — never add another mail client.
-- Format/lint with **oxlint + oxfmt** via `nk` (`@ingram-tech/nk-cli`); don't
+- **Never trust an external request body's shape — validate it with Zod, never
+  `as`-cast it.** Every `/api` route and webhook handler takes untrusted input;
+  an `as` cast is a lie the type-checker can't catch at runtime.
+- Format/lint with **oxlint + oxfmt** via `nk` (`@ingram-tech/nk-dev`); don't
   reintroduce ESLint, nor Prettier for code (`nk` uses Prettier only for SQL,
   which oxfmt can't format). `nk` is optional convenience that only orchestrates
   the standard tools — the site must stay buildable with plain `next build` / `next dev`.
