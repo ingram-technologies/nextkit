@@ -36,14 +36,26 @@ export interface EmailOptions {
 	 * (RFC 8058) for one-click newsletter unsubscribe.
 	 */
 	headers?: Record<string, string>;
+	/**
+	 * Abort the request after this many milliseconds. Defaults to
+	 * {@link DEFAULT_TIMEOUT_MS}. Sends are single-shot — there is no built-in
+	 * retry, so the caller owns retry/backoff policy.
+	 */
+	timeoutMs?: number;
 }
+
+/** Default request timeout for {@link sendEmail}, in milliseconds. */
+export const DEFAULT_TIMEOUT_MS = 30_000;
 
 const SEND_ENDPOINT = (accountId: string) =>
 	`https://api.cloudflare.com/client/v4/accounts/${accountId}/email/sending/send`;
 
 /**
  * Build a `Name <local@domain>` sender address from `EMAIL_FROM_DOMAIN`.
- * @throws if `EMAIL_FROM_DOMAIN` is not configured.
+ * The display name is RFC 5322-quoted when it contains specials, so a name
+ * carrying e.g. a comma or quote can't malform the address.
+ * @throws if `EMAIL_FROM_DOMAIN` is not configured, or `name` contains a
+ *   control character or newline (header-injection guard).
  */
 export const fromAddress = (name: string, localPart = "notifications"): string => {
 	const domain = process.env.EMAIL_FROM_DOMAIN;
@@ -52,12 +64,26 @@ export const fromAddress = (name: string, localPart = "notifications"): string =
 			"@ingram-tech/email: EMAIL_FROM_DOMAIN environment variable not configured",
 		);
 	}
-	return `${name} <${localPart}@${domain}>`;
+	// oxlint-disable-next-line no-control-regex -- reject control chars/newlines in the display name.
+	if (/[\x00-\x1f\x7f]/.test(name)) {
+		throw new Error(
+			"@ingram-tech/email: sender name must not contain control characters or newlines",
+		);
+	}
+	// RFC 5322: a display name with specials must be a quoted-string (escaping
+	// `\` and `"`); a plain name is left bare.
+	const display = /[()<>[\]:;@\\,."]/.test(name)
+		? `"${name.replace(/([\\"])/g, "\\$1")}"`
+		: name;
+	return `${display} <${localPart}@${domain}>`;
 };
 
 /**
- * Send an email through the Cloudflare Email Sending API.
- * @throws if credentials are missing, content is empty, or the API errors.
+ * Send an email through the Cloudflare Email Sending API. Single-shot with a
+ * default {@link DEFAULT_TIMEOUT_MS} timeout (override via `options.timeoutMs`);
+ * retry/backoff is the caller's responsibility.
+ * @throws if credentials are missing, content is empty, the request times out,
+ *   or the API errors.
  */
 export const sendEmail = async (options: EmailOptions): Promise<void> => {
 	const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
@@ -92,14 +118,26 @@ export const sendEmail = async (options: EmailOptions): Promise<void> => {
 		body.headers = options.headers;
 	}
 
-	const res = await fetch(SEND_ENDPOINT(accountId), {
-		method: "POST",
-		headers: {
-			Authorization: `Bearer ${apiToken}`,
-			"Content-Type": "application/json",
-		},
-		body: JSON.stringify(body),
-	});
+	const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+	let res: Response;
+	try {
+		res = await fetch(SEND_ENDPOINT(accountId), {
+			method: "POST",
+			headers: {
+				Authorization: `Bearer ${apiToken}`,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify(body),
+			signal: AbortSignal.timeout(timeoutMs),
+		});
+	} catch (err) {
+		if (err instanceof DOMException && err.name === "TimeoutError") {
+			throw new Error(
+				`@ingram-tech/email: request timed out after ${timeoutMs}ms`,
+			);
+		}
+		throw err;
+	}
 
 	if (!res.ok) {
 		const errorBody = await res.text().catch(() => "");

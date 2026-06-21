@@ -31,6 +31,24 @@ describe("fromAddress", () => {
 		process.env.EMAIL_FROM_DOMAIN = undefined;
 		expect(() => fromAddress("Ingram")).toThrow(/EMAIL_FROM_DOMAIN/);
 	});
+
+	it("RFC 5322-quotes a name containing specials", () => {
+		expect(fromAddress("Ingram, Inc.")).toBe(
+			'"Ingram, Inc." <notifications@mail.example.com>',
+		);
+	});
+
+	it("escapes quotes and backslashes inside a quoted name", () => {
+		expect(fromAddress('A "B" \\C')).toBe(
+			'"A \\"B\\" \\\\C" <notifications@mail.example.com>',
+		);
+	});
+
+	it("rejects a name with a newline (header-injection guard)", () => {
+		expect(() => fromAddress("Evil\r\nBcc: victim@example.com")).toThrow(
+			/control characters or newlines/,
+		);
+	});
 });
 
 describe("keys", () => {
@@ -105,6 +123,23 @@ describe("sendEmail", () => {
 		await expect(
 			sendEmail({ to: "a@example.com", from: "x@y.com", subject: "s" }),
 		).rejects.toThrow(/text or html/);
+	});
+
+	it("wraps a request timeout in a clear error", async () => {
+		const fetchMock = vi
+			.fn()
+			.mockRejectedValue(new DOMException("aborted", "TimeoutError"));
+		vi.stubGlobal("fetch", fetchMock);
+
+		await expect(
+			sendEmail({
+				to: "a@example.com",
+				from: "x@y.com",
+				subject: "s",
+				text: "t",
+				timeoutMs: 5,
+			}),
+		).rejects.toThrow(/timed out after 5ms/);
 	});
 
 	it("surfaces Cloudflare API errors", async () => {
