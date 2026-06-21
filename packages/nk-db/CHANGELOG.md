@@ -1,5 +1,15 @@
 # @ingram-tech/nk-db
 
+## 0.9.0
+
+### Minor Changes
+
+- Add optional Zod row-schema validation to the raw query helpers, result-side parse helpers for the Drizzle path, and Postgres error inspectors.
+
+  - `query` / `one` / `maybeOne` now accept an optional Zod **row schema** as a third argument. Pass it and the helper validates (and coerces) each row, returning `z.infer` of the schema instead of an unchecked `<T>` cast — DB rows are external input, and the schema doubles as the `numeric`/timestamp coercion layer (`z.coerce.number()`, an ISO transform). The no-schema overload is unchanged, so this is purely additive.
+  - New `parseRows` / `parseMaybeRow` / `parseOneRow(result, schema)` validate the `rows` of a pg `QueryResult` or a Drizzle `tx.execute()` result. These give the RLS/Drizzle path (where `tx.execute()` returns an untyped `{ rows }`) the same validated/coerced result without wrapping Drizzle's query builder.
+  - New `isPgError(err, code)` / `isUniqueViolation(err)` / `PG_UNIQUE_VIOLATION` walk the error `.cause` chain (which a flat `err.code === …` check misses) to inspect Postgres failures by SQLSTATE.
+
 ## 0.8.0
 
 ### Minor Changes
