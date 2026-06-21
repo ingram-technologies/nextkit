@@ -1,0 +1,45 @@
+{
+	"name": "@ingram-tech/nk-billing",
+	"version": "0.2.0",
+	"description": "The Ingram billing foundation: composable Stripe primitives (client, customers, prices, currency, checkout, subscriptions, webhooks) plus an injection-based Postgres credit ledger and event-dedup store.",
+	"license": "MIT",
+	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ingram-technologies/nextkit.git",
+		"directory": "packages/nk-billing"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"files": [
+		"dist",
+		"migrations"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./credits": {
+			"types": "./dist/credits.d.ts",
+			"import": "./dist/credits.js"
+		},
+		"./migrations/*": "./migrations/*"
+	},
+	"scripts": {
+		"build": "tsc -p tsconfig.json",
+		"type-check": "tsc -p tsconfig.json --noEmit",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"stripe": "^22.0.0",
+		"zod": "^4.0.0"
+	},
+	"devDependencies": {
+		"@ingram-tech/nk-dev": "workspace:*",
+		"@types/node": "^25.0.0",
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.6"
+	}
+}
