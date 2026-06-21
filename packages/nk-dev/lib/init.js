@@ -50,14 +50,27 @@ const TSCONFIG = {
 
 const VITEST_HINT = `import { mergeConfig } from "vitest/config";\\nimport { nextkitTestConfig } from "@ingram-tech/nk-dev/vitest";\\nexport default mergeConfig(nextkitTestConfig, {});`;
 
-// knip has no shareable config, so each site carries its own. This seed ignores
-// @ingram-tech/nk-dev: a site that runs raw tools (not the `nk` bin) gives knip
-// no way to see nk-dev as used, so without this it'd fail as an unused
-// dependency. (Sites that do call `nk` in scripts can drop it — knip will hint.)
-// Add `entry`/`ignore` as the project grows.
+// knip has no shareable config, so each site carries its own seed. The house
+// policy: gate on dependency/file hygiene (unused files/deps, unlisted,
+// unresolved) — its low-false-positive checks — and turn OFF unused
+// exports/types, which are noisy and usually intentional API surface. Run an
+// export-cleanup pass by flipping those back on when you want it.
+//
+// ignoreDependencies keeps @ingram-tech/nk-dev: knip doesn't follow the
+// relative-path `extends` in .oxlintrc/tsconfig, so a site that doesn't call the
+// `nk` bin gives knip no way to see nk-dev as used. Add `entry`/`ignore` as the
+// project grows (e.g. `scripts/**`, a self-contained `pulumi/**`).
 const KNIP = {
 	$schema: "https://unpkg.com/knip@6/schema.json",
 	ignoreDependencies: ["@ingram-tech/nk-dev"],
+	rules: {
+		exports: "off",
+		types: "off",
+		nsExports: "off",
+		nsTypes: "off",
+		enumMembers: "off",
+		duplicates: "off",
+	},
 };
 
 const PRE_COMMIT = `#!/bin/sh

@@ -34,7 +34,7 @@ bun install   # the prepare script wires the git hook
 | `.oxlintrc.json` | `extends` the shared oxlint rules (relative path — oxlint doesn't resolve package specifiers) |
 | `.oxfmtrc.json` | a copy of the house format config (oxfmt has no `extends`) |
 | `tsconfig.json` | `extends` `@ingram-tech/nk-dev/tsconfig/nextjs.json` + the site's own `include`/`paths` |
-| `knip.json` | seed config ignoring `@ingram-tech/nk-dev` (knip has no shareable config) |
+| `knip.json` | seed config (knip has no shareable config): gates on dependency/file hygiene, with unused exports/types off (noisy); ignores `@ingram-tech/nk-dev` |
 | `.githooks/pre-commit` + `prepare` script | oxfmt format-on-commit |
 | `CLAUDE.md` | the agent-guide `@import` |
 
