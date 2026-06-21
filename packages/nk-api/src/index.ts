@@ -17,19 +17,19 @@ export {
 	jsonContent,
 	setDefaultErrorLogger,
 	type ErrorLogger,
-} from "./errors";
-export { createRouter, type CreateRouterOptions } from "./router";
-export { createApiApp, type CreateApiAppOptions } from "./app";
-export { createRequireAuth, type AuthEnv } from "./auth";
+} from "./errors.js";
+export { createRouter, type CreateRouterOptions } from "./router.js";
+export { createApiApp, type CreateApiAppOptions } from "./app.js";
+export { createRequireAuth, type AuthEnv } from "./auth.js";
 export {
 	createResourceScope,
 	type CreateResourceScopeOptions,
 	type ResourceScopeEnv,
-} from "./scope";
+} from "./scope.js";
 export {
 	offsetFor,
 	paginate,
 	paginatedResponse,
 	paginationMetaSchema,
 	paginationQuery,
-} from "./pagination";
+} from "./pagination.js";

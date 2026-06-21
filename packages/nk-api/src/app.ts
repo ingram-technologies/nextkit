@@ -18,7 +18,7 @@
 import { swaggerUI } from "@hono/swagger-ui";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { Env, ErrorHandler } from "hono";
-import { handleError, HttpError } from "./errors";
+import { handleError, HttpError } from "./errors.js";
 
 export interface CreateApiAppOptions<E extends Env, BasePath extends string> {
 	/** OpenAPI document title. */

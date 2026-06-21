@@ -14,7 +14,7 @@
  */
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { Env, ErrorHandler } from "hono";
-import { handleError, HttpError } from "./errors";
+import { handleError, HttpError } from "./errors.js";
 
 export interface CreateRouterOptions<E extends Env> {
 	/** Override the error renderer (must match the root app's, since sub-app

@@ -1,5 +1,16 @@
 # @ingram-tech/nk-api
 
+## 0.2.1
+
+### Patch Changes
+
+- Emit valid ESM: add explicit `.js` extensions to relative imports in the
+  build output. The previous output used extensionless relative imports
+  (`from "./errors"`), which Node's native ESM resolver and strict bundler
+  resolution (e.g. Next.js/Turbopack when the package isn't bundled) reject
+  with "module not found" — breaking consumers' production builds even though
+  the package resolved fine under `bun`/`tsc`. Now matches `@ingram-tech/nk-db`.
+
 ## 0.2.0
 
 ### Minor Changes
