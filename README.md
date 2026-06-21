@@ -27,7 +27,9 @@ Read **[docs/philosophy.md](./docs/philosophy.md)** for the full reasoning.
 | [`@ingram-tech/nk-db`](./packages/nk-db) | Postgres data layer: shared `pg` pool, raw-SQL helpers, Drizzle wiring, PGlite (no-Docker) dev/test harness |
 | [`@ingram-tech/nk-auth`](./packages/nk-auth) | Better Auth foundation: composable presets a site spreads into its own `betterAuth()` |
 | [`@ingram-tech/nk-billing`](./packages/nk-billing) | Stripe primitives (client, customers, prices, currency, checkout, subscriptions, webhooks) + Stripe-side wallet + injection-based Postgres credit ledger |
-| [`@ingram-tech/newsletter`](./packages/newsletter) | Newsletter subscriptions + sending, RFC 8058 one-click unsubscribe (re-platforming onto nk-db) |
+| [`@ingram-tech/nk-api`](./packages/nk-api) | Typed API toolkit: Hono + zod-openapi router, auth/scope guards, cursor pagination, and a typed client — mounts into a Next.js route |
+| [`@ingram-tech/nk-i18n`](./packages/nk-i18n) | Lightweight i18n: `intl-messageformat` formatting, Accept-Language negotiation, and React client helpers |
+| [`@ingram-tech/newsletter`](./packages/newsletter) | Newsletter subscriptions + sending, RFC 8058 one-click unsubscribe (still Supabase-backed; nk-db port pending) |
 
 More to come (blog). See [docs/](./docs/README.md).
 
@@ -37,7 +39,8 @@ Next.js + Bun + Vercel, oxlint + oxfmt + Vitest + Playwright, Cloudflare (email)
 When a site needs a database or auth: a shared DigitalOcean Managed Postgres
 cluster reached directly via `pg` + Drizzle (`nk-db`), Better Auth (`nk-auth`),
 and PGlite for local dev/test — no hosted REST/auth product. EU-first,
-self-hostable, no per-seat US SaaS.
+self-hostable, no per-seat US SaaS. Payments, when needed, go through Stripe
+(`nk-billing`) — the one US-SaaS exception, justified as a payment processor.
 
 ## Develop
 
