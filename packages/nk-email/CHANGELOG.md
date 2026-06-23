@@ -1,4 +1,7 @@
-# @ingram-tech/email
+# @ingram-tech/nk-email
+
+> Versions `0.1.0`–`0.1.2` below were published under the old package name
+> `@ingram-tech/email`, which is now deprecated.
 
 ## 0.1.2
 

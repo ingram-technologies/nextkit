@@ -15,7 +15,7 @@ vitest, jsdom, jest-dom, knip) as hard dependencies — so one install gives you
 the whole stack instead of re-listing each tool per site.
 
 > **Runtime vs dev-time.** nk-dev is the *dev-time* bundle. Runtime features
-> (`@ingram-tech/email`, `nk-db`, `nk-auth`, …) stay separate packages that
+> (`@ingram-tech/nk-email`, `nk-db`, `nk-auth`, …) stay separate packages that
 > peer-depend on `next`/`react`. See the dev-toolchain carve-out in
 > [`philosophy.md`](https://github.com/ingram-technologies/nextkit/blob/main/docs/philosophy.md).
 

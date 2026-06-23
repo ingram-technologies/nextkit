@@ -32,7 +32,7 @@ packages/<name>/
 ## 3. Own your env contract
 
 If the package needs environment variables, declare and validate them in
-`src/keys.ts` (see `@ingram-tech/email` for the zero-dep pattern). Never make
+`src/keys.ts` (see `@ingram-tech/nk-email` for the zero-dep pattern). Never make
 the host site edit a central config to use your package.
 
 ## 4. Stateful packages

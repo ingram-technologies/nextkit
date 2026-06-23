@@ -73,7 +73,7 @@ per the prime directive. The presets carry the RLS-preserving bits.
 ```ts
 // lib/auth.ts
 import { passkey } from "@better-auth/passkey";
-import { fromAddress, sendEmail } from "@ingram-tech/email";
+import { fromAddress, sendEmail } from "@ingram-tech/nk-email";
 import {
 	authBasePath,
 	authEnv,

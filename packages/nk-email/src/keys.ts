@@ -1,5 +1,5 @@
 /**
- * Environment contract for @ingram-tech/email.
+ * Environment contract for @ingram-tech/nk-email.
  *
  * Following the "each package owns its own env validation" pattern: this module
  * is the single declaration of which environment variables the email package
@@ -34,7 +34,7 @@ export const keys = (): EmailEnv => {
 		if (!apiToken) missing.push("CLOUDFLARE_EMAIL_API_TOKEN");
 		if (!fromDomain) missing.push("EMAIL_FROM_DOMAIN");
 		throw new Error(
-			`@ingram-tech/email: missing environment variables: ${missing.join(", ")}`,
+			`@ingram-tech/nk-email: missing environment variables: ${missing.join(", ")}`,
 		);
 	}
 

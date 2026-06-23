@@ -28,7 +28,7 @@ better than Supabase Auth does:
 - **It mounts as a standard Next.js route handler.** No build interception, so
   it respects the [prime directive](./philosophy.md#the-prime-directive-stay-indistinguishable-from-plain-nextjs).
 - **Passkeys, and email as a plain function.** Better Auth's email hooks are
-  just `async` callbacks — we wire them straight to `@ingram-tech/email`
+  just `async` callbacks — we wire them straight to `@ingram-tech/nk-email`
   (Cloudflare Email Sending). No SMTP needed, which matters because Cloudflare
   has no outbound SMTP.
 

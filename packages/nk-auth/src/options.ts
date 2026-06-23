@@ -47,7 +47,7 @@ export const makePasskeyOptions = (cfg: PasskeyConfig): PasskeyOptions => ({
 	origin: cfg.origin,
 });
 
-/** Send one transactional email (wire to `@ingram-tech/email`'s `sendEmail`). */
+/** Send one transactional email (wire to `@ingram-tech/nk-email`'s `sendEmail`). */
 export type SendEmail = (message: {
 	to: string;
 	subject: string;

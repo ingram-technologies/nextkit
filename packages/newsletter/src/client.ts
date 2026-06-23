@@ -1,4 +1,4 @@
-import { fromAddress, sendEmail } from "@ingram-tech/email";
+import { fromAddress, sendEmail } from "@ingram-tech/nk-email";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
 	buildListUnsubscribeHeaders,

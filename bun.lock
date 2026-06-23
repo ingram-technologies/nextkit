@@ -13,7 +13,7 @@
     },
     "packages/bot-protection": {
       "name": "@ingram-tech/bot-protection",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "devDependencies": {
         "@ingram-tech/nk-dev": "workspace:*",
         "@types/node": "^25.0.0",
@@ -31,21 +31,11 @@
         "react",
       ],
     },
-    "packages/email": {
-      "name": "@ingram-tech/email",
-      "version": "0.1.2",
-      "devDependencies": {
-        "@ingram-tech/nk-dev": "workspace:*",
-        "@types/node": "^25.0.0",
-        "typescript": "^6.0.3",
-        "vitest": "^4.1.6",
-      },
-    },
     "packages/newsletter": {
       "name": "@ingram-tech/newsletter",
-      "version": "0.4.0",
+      "version": "0.4.1",
       "dependencies": {
-        "@ingram-tech/email": "workspace:^",
+        "@ingram-tech/nk-email": "workspace:^",
         "zod": "^4.0.0",
       },
       "devDependencies": {
@@ -80,7 +70,7 @@
     },
     "packages/nk-auth": {
       "name": "@ingram-tech/nk-auth",
-      "version": "0.7.2",
+      "version": "0.7.6",
       "dependencies": {
         "@ingram-tech/nk-db": "^0.5.0",
         "bcrypt": "^6.0.0",
@@ -134,7 +124,7 @@
     },
     "packages/nk-db": {
       "name": "@ingram-tech/nk-db",
-      "version": "0.5.0",
+      "version": "0.9.0",
       "bin": {
         "nk-pglite-dev": "./dist/pglite/dev.js",
       },
@@ -165,7 +155,7 @@
     },
     "packages/nk-dev": {
       "name": "@ingram-tech/nk-dev",
-      "version": "0.1.0",
+      "version": "0.2.3",
       "bin": {
         "nk": "bin/nk.js",
         "nextkit-format-staged": "bin/format-staged.mjs",
@@ -182,9 +172,19 @@
         "vitest": "^4.1.6",
       },
     },
+    "packages/nk-email": {
+      "name": "@ingram-tech/nk-email",
+      "version": "0.1.2",
+      "devDependencies": {
+        "@ingram-tech/nk-dev": "workspace:*",
+        "@types/node": "^25.0.0",
+        "typescript": "^6.0.3",
+        "vitest": "^4.1.6",
+      },
+    },
     "packages/nk-i18n": {
       "name": "@ingram-tech/nk-i18n",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "dependencies": {
         "intl-messageformat": "^11.2.8",
       },
@@ -378,8 +378,6 @@
 
     "@ingram-tech/bot-protection": ["@ingram-tech/bot-protection@workspace:packages/bot-protection"],
 
-    "@ingram-tech/email": ["@ingram-tech/email@workspace:packages/email"],
-
     "@ingram-tech/newsletter": ["@ingram-tech/newsletter@workspace:packages/newsletter"],
 
     "@ingram-tech/nk-api": ["@ingram-tech/nk-api@workspace:packages/nk-api"],
@@ -391,6 +389,8 @@
     "@ingram-tech/nk-db": ["@ingram-tech/nk-db@workspace:packages/nk-db"],
 
     "@ingram-tech/nk-dev": ["@ingram-tech/nk-dev@workspace:packages/nk-dev"],
+
+    "@ingram-tech/nk-email": ["@ingram-tech/nk-email@workspace:packages/nk-email"],
 
     "@ingram-tech/nk-i18n": ["@ingram-tech/nk-i18n@workspace:packages/nk-i18n"],
 

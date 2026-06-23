@@ -21,7 +21,7 @@ wrapper around the Next.js build. You can always run `next dev` and `next build`
 directly, exactly as in any Next.js app. nextkit only provides:
 
 - **Configuration** you extend (`.oxlintrc.json`, `.oxfmtrc.json`, `tsconfig.json`, Vitest preset) — all shipped by `@ingram-tech/nk-dev`.
-- **Libraries** you import (`@ingram-tech/email`, …).
+- **Libraries** you import (`@ingram-tech/nk-email`, …).
 - **Conventions** documented here for humans and agents to follow.
 - **An optional CLI** (the `nk` command, also in `@ingram-tech/nk-dev`) that *orchestrates*
   the standard commands — see the carve-out below.

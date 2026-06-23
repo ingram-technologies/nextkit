@@ -53,10 +53,10 @@ shared config.
 
 ## 2. Email
 
-Replace any local `lib/email.ts` Cloudflare client with `@ingram-tech/email`:
+Replace any local `lib/email.ts` Cloudflare client with `@ingram-tech/nk-email`:
 
 ```bash
-bun add @ingram-tech/email
+bun add @ingram-tech/nk-email
 ```
 
 Then delete the local copy and update imports. Set `CLOUDFLARE_ACCOUNT_ID`,

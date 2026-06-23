@@ -2,7 +2,7 @@
 
 Supabase-backed newsletter subscriptions and sending, with idempotent
 subscribe/resubscribe, token-based unsubscribe, and RFC 8058 one-click
-unsubscribe. Sends via [`@ingram-tech/email`](../email).
+unsubscribe. Sends via [`@ingram-tech/nk-email`](../nk-email).
 
 This package **owns its tables** and ships the migrations; you inject a Supabase
 client and a base URL. It defines its own row types (it does not import your
@@ -56,7 +56,7 @@ const result = await newsletter.send({
 });
 ```
 
-Requires `@ingram-tech/email`'s env (`CLOUDFLARE_*`, `EMAIL_FROM_DOMAIN`). The
+Requires `@ingram-tech/nk-email`'s env (`CLOUDFLARE_*`, `EMAIL_FROM_DOMAIN`). The
 sending address is `<from_local_part>@<EMAIL_FROM_DOMAIN>`.
 
 ## Rendering

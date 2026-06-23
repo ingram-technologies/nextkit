@@ -1,11 +1,11 @@
-import { sendEmail } from "@ingram-tech/email";
+import { sendEmail } from "@ingram-tech/nk-email";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createNewsletter } from "./client.js";
 
 // Mock the email boundary; everything else is exercised for real. vitest hoists
 // this above the imports, so `createNewsletter` sees the mocked module.
-vi.mock("@ingram-tech/email", () => ({
+vi.mock("@ingram-tech/nk-email", () => ({
 	sendEmail: vi.fn(),
 	fromAddress: vi.fn(
 		(name: string, localPart = "notifications") =>

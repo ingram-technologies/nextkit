@@ -1,4 +1,4 @@
-# @ingram-tech/email
+# @ingram-tech/nk-email
 
 Zero-dependency [Cloudflare Email Sending](https://developers.cloudflare.com/email-routing/email-workers/send-email-workers/)
 client. The canonical version of a helper that had drifted into separate copies
@@ -7,7 +7,7 @@ across Ingram sites — now one package, with every feature those copies grew.
 ## Install
 
 ```bash
-bun add @ingram-tech/email
+bun add @ingram-tech/nk-email
 ```
 
 ## Environment
@@ -23,7 +23,7 @@ This package owns its own env contract (see `src/keys.ts`):
 ## Use
 
 ```ts
-import { sendEmail, fromAddress } from "@ingram-tech/email";
+import { sendEmail, fromAddress } from "@ingram-tech/nk-email";
 
 await sendEmail({
 	to: "customer@example.com",
@@ -41,7 +41,7 @@ Supports `cc`, `bcc`, `attachments`, and custom `headers` (e.g. RFC 8058
 ### Fail fast / degrade gracefully
 
 ```ts
-import { keys, isConfigured } from "@ingram-tech/email";
+import { keys, isConfigured } from "@ingram-tech/nk-email";
 
 keys();          // throws listing every missing env var — call at startup
 isConfigured();  // boolean — skip sending in local/dev instead of throwing

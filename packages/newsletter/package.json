@@ -29,7 +29,7 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
-		"@ingram-tech/email": "workspace:^",
+		"@ingram-tech/nk-email": "workspace:^",
 		"zod": "^4.0.0"
 	},
 	"devDependencies": {

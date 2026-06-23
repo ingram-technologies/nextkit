@@ -61,13 +61,13 @@ export const fromAddress = (name: string, localPart = "notifications"): string =
 	const domain = process.env.EMAIL_FROM_DOMAIN;
 	if (!domain) {
 		throw new Error(
-			"@ingram-tech/email: EMAIL_FROM_DOMAIN environment variable not configured",
+			"@ingram-tech/nk-email: EMAIL_FROM_DOMAIN environment variable not configured",
 		);
 	}
 	// oxlint-disable-next-line no-control-regex -- reject control chars/newlines in the display name.
 	if (/[\x00-\x1f\x7f]/.test(name)) {
 		throw new Error(
-			"@ingram-tech/email: sender name must not contain control characters or newlines",
+			"@ingram-tech/nk-email: sender name must not contain control characters or newlines",
 		);
 	}
 	// RFC 5322: a display name with specials must be a quoted-string (escaping
@@ -91,13 +91,13 @@ export const sendEmail = async (options: EmailOptions): Promise<void> => {
 
 	if (!accountId || !apiToken) {
 		throw new Error(
-			"@ingram-tech/email: Cloudflare email credentials not configured (CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_EMAIL_API_TOKEN)",
+			"@ingram-tech/nk-email: Cloudflare email credentials not configured (CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_EMAIL_API_TOKEN)",
 		);
 	}
 
 	if (!options.text && !options.html) {
 		throw new Error(
-			"@ingram-tech/email: email must have either text or html content",
+			"@ingram-tech/nk-email: email must have either text or html content",
 		);
 	}
 
@@ -133,7 +133,7 @@ export const sendEmail = async (options: EmailOptions): Promise<void> => {
 	} catch (err) {
 		if (err instanceof DOMException && err.name === "TimeoutError") {
 			throw new Error(
-				`@ingram-tech/email: request timed out after ${timeoutMs}ms`,
+				`@ingram-tech/nk-email: request timed out after ${timeoutMs}ms`,
 			);
 		}
 		throw err;
@@ -141,12 +141,12 @@ export const sendEmail = async (options: EmailOptions): Promise<void> => {
 
 	if (!res.ok) {
 		const errorBody = await res.text().catch(() => "");
-		console.error("[@ingram-tech/email] Cloudflare API error", {
+		console.error("[@ingram-tech/nk-email] Cloudflare API error", {
 			status: res.status,
 			body: errorBody,
 		});
 		throw new Error(
-			`@ingram-tech/email: Cloudflare email API returned ${res.status}: ${errorBody}`,
+			`@ingram-tech/nk-email: Cloudflare email API returned ${res.status}: ${errorBody}`,
 		);
 	}
 };

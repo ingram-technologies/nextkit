@@ -24,7 +24,7 @@ nextkit/
   docs/                   # this directory — AI-facing docs
   packages/
     nk-dev/               # @ingram-tech/nk-dev              (dev toolchain)
-    email/                # @ingram-tech/email               (runtime)
+    nk-email/             # @ingram-tech/nk-email            (runtime)
 ```
 
 ## Package categories
@@ -53,7 +53,7 @@ extension. `nk init` writes these once; thereafter they are the site's own files
 | Tests | `vitest.config.ts` → `mergeConfig(nextkitTestConfig, …)` from `@ingram-tech/nk-dev/vitest` |
 | Git hooks | `.githooks/pre-commit` → `bunx nextkit-format-staged` |
 | Agent guide | `CLAUDE.md` → `@./node_modules/@ingram-tech/nk-dev/guide.md` |
-| Email | `import { sendEmail } from "@ingram-tech/email"` |
+| Email | `import { sendEmail } from "@ingram-tech/nk-email"` |
 
 A new Next.js dev sees only standard config files pointing at `@ingram-tech/*`
 packages. That is the whole point.

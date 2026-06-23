@@ -9,7 +9,7 @@ package. Stay a thin, standard Next.js app (bun · oxlint + oxfmt · strict TS).
 - **Any form that emails or stores a submission MUST use `@ingram-tech/bot-protection`**
   (server: `verifyHuman` → silently drop bots; client: honeypot + signed token).
   Never ship a form without it.
-- **Send email only via `@ingram-tech/email`** — never add another mail client.
+- **Send email only via `@ingram-tech/nk-email`** — never add another mail client.
 - **Never trust an external request body's shape — validate it with Zod, never
   `as`-cast it.** Every `/api` route and webhook handler takes untrusted input;
   an `as` cast is a lie the type-checker can't catch at runtime.
@@ -71,7 +71,7 @@ the UI/page tree, and never expose internal plumbing under `/api/`.
 
 ## What nextkit provides (reach for these)
 
-- `@ingram-tech/email` — Cloudflare email: `sendEmail`, `fromAddress`
+- `@ingram-tech/nk-email` — Cloudflare email: `sendEmail`, `fromAddress`
 - `@ingram-tech/nk-auth` — Better Auth foundation: presets you spread into your own `betterAuth()` (mounts at `/auth` via `authBasePath`; org / JWT / passkey / pool / client helpers). Don't hand-roll session reads or auth middleware — bind `createAuthHelpers` (`getUser` / `requireUser` / `redirectIfAuthenticated`, from `@ingram-tech/nk-auth/server`) and gate routes with the loop-safe `createAuthMiddleware`
 - `@ingram-tech/nk-db` — Postgres data layer: `createPool` (one TLS-aware pool) + `createQueries` (raw SQL) + `createDb` (Drizzle), the PGlite dev/test harness at `@ingram-tech/nk-db/pglite`, the prefixed-id codec at `@ingram-tech/nk-db/id`, and the drift-aware migration runner at `@ingram-tech/nk-db/migrate`
 - `@ingram-tech/nk-api` — the standard HTTP API seam (Hono + `@hono/zod-openapi`): one `{ error, details? }` envelope, `createApiApp` / `createRouter`, auth + multi-tenant resource-scope middleware, pagination helpers, and an emitted OpenAPI/Swagger doc. Reach for it instead of hand-rolling route handlers

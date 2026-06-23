@@ -15,7 +15,7 @@ The shared Vitest preset is provided by
 - Unit/integration tests sit **next to the source** as `*.test.ts(x)`.
 - E2E tests live under `e2e/`. Playwright is configured per-repo (it needs the
   app's own `build`/`start` commands), not in the shared package.
-- Server-only library code (e.g. `@ingram-tech/email`) uses the **`node`**
+- Server-only library code (e.g. `@ingram-tech/nk-email`) uses the **`node`**
   environment and skips the jsdom setup — see that package's `vitest.config.ts`.
 
 ## Scripts (per site)

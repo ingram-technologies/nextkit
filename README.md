@@ -22,7 +22,7 @@ Read **[docs/philosophy.md](./docs/philosophy.md)** for the full reasoning.
 | Package | What |
 | --- | --- |
 | [`@ingram-tech/nk-dev`](./packages/nk-dev) | The whole dev toolchain in one package: the `nk` CLI (`nk dev`/`check`/…, never required), shared oxlint + oxfmt / TypeScript / Vitest config, the format-on-commit hook, the AI agent guide, and `nk init` to scaffold a site |
-| [`@ingram-tech/email`](./packages/email) | Zero-dep Cloudflare email client |
+| [`@ingram-tech/nk-email`](./packages/nk-email) | Zero-dep Cloudflare email client |
 | [`@ingram-tech/bot-protection`](./packages/bot-protection) | Invisible form bot protection (honeypot + timing + BotID) |
 | [`@ingram-tech/nk-db`](./packages/nk-db) | Postgres data layer: shared `pg` pool, raw-SQL helpers, Drizzle wiring, PGlite (no-Docker) dev/test harness |
 | [`@ingram-tech/nk-auth`](./packages/nk-auth) | Better Auth foundation: composable presets a site spreads into its own `betterAuth()` |
