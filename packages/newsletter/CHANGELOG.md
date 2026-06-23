@@ -1,5 +1,13 @@
 # @ingram-tech/newsletter
 
+## 0.4.3
+
+### Patch Changes
+
+- Republish: `0.4.2` shipped with an unresolved `workspace:^` range for its
+  `@ingram-tech/nk-email` dependency and is deprecated. This release pins the
+  resolved range. No source changes.
+
 ## 0.4.2
 
 ### Patch Changes
