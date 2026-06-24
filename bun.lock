@@ -80,7 +80,6 @@
       "devDependencies": {
         "@better-auth/passkey": "^1.6.0",
         "@ingram-tech/nk-dev": "workspace:*",
-        "@supabase/supabase-js": "^2.45.0",
         "@types/bcrypt": "^6.0.0",
         "@types/node": "^25.0.0",
         "@types/pg": "^8.11.0",
@@ -94,7 +93,6 @@
       },
       "peerDependencies": {
         "@better-auth/passkey": "^1.6.0",
-        "@supabase/supabase-js": ">=2.0.0",
         "better-auth": "^1.6.0",
         "next": "^15.0.0 || ^16.0.0",
         "pg": "^8.13.0",
@@ -102,7 +100,6 @@
       },
       "optionalPeers": [
         "@better-auth/passkey",
-        "@supabase/supabase-js",
         "next",
         "pg",
         "react",

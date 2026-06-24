@@ -1,5 +1,30 @@
 # @ingram-tech/nk-auth
 
+## 0.8.0
+
+### Minor Changes
+
+- Drop Supabase support entirely — the fleet is fully on Better Auth.
+
+  **Breaking.** Removed:
+
+  - `createServerSupabase` / `ServerSupabaseConfig` (the RLS-aware supabase-js data
+    client) and the `./supabase` source module.
+  - `rlsJwtOptions` — the Supabase RLS bridge `jwt`-plugin preset
+    (`role: "authenticated"` token for PostgREST `auth.uid()`).
+  - The `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` env vars and
+    the `supabaseUrl` / `supabaseAnonKey` fields on `AuthEnv` / `authEnv()`.
+  - The `@supabase/supabase-js` (optional) peer dependency.
+
+  **Migration:** access data over a direct `pg` connection and enforce per-request
+  RLS with `withRls` / `withRlsTransaction` from
+  [`@ingram-tech/nk-db`](https://github.com/ingram-technologies/nextkit/tree/main/packages/nk-db)
+  — claims come from the Better Auth session, so `auth.uid()` policies fire
+  unchanged with no JWT minting and no PostgREST. Drop the `jwt(rlsJwtOptions)`
+  plugin and the `NEXT_PUBLIC_SUPABASE_*` env vars from your `betterAuth()` setup.
+  The site's own backend-API token (`backendJwtOptions` / `verifyBackendJwt`) is
+  unaffected.
+
 ## 0.7.6
 
 ### Patch Changes

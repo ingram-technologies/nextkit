@@ -5,8 +5,6 @@ const VALID = {
 	BETTER_AUTH_SECRET: "s".repeat(32),
 	BETTER_AUTH_URL: "https://example.com",
 	DATABASE_URL: "postgresql://user:pw@db.example.com:5432/postgres",
-	NEXT_PUBLIC_SUPABASE_URL: "https://proj.supabase.co",
-	NEXT_PUBLIC_SUPABASE_ANON_KEY: "anon-key",
 } as const;
 
 describe("authEnv", () => {
@@ -24,8 +22,6 @@ describe("authEnv", () => {
 			secret: VALID.BETTER_AUTH_SECRET,
 			baseURL: VALID.BETTER_AUTH_URL,
 			databaseUrl: VALID.DATABASE_URL,
-			supabaseUrl: VALID.NEXT_PUBLIC_SUPABASE_URL,
-			supabaseAnonKey: VALID.NEXT_PUBLIC_SUPABASE_ANON_KEY,
 		});
 		expect(isConfigured()).toBe(true);
 	});

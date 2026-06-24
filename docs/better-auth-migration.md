@@ -1,18 +1,17 @@
 # Migrating from Supabase Auth to Better Auth (without losing RLS)
 
-**Status:** partially shipped. `@ingram-tech/nk-auth` exists and several products
-are on Better Auth. **Most went further than this doc** — they left Supabase
-Postgres entirely for our shared DigitalOcean cluster (direct `pg` + Drizzle, see
-[`db-package.md`](./db-package.md)), so the RLS-bridge below was unnecessary for
-them (tenant isolation is RLS via a dedicated app role, or app-layer `where
-owner_id = …`).
+**Status: complete — historical.** The fleet is fully on Better Auth and has left
+Supabase entirely. This doc is kept for the rationale (why Better Auth, the UUID
+trap, the table lockdown) and as a record of the cutover, not as a live runbook.
 
-**The RLS-bridge approach in this doc now applies specifically to the remaining
-Supabase-Postgres holdouts** — the apps that keep Supabase Storage/pgvector/RLS
-and are scheduled as their own migration projects.
-For everything else, "migrate auth" and "leave Supabase" happen together; read
-the Supabase→Postgres playbook alongside this. Read [`philosophy.md`](./philosophy.md)
-(vendor stance + Django-app model) first; this builds on it.
+> **The Supabase-specific package surface has been removed** (`@ingram-tech/nk-auth`
+> ≥ 0.8.0): the `createServerSupabase` data client, the `rlsJwtOptions` RLS-bridge
+> preset, and the `NEXT_PUBLIC_SUPABASE_*` env vars are gone. Data access + RLS now
+> live in [`@ingram-tech/nk-db`](./db-package.md) — direct `pg` with
+> `withRls` / `withRlsTransaction` (claims from the Better Auth session, no JWT
+> minting, no PostgREST). The "RLS bridge" sections below describe that removed
+> path and are retained only for context. Read [`philosophy.md`](./philosophy.md)
+> (vendor stance + Django-app model) for the durable reasoning.
 
 ## Why this is even on the table
 

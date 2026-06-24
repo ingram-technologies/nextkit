@@ -2,29 +2,11 @@ import type { JwtOptions } from "better-auth/plugins/jwt";
 import { createRemoteJWKSet, type JWTPayload, jwtVerify } from "jose";
 
 /**
- * `jwt` plugin presets. Two shapes, because Ingram sites mint JWTs for two
- * different audiences:
- *
- *   - `rlsJwtOptions` — a Supabase RLS bridge token (`role: "authenticated"`),
- *     so PostgREST's `auth.uid()` keeps working. See docs/better-auth-migration.md.
- *   - `backendJwtOptions` — a short-lived token for a site's OWN backend API
- *     (a specific `audience`), typically carrying extra claims the site adds via
- *     `auth.api.signJWT`.
- *
- * Both default to EdDSA (Better Auth's default), exposed at `/api/auth/jwks`.
+ * `jwt` plugin preset for a site's OWN backend API: a short-lived token with a
+ * specific `audience`, typically carrying extra claims the site adds via
+ * `auth.api.signJWT`. Defaults to EdDSA (Better Auth's default), with the JWKS
+ * exposed at `/api/auth/jwks` so the backend can verify it (`verifyBackendJwt`).
  */
-
-/** Supabase RLS bridge: mints `sub` = user id, `role`/`aud` = "authenticated". */
-export const rlsJwtOptions: JwtOptions = {
-	jwks: { keyPairConfig: { alg: "EdDSA" } },
-	jwt: {
-		definePayload: ({ user }) => ({
-			sub: user.id,
-			role: "authenticated",
-			aud: "authenticated",
-		}),
-	},
-};
 
 export interface BackendJwtConfig {
 	/** Expected audience of the site's backend, e.g. "ingram-wiki-backend". */
