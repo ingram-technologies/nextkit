@@ -71,6 +71,14 @@ feel it first.
 - Every change that affects a published package needs a Changeset
   (`bun run changeset`).
 - `bun run version-packages` consumes changesets into version bumps +
-  changelogs; `bun run release` builds and publishes.
+  changelogs; `bun run release` builds, publishes (`scripts/publish.ts`), then
+  tags (`changeset tag`).
+- **Publishing does not use `changeset publish`.** It shells out to `npm
+  publish`, which can't resolve bun's `workspace:` protocol, so a package with a
+  *runtime* workspace dep (e.g. newsletter → nk-email) would ship an
+  uninstallable `workspace:^` range. `scripts/publish.ts` resolves those ranges
+  from each package's `package.json` version — the source of truth, immune to a
+  stale `bun.lock` — and refuses to publish anything still carrying a
+  `workspace:` range.
 - Consumers receive updates via Renovate PRs. Keep changes additive; ship a
   codemod with any breaking major.

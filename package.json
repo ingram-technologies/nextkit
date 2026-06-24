@@ -22,7 +22,8 @@
 		"ci": "bun run check && bun run build && bun run type-check && bun run test",
 		"changeset": "changeset",
 		"version-packages": "changeset version",
-		"release": "bun run build && changeset publish",
+		"publish-packages": "bun run scripts/publish.ts",
+		"release": "bun run build && bun run publish-packages && changeset tag",
 		"prepare": "git config core.hooksPath .githooks || true"
 	},
 	"devDependencies": {
