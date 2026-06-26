@@ -107,6 +107,31 @@ describe("sendEmail", () => {
 		});
 	});
 
+	it("expands listUnsubscribe into RFC 8058 headers, explicit headers winning", async () => {
+		const fetchMock = vi
+			.fn()
+			.mockResolvedValue(new Response(null, { status: 200 }));
+		vi.stubGlobal("fetch", fetchMock);
+
+		await sendEmail({
+			to: "a@example.com",
+			from: fromAddress("Ingram"),
+			subject: "Hi",
+			text: "t",
+			listUnsubscribe: { url: "https://x.test/u", mailto: "bye@x.test" },
+			headers: { "X-Campaign": "welcome" },
+		});
+
+		const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+		const payload = JSON.parse(init.body as string);
+		expect(payload.headers).toEqual({
+			"List-Unsubscribe":
+				"<https://x.test/u>, <mailto:bye@x.test?subject=unsubscribe>",
+			"List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+			"X-Campaign": "welcome",
+		});
+	});
+
 	it("throws when no credentials are configured", async () => {
 		process.env.CLOUDFLARE_ACCOUNT_ID = undefined;
 		await expect(

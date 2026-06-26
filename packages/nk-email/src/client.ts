@@ -11,6 +11,8 @@
  * See {@link ./keys} for the required environment variables.
  */
 
+import { buildListUnsubscribeHeaders, type ListUnsubscribe } from "./unsubscribe.js";
+
 export interface EmailAttachment {
 	/** Base64-encoded file content. */
 	content: string;
@@ -32,10 +34,18 @@ export interface EmailOptions {
 	bcc?: string | string[];
 	attachments?: EmailAttachment[];
 	/**
-	 * Custom RFC 5322 headers, e.g. List-Unsubscribe / List-Unsubscribe-Post
-	 * (RFC 8058) for one-click newsletter unsubscribe.
+	 * Custom RFC 5322 headers. Merged on top of any headers derived from
+	 * {@link listUnsubscribe}, so an explicit entry here always wins.
 	 */
 	headers?: Record<string, string>;
+	/**
+	 * One-click unsubscribe (RFC 8058). Set this on any non-transactional send
+	 * — newsletter issues, lifecycle nudges — and the List-Unsubscribe /
+	 * List-Unsubscribe-Post headers are generated for you. Equivalent to
+	 * building them with {@link buildListUnsubscribeHeaders} and passing them via
+	 * {@link headers}, but typed and impossible to misshape.
+	 */
+	listUnsubscribe?: ListUnsubscribe;
 	/**
 	 * Abort the request after this many milliseconds. Defaults to
 	 * {@link DEFAULT_TIMEOUT_MS}. Sends are single-shot — there is no built-in
@@ -114,8 +124,16 @@ export const sendEmail = async (options: EmailOptions): Promise<void> => {
 	if (options.attachments && options.attachments.length > 0) {
 		body.attachments = options.attachments;
 	}
-	if (options.headers && Object.keys(options.headers).length > 0) {
-		body.headers = options.headers;
+	// List-Unsubscribe headers come first so an explicit `headers` entry can
+	// override them; only attach the merged object when something is present.
+	const headers = {
+		...(options.listUnsubscribe
+			? buildListUnsubscribeHeaders(options.listUnsubscribe)
+			: {}),
+		...options.headers,
+	};
+	if (Object.keys(headers).length > 0) {
+		body.headers = headers;
 	}
 
 	const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;

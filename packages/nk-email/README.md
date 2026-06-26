@@ -35,8 +35,37 @@ await sendEmail({
 });
 ```
 
-Supports `cc`, `bcc`, `attachments`, and custom `headers` (e.g. RFC 8058
-`List-Unsubscribe` for newsletters).
+Supports `cc`, `bcc`, `attachments`, and custom `headers`.
+
+### One-click unsubscribe (RFC 8058)
+
+Any non-transactional send — a newsletter issue, a post-signup lifecycle nudge —
+must carry `List-Unsubscribe` headers for Gmail/Yahoo bulk-sender compliance and
+deliverability. Pass `listUnsubscribe` and the header pair is generated for you:
+
+```ts
+await sendEmail({
+	to: "customer@example.com",
+	from: fromAddress("Acme", "news"),
+	subject: "What's new",
+	html,
+	text,
+	listUnsubscribe: {
+		url: "https://acme.com/u?token=…", // one-click POST target, unauthenticated + idempotent
+		mailto: "news@mail.acme.com",      // optional fallback
+	},
+});
+```
+
+The standalone `buildListUnsubscribeHeaders({ url, mailto })` is exported for
+callers that assemble headers themselves. For the full subscription / lifecycle
+machinery (contacts, consent, dedup, rendering) reach for
+[`@ingram-tech/nk-marketing`](../nk-marketing), which builds on this.
+
+### Escaping
+
+`escapeHtml(value)` escapes the five HTML-significant characters — use it when
+interpolating any user-controlled text into an HTML email body.
 
 ### Fail fast / degrade gracefully
 
