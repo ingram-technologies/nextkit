@@ -1,8 +1,17 @@
 # @ingram-tech/newsletter
 
+> [!WARNING]
+> **Deprecated — use [`@ingram-tech/nk-marketing`](../nk-marketing).** This
+> package is Supabase-bound; nk-marketing is its Postgres/nk-db-native successor
+> and covers the same newsletter flow (`subscribe`, `sendBroadcast`) plus
+> contacts/consent and triggered lifecycle campaigns. As the fleet finishes the
+> Supabase→Postgres move (see `docs/philosophy.md`), migrate to nk-marketing.
+> Still published and supported for sites on Supabase, but gets no new features.
+
 Supabase-backed newsletter subscriptions and sending, with idempotent
 subscribe/resubscribe, token-based unsubscribe, and RFC 8058 one-click
-unsubscribe. Sends via [`@ingram-tech/nk-email`](../nk-email).
+unsubscribe. Sends via [`@ingram-tech/nk-email`](../nk-email) (whose `escapeHtml`
++ `buildListUnsubscribeHeaders` it now reuses rather than duplicating).
 
 This package **owns its tables** and ships the migrations; you inject a Supabase
 client and a base URL. It defines its own row types (it does not import your

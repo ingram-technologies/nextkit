@@ -1,7 +1,7 @@
 {
 	"name": "@ingram-tech/newsletter",
 	"version": "0.4.3",
-	"description": "Supabase-backed newsletter subscriptions + sending, with RFC 8058 one-click unsubscribe.",
+	"description": "DEPRECATED — use @ingram-tech/nk-marketing. Supabase-backed newsletter subscriptions + sending, with RFC 8058 one-click unsubscribe.",
 	"license": "MIT",
 	"type": "module",
 	"repository": {

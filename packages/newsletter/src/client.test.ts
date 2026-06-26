@@ -11,6 +11,12 @@ vi.mock("@ingram-tech/nk-email", () => ({
 		(name: string, localPart = "notifications") =>
 			`${name} <${localPart}@mail.test>`,
 	),
+	// render.ts now reuses these from nk-email instead of local copies.
+	escapeHtml: (v: string) => v.replace(/</g, "&lt;").replace(/>/g, "&gt;"),
+	buildListUnsubscribeHeaders: ({ url }: { url: string }) => ({
+		"List-Unsubscribe": `<${url}>`,
+		"List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+	}),
 }));
 
 const TS = "2026-01-01T00:00:00.000Z";

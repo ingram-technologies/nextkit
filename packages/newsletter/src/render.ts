@@ -1,3 +1,8 @@
+import {
+	buildListUnsubscribeHeaders as buildHeaders,
+	escapeHtml,
+} from "@ingram-tech/nk-email";
+
 /** Inputs the default renderer (or a custom one) receives per send. */
 export interface NewsletterRenderInput {
 	newsletterName: string;
@@ -9,14 +14,6 @@ export interface NewsletterRenderInput {
 	/** Inbox-preview headline. */
 	previewText?: string;
 }
-
-const escapeHtml = (value: string): string =>
-	value
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&#39;");
 
 /** Minimal, dependency-free HTML email. Override via `createNewsletter({ render })`. */
 export const renderNewsletterHtml = (input: NewsletterRenderInput): string => {
@@ -52,17 +49,19 @@ export const renderNewsletterText = (input: NewsletterRenderInput): string =>
 /**
  * RFC 8058 List-Unsubscribe headers for one-click unsubscribe in Gmail/Apple
  * Mail. `fromAddr` may be "Name <local@domain>" or a bare address.
+ *
+ * Thin adapter over `@ingram-tech/nk-email`'s canonical builder — kept here for
+ * backward compatibility with this package's `(url, fromAddr)` signature. New
+ * code (and `@ingram-tech/nk-marketing`) should use nk-email's
+ * `buildListUnsubscribeHeaders({ url, mailto })` or `sendEmail`'s
+ * `listUnsubscribe` option directly.
  */
 export const buildListUnsubscribeHeaders = (
 	unsubscribeUrl: string,
 	fromAddr: string,
 ): Record<string, string> => {
-	const match = fromAddr.match(/<([^>]+)>/);
-	const mailto = match?.[1] ?? fromAddr;
-	return {
-		"List-Unsubscribe": `<${unsubscribeUrl}>, <mailto:${mailto}?subject=unsubscribe>`,
-		"List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-	};
+	const mailto = fromAddr.match(/<([^>]+)>/)?.[1] ?? fromAddr;
+	return buildHeaders({ url: unsubscribeUrl, mailto });
 };
 
 /** First non-empty line, trimmed to ~140 chars — a sensible preview default. */
