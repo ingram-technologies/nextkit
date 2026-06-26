@@ -29,7 +29,8 @@ Read **[docs/philosophy.md](./docs/philosophy.md)** for the full reasoning.
 | [`@ingram-tech/nk-billing`](./packages/nk-billing) | Stripe primitives (client, customers, prices, currency, checkout, subscriptions, webhooks) + Stripe-side wallet + injection-based Postgres credit ledger |
 | [`@ingram-tech/nk-api`](./packages/nk-api) | Typed API toolkit: Hono + zod-openapi router, auth/scope guards, cursor pagination, and a typed client — mounts into a Next.js route |
 | [`@ingram-tech/nk-i18n`](./packages/nk-i18n) | Lightweight i18n: `intl-messageformat` formatting, Accept-Language negotiation, and React client helpers |
-| [`@ingram-tech/newsletter`](./packages/newsletter) | Newsletter subscriptions + sending, RFC 8058 one-click unsubscribe (still Supabase-backed; nk-db port pending) |
+| [`@ingram-tech/nk-marketing`](./packages/nk-marketing) | Postgres-backed marketing & lifecycle email: contacts + consent, newsletter audiences (broadcast), and idempotent triggered campaigns, with RFC 8058 one-click unsubscribe |
+| [`@ingram-tech/newsletter`](./packages/newsletter) | **Deprecated** → `nk-marketing`. Supabase-backed newsletter subscriptions + sending |
 
 More to come (blog). See [docs/](./docs/README.md).
 

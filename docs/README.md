@@ -16,6 +16,9 @@ with the philosophy, then dip into specifics as needed.
   the oxc toolchain (oxlint + oxfmt), with a codemod.
 - **[db-package.md](./db-package.md)** — the `@ingram-tech/nk-db` plan: the shared
   Postgres pool, Drizzle, and the PGlite dev/test harness (`nk dev`).
+- **[marketing.md](./marketing.md)** — `@ingram-tech/nk-marketing`: contacts +
+  consent, newsletter broadcasts, and idempotent lifecycle/triggered email; the
+  Postgres successor to `@ingram-tech/newsletter`.
 - **[better-auth-migration.md](./better-auth-migration.md)** — moving the fleet
   from Supabase Auth to Better Auth. The RLS-bridge path here now applies to the
   remaining Supabase-Postgres holdouts; migrated apps went to DO Postgres
