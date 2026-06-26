@@ -70,7 +70,7 @@
     },
     "packages/nk-auth": {
       "name": "@ingram-tech/nk-auth",
-      "version": "0.7.6",
+      "version": "0.8.0",
       "dependencies": {
         "@ingram-tech/nk-db": "^0.9.0",
         "bcrypt": "^6.0.0",
@@ -80,6 +80,7 @@
       "devDependencies": {
         "@better-auth/passkey": "^1.6.0",
         "@ingram-tech/nk-dev": "workspace:*",
+        "@supabase/supabase-js": "^2.45.0",
         "@types/bcrypt": "^6.0.0",
         "@types/node": "^25.0.0",
         "@types/pg": "^8.11.0",
@@ -93,6 +94,7 @@
       },
       "peerDependencies": {
         "@better-auth/passkey": "^1.6.0",
+        "@supabase/supabase-js": ">=2.0.0",
         "better-auth": "^1.6.0",
         "next": "^15.0.0 || ^16.0.0",
         "pg": "^8.13.0",
@@ -100,6 +102,7 @@
       },
       "optionalPeers": [
         "@better-auth/passkey",
+        "@supabase/supabase-js",
         "next",
         "pg",
         "react",
@@ -199,6 +202,19 @@
       "optionalPeers": [
         "react",
       ],
+    },
+    "packages/nk-marketing": {
+      "name": "@ingram-tech/nk-marketing",
+      "version": "0.1.0",
+      "dependencies": {
+        "@ingram-tech/nk-email": "workspace:^",
+      },
+      "devDependencies": {
+        "@ingram-tech/nk-dev": "workspace:*",
+        "@types/node": "^25.0.0",
+        "typescript": "^6.0.3",
+        "vitest": "^4.1.6",
+      },
     },
   },
   "packages": {
@@ -391,6 +407,8 @@
     "@ingram-tech/nk-email": ["@ingram-tech/nk-email@workspace:packages/nk-email"],
 
     "@ingram-tech/nk-i18n": ["@ingram-tech/nk-i18n@workspace:packages/nk-i18n"],
+
+    "@ingram-tech/nk-marketing": ["@ingram-tech/nk-marketing@workspace:packages/nk-marketing"],
 
     "@inquirer/external-editor": ["@inquirer/external-editor@1.0.3", "", { "dependencies": { "chardet": "^2.1.1", "iconv-lite": "^0.7.0" }, "peerDependencies": { "@types/node": ">=18" }, "optionalPeers": ["@types/node"] }, "sha512-RWbSrDiYmO4LbejWY7ttpxczuwQyZLBUyygsA9Nsv95hpzUWwnNTVQmAq3xuh7vNwCp07UTmE5i11XAEExx4RA=="],
 

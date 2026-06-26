@@ -1,0 +1,40 @@
+{
+	"name": "@ingram-tech/nk-marketing",
+	"version": "0.1.0",
+	"description": "Postgres-backed marketing & lifecycle email: contacts, consent, newsletter audiences, and idempotent triggered campaigns with RFC 8058 one-click unsubscribe. Sends via @ingram-tech/nk-email.",
+	"license": "MIT",
+	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ingram-technologies/nextkit.git",
+		"directory": "packages/nk-marketing"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"files": [
+		"dist",
+		"migrations"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./migrations/*": "./migrations/*"
+	},
+	"scripts": {
+		"build": "tsc -p tsconfig.json",
+		"type-check": "tsc -p tsconfig.json --noEmit",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"@ingram-tech/nk-email": "workspace:^"
+	},
+	"devDependencies": {
+		"@ingram-tech/nk-dev": "workspace:*",
+		"@types/node": "^25.0.0",
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.6"
+	}
+}
