@@ -96,6 +96,55 @@ TLS rules (carried over from `nk-auth`'s `createAuthPool`):
 > **DO uses one account-wide CA** across clusters in a region, so an app that
 > pins `DATABASE_CA_CERT` doesn't need it changed when it moves between clusters.
 
+### Why `createPool` un-escapes `\n` in `DATABASE_CA_CERT`
+
+`createPool` normalizes a literal `\n` in the CA cert to a real newline
+(`normalizeCaCert`) before handing it to `pg`. This is deliberate, and it is
+**not** the data layer papering over a malformed stored value — the stored value
+is correct. The reasoning, because it looks like a layering violation at first
+glance:
+
+- **The cert at rest is fine.** A multiline PEM is stored with real newlines
+  (Pulumi sets it via `readFileSync(...pem)` / a managed-DB `ca.certificate`
+  output). At runtime the app's env hands `DATABASE_CA_CERT` back with real
+  newlines, so the deployed app does `verify-full` correctly. There is nothing to
+  fix at storage.
+- **The `\n` is a transport artifact.** `vercel env pull` (and most `.env`
+  serializers) collapse the multiline secret to one double-quoted line with `\n`
+  escapes. `bash` does **not** expand `\n` inside double quotes, so a script that
+  `source`s that file gets the literal two-character `\n`. The thing that's wrong
+  is the *local load step*, not storage and not really nk-db.
+- **Who hits it.** Only callers that source a pulled `.env` — the `nk-pg-migrate`
+  runner, a CI job — fed OpenSSL a literal-`\n` PEM and hit "self-signed
+  certificate in certificate chain" on the very cert the deployed app accepts.
+
+Three honest options existed, not two:
+
+1. **Un-escape in `createPool`** (chosen). Tolerant of both forms at the one
+   chokepoint that consumes the cert; unblocks every caller at once.
+2. **Load the pulled `.env` with a real parser** (the `dotenv` package expands
+   `\n` inside double quotes) instead of `source`. Correct, but per-script /
+   per-repo — it doesn't generalize across the fleet.
+3. **Base64-encode the cert at rest, decode at consumption.** Survives every
+   transport (Vercel pull, Docker, k8s secrets, CI stores) with zero newline
+   ambiguity. The most principled, but the most invasive: it changes how *every*
+   project + infra stores the value.
+
+**The call: option 1, pragmatically.** `createPool` can't dictate how every
+caller ships the secret, env-var newline mangling is transport-dependent and
+endemic, and `replace(/\\n/g, "\n")` is a well-precedented PEM pattern (Firebase
+admin, Google service-account keys, many pg/TLS setups). It is **provably safe
+for PEM**: base64 plus the `BEGIN`/`END` lines never contain a literal
+backslash-`n`, so the transform is idempotent and cannot corrupt a
+genuinely-newlined cert.
+
+**The honest caveat:** this does push a slightly leaky assumption into the data
+layer — "any `\n` here is an escaping artifact". True today, but `createPool` now
+silently *normalizes* input rather than *demanding* correct input. If we ever
+want this layer to stay strict, **option 3 (base64 at rest) is the cleaner
+long-term answer** and would make the `normalizeCaCert` step unnecessary, because
+then nobody is newline-juggling anywhere and the value is unambiguous end to end.
+
 ## The query layer: Drizzle first, raw SQL as the escape hatch
 
 Per the [data-layer decision](./philosophy.md#the-vendor-stance-eu-first-self-hostable-no-per-seat-us-saas),
