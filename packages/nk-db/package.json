@@ -1,6 +1,6 @@
 {
 	"name": "@ingram-tech/nk-db",
-	"version": "0.9.0",
+	"version": "0.9.1",
 	"description": "The Ingram Postgres data layer: one TLS-aware pg pool, raw-SQL helpers, Drizzle wiring, and a PGlite (no-Docker) dev/test harness for Next.js sites.",
 	"license": "MIT",
 	"type": "module",
