@@ -1,5 +1,17 @@
 # @ingram-tech/newsletter
 
+## 0.4.4
+
+### Patch Changes
+
+- 8e97adf: Deprecate in favour of `@ingram-tech/nk-marketing` (the Postgres/nk-db-native
+  successor) and stop duplicating helpers: `render.ts` now reuses `escapeHtml` and
+  `buildListUnsubscribeHeaders` from `@ingram-tech/nk-email` instead of keeping its
+  own copies. No API change — the exported `buildListUnsubscribeHeaders(url,
+fromAddr)` keeps its signature and output.
+- Updated dependencies [72e3fed]
+  - @ingram-tech/nk-email@0.3.0
+
 ## 0.4.3
 
 ### Patch Changes
