@@ -14,6 +14,23 @@ const isLocal = (connectionString: string): boolean =>
 	connectionString.includes("127.0.0.1") || connectionString.includes("localhost");
 
 /**
+ * Un-escape a PEM CA cert that arrived with literal `\n` instead of real
+ * newlines. A multiline secret survives intact in the app's runtime env (e.g.
+ * Vercel hands `process.env.DATABASE_CA_CERT` back with real newlines), but
+ * `vercel env pull` — and most `.env` serializers — collapse it to a single
+ * quoted line with `\n` escapes. A caller that then sources that file (the
+ * `nk-pg-migrate` runner, a CI job) gets the literal-`\n` form, which OpenSSL
+ * rejects with "self-signed certificate in certificate chain" even though the
+ * deployed app verifies the very same cert fine. Normalise here, the one place
+ * the cert reaches `pg`, so every caller gets verify-full regardless of how the
+ * env was loaded. A correctly-newlined PEM contains no literal `\n`, so this is
+ * a no-op there — idempotent and safe (base64 + the BEGIN/END lines never
+ * contain a backslash).
+ */
+export const normalizeCaCert = (caCert: string | undefined): string | undefined =>
+	caCert?.includes("\\n") ? caCert.replace(/\\n/g, "\n") : caCert;
+
+/**
  * The one shared `pg.Pool`. Reuse this for everything — app queries (via
  * `createQueries` / Drizzle) AND Better Auth's adapter — so there's exactly one
  * pool per process (the playbook's rule).
@@ -41,7 +58,7 @@ export const createPool = (config: CreatePoolConfig = {}): Pool => {
 	if (!connectionString) {
 		throw new Error("@ingram-tech/nk-db: createPool needs a connection string.");
 	}
-	const caCert = config.caCert ?? env?.caCert;
+	const caCert = normalizeCaCert(config.caCert ?? env?.caCert);
 	const local = isLocal(connectionString);
 	const max = config.max ?? env?.poolMax ?? (local ? 1 : undefined);
 
