@@ -26,8 +26,8 @@ function hasPgliteDev() {
  * (static/marketing sites with no database). PGlite logic lives in nk-db, not
  * here — `nk` only orchestrates.
  *
- * `nk dev` does not boot local Supabase; the fleet has moved off it. The few
- * Supabase-Postgres holdouts start it themselves until they migrate.
+ * `nk dev` boots no external database service — when nk-db is installed it runs
+ * local PGlite (Postgres-in-WASM), and a site with no database just runs Next.
  */
 export function dev(extraArgs = []) {
 	const command = hasPgliteDev()

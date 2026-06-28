@@ -1,7 +1,7 @@
 /**
  * The single error envelope for an nk-api app: `{ error, details? }`. Kept
- * deliberately flat so it's drop-in for clients that previously read PostgREST /
- * plain Next route-handler errors (`{ error: string }`).
+ * deliberately flat so it's drop-in for clients that read plain Next
+ * route-handler errors (`{ error: string }`).
  *
  * Handlers and middleware throw {@link HttpError}; the app's `onError` (wired by
  * `createApiApp` / `createRouter`) renders it to this envelope. Anything that

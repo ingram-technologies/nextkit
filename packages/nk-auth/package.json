@@ -1,7 +1,7 @@
 {
 	"name": "@ingram-tech/nk-auth",
 	"version": "0.8.0",
-	"description": "The Ingram Better Auth foundation: composable presets (org, dual-shape JWT, Supabase RLS bridge, active-org hooks, pg pool) for Next.js sites.",
+	"description": "The Ingram Better Auth foundation: composable presets (org, dual-shape JWT, active-org hooks, pg pool) for Next.js sites.",
 	"license": "MIT",
 	"type": "module",
 	"repository": {
@@ -68,7 +68,6 @@
 	},
 	"peerDependencies": {
 		"@better-auth/passkey": "^1.6.0",
-		"@supabase/supabase-js": ">=2.0.0",
 		"better-auth": "^1.6.0",
 		"next": "^15.0.0 || ^16.0.0",
 		"pg": "^8.13.0",
@@ -76,9 +75,6 @@
 	},
 	"peerDependenciesMeta": {
 		"@better-auth/passkey": {
-			"optional": true
-		},
-		"@supabase/supabase-js": {
 			"optional": true
 		},
 		"next": {
@@ -94,7 +90,6 @@
 	"devDependencies": {
 		"@better-auth/passkey": "^1.6.0",
 		"@ingram-tech/nk-dev": "workspace:*",
-		"@supabase/supabase-js": "^2.45.0",
 		"@types/bcrypt": "^6.0.0",
 		"@types/node": "^25.0.0",
 		"@types/pg": "^8.11.0",

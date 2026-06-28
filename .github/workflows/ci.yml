@@ -17,15 +17,15 @@ jobs:
       - name: Lint & format check
         run: bun run check
       # Build before type-check: packages whose deps resolve to built workspace
-      # types (e.g. newsletter → email's dist/*.d.ts) need dist to exist first.
-      # check runs first on the clean tree, so oxlint never sees dist/.
+      # types (e.g. nk-marketing → nk-email's dist/*.d.ts) need dist to exist
+      # first. check runs first on the clean tree, so oxlint never sees dist/.
       - name: Build
         run: bun run build
       # Catches malformed exports / types / files fields before they ship — the
       # class of packaging bug that only surfaces on `npm install` in a real app.
       - name: Check package publishing (publint)
         run: |
-          for dir in packages/email packages/bot-protection packages/newsletter; do
+          for dir in packages/nk-email packages/bot-protection; do
             bunx publint "$dir"
           done
       - name: Type-check

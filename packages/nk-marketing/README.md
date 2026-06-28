@@ -5,8 +5,7 @@ newsletter audiences/subscriptions (broadcast), and **idempotent triggered
 campaigns** (post-signup drips). RFC 8058 one-click unsubscribe throughout.
 Sends via [`@ingram-tech/nk-email`](../nk-email).
 
-This is the Postgres-native successor to `@ingram-tech/newsletter` (which was
-Supabase-bound). It **owns its tables** and ships the migration; you inject an
+It **owns its tables** and ships the migration; you inject an
 `@ingram-tech/nk-db` pool (or any `pg` client) and a base URL. It defines its own
 row types and never reaches into your schema.
 

@@ -35,8 +35,8 @@ nextkit/
   and the `nk` CLI (`bin` + `lib`). No build step. `nk init` scaffolds a site.
   See [`philosophy.md`](./philosophy.md) for why dev-time config is one bundle
   while runtime stays vertical slices.
-- **Runtime packages** (`email`, `nk-db`, `nk-auth`, `nk-billing`, `nk-api`,
-  `nk-i18n`, `bot-protection`, `newsletter`): ship compiled JS + `.d.ts` from
+- **Runtime packages** (`nk-email`, `nk-db`, `nk-auth`, `nk-billing`, `nk-api`,
+  `nk-i18n`, `bot-protection`, `nk-marketing`): ship compiled JS + `.d.ts` from
   `src/`, built with `tsc`. These stay separate and peer-depend on
   `next`/`react`.
 
@@ -75,7 +75,7 @@ feel it first.
   tags (`changeset tag`).
 - **Publishing does not use `changeset publish`.** It shells out to `npm
   publish`, which can't resolve bun's `workspace:` protocol, so a package with a
-  *runtime* workspace dep (e.g. newsletter → nk-email) would ship an
+  *runtime* workspace dep (e.g. nk-marketing → nk-email) would ship an
   uninstallable `workspace:^` range. `scripts/publish.ts` resolves those ranges
   from each package's `package.json` version — the source of truth, immune to a
   stale `bun.lock` — and refuses to publish anything still carrying a

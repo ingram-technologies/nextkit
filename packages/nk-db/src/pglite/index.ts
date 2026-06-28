@@ -116,7 +116,7 @@ export const startPgliteDev = async (
 		...options,
 	});
 	console.log(
-		`nk(pglite): Postgres 18 (WASM) ready on ${databaseUrl} — no Docker, no Supabase CLI`,
+		`nk(pglite): Postgres 18 (WASM) ready on ${databaseUrl} — no Docker, no external service`,
 	);
 
 	const child = spawn(

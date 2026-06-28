@@ -25,4 +25,3 @@ export {
 	resolveRlsConfig,
 	rlsPreamble,
 } from "./rls.js";
-export { configureTimestampsAsStrings } from "./types.js";

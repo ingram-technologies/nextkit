@@ -5,7 +5,7 @@
  * Why this exists instead of `changeset publish`:
  *   - `changeset publish` shells out to `npm publish`, which does not understand
  *     bun's `workspace:` protocol, so a package with a *runtime* workspace
- *     dependency (e.g. newsletter -> nk-email) ships a literal `workspace:^`
+ *     dependency (e.g. nk-marketing -> nk-email) ships a literal `workspace:^`
  *     range that no consumer can install.
  *   - `bun publish` / `bun pm pack` *do* resolve `workspace:`, but they read the
  *     version from `bun.lock`, which silently goes stale (a plain `bun install`

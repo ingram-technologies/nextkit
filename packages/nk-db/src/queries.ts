@@ -185,8 +185,8 @@ export interface PoolQueries extends Queries {
 	/**
 	 * Like `withTx`, but first **scopes the transaction to a user** so RLS
 	 * policies apply: it sets `request.jwt.claims` + `SET LOCAL ROLE` (default
-	 * `authenticated`) before `fn`, reproducing what PostgREST did. Use this for
-	 * user-facing reads/writes on a direct connection; keep `withTx` / `query`
+	 * `authenticated`) before `fn`, so `auth.uid()`-style policies fire. Use this
+	 * for user-facing reads/writes on a direct connection; keep `withTx` / `query`
 	 * for service-role paths that should bypass RLS. The connection role must not
 	 * bypass RLS for the rows touched — see `rls.ts`.
 	 */

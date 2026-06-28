@@ -5,13 +5,8 @@
  * @ingram-tech/nk-auth). Env vars are external input, so we parse them with Zod
  * (per docs/code-style.md) rather than reading `process.env` ad hoc.
  *
- * The connection string resolves in a fixed precedence so an app can deploy the
- * direct-`pg` code **while still pointed at Supabase Postgres**, before any data
- * has moved (see docs/db-package.md and the Supabase->Postgres playbook):
- *
- *   1. DATABASE_URL                 — our DO cluster (or the local PGlite socket)
- *   2. POSTGRES_URL_NON_POOLING     — Supabase integration's direct URL
- *   3. POSTGRES_URL                 — Supabase integration's pooled URL
+ * The connection string comes from `DATABASE_URL` — our DO cluster, or the local
+ * PGlite socket in dev (see docs/db-package.md).
  *
  * Optional TLS / pool controls:
  *   DATABASE_SSL        — booleanish flag; only "true" sets DbEnv.ssl, but other
@@ -24,8 +19,6 @@ import { z } from "zod";
 
 const schema = z.object({
 	DATABASE_URL: z.string().min(1).optional(),
-	POSTGRES_URL_NON_POOLING: z.string().min(1).optional(),
-	POSTGRES_URL: z.string().min(1).optional(),
 	// Booleanish, but tolerant: only "true" flips DbEnv.ssl, yet libpq-style
 	// values (disable/require/prefer/…) are accepted rather than throwing —
 	// createPool decides TLS from the CA cert + host, never from this flag.
@@ -46,14 +39,13 @@ export interface DbEnv {
 }
 
 /**
- * Resolve the connection string from the environment by precedence, without
- * validating the rest of the contract. Returns `undefined` if none is set —
- * useful for "is a database configured?" checks (e.g. degrade in local dev).
+ * Resolve the connection string from the environment, without validating the
+ * rest of the contract. Returns `undefined` if unset — useful for "is a database
+ * configured?" checks (e.g. degrade in local dev).
  */
 export const getDatabaseUrl = (
 	env: NodeJS.ProcessEnv = process.env,
-): string | undefined =>
-	env.DATABASE_URL ?? env.POSTGRES_URL_NON_POOLING ?? env.POSTGRES_URL;
+): string | undefined => env.DATABASE_URL;
 
 /**
  * Read and validate the nk-db env vars at once. Throws a single error listing
@@ -71,8 +63,7 @@ export const dbEnv = (): DbEnv => {
 	const connectionString = getDatabaseUrl();
 	if (!connectionString) {
 		throw new Error(
-			"@ingram-tech/nk-db: no database connection string — set DATABASE_URL " +
-				"(or POSTGRES_URL_NON_POOLING / POSTGRES_URL).",
+			"@ingram-tech/nk-db: no database connection string — set DATABASE_URL.",
 		);
 	}
 	return {

@@ -49,8 +49,8 @@ describe("rlsPreamble", () => {
 });
 
 // Real RLS enforcement against PGlite (Postgres 18). Two users own rows in a
-// table whose policy keys off the same claim Supabase used; the helpers must
-// scope reads/writes to the acting user, while a plain (privileged) query sees
+// table whose policy keys off the JWT `sub` claim; the helpers must scope
+// reads/writes to the acting user, while a plain (privileged) query sees
 // everything.
 const USER_A = "11111111-1111-4111-8111-111111111111";
 const USER_B = "22222222-2222-4222-8222-222222222222";
@@ -69,7 +69,7 @@ describe("RLS enforcement on a direct connection", () => {
 						body text not null
 					);
 					alter table notes enable row level security;
-					-- mirrors a Supabase auth.uid() policy, inlined so no auth schema is needed
+					-- an auth.uid()-style policy, inlined so no auth schema is needed
 					create policy notes_owner on notes
 						using (
 							owner_id = (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')::uuid

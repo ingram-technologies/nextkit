@@ -17,12 +17,7 @@ with the philosophy, then dip into specifics as needed.
 - **[db-package.md](./db-package.md)** — the `@ingram-tech/nk-db` plan: the shared
   Postgres pool, Drizzle, and the PGlite dev/test harness (`nk dev`).
 - **[marketing.md](./marketing.md)** — `@ingram-tech/nk-marketing`: contacts +
-  consent, newsletter broadcasts, and idempotent lifecycle/triggered email; the
-  Postgres successor to `@ingram-tech/newsletter`.
-- **[better-auth-migration.md](./better-auth-migration.md)** — moving the fleet
-  from Supabase Auth to Better Auth. The RLS-bridge path here now applies to the
-  remaining Supabase-Postgres holdouts; migrated apps went to DO Postgres
-  outright.
+  consent, newsletter broadcasts, and idempotent lifecycle/triggered email.
 - **[creating-a-package.md](./creating-a-package.md)** — checklist for new
   packages.
 - **[releasing.md](./releasing.md)** — versioning + npm Trusted Publishing flow.

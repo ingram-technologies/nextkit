@@ -11,7 +11,7 @@ describe("pgTimestampToIso", () => {
 		expect(isoDatetime.safeParse(out).success).toBe(true);
 	});
 
-	it("normalizes the supabase-js form (+00:00 offset)", () => {
+	it("normalizes the +00:00 offset form", () => {
 		const out = pgTimestampToIso("2026-06-21T18:22:08.331494+00:00");
 		expect(out).toBe("2026-06-21T18:22:08.331Z");
 		expect(isoDatetime.safeParse(out).success).toBe(true);

@@ -41,8 +41,8 @@ export const normalizeCaCert = (caCert: string | undefined): string | undefined 
  *   - `caCert` set  -> verify the server cert + hostname (`sslmode=verify-full`).
  *   - local host    -> no TLS, and cap at `max: 1` (the PGlite socket server is
  *                      single-connection/multiplexed; a larger pool breaks dev).
- *   - otherwise     -> TLS **without** chain verification. Managed certs (DO,
- *                      Supabase) aren't in Node's trust store, so full
+ *   - otherwise     -> TLS **without** chain verification. Managed certs (e.g.
+ *                      DigitalOcean) aren't in Node's trust store, so full
  *                      verification fails with "self-signed certificate in
  *                      certificate chain"; the link is still encrypted. `sslmode`
  *                      is stripped from the URL because `pg` ignores the `ssl`

@@ -37,12 +37,12 @@ debuggable by anyone who knows Next.js.
 boundary to keep it honest:
 
 - **It only shells out to the standard tools** (`next`, `oxlint`, `oxfmt`,
-  `tsc`, `supabase`) resolved from the site's own `node_modules`. It never replaces,
-  patches, or hides them — `nk build` is `next build`, `nk dev` boots local
-  Supabase (if present) and then runs `next dev`.
+  `tsc`) resolved from the site's own `node_modules`. It never replaces,
+  patches, or hides them — `nk build` is `next build`, `nk dev` boots the local
+  dev database (PGlite, via `@ingram-tech/nk-db`) and then runs `next dev`.
 - **It is never required.** Every nextkit site must remain fully buildable and
   runnable with plain `next build` / `next dev` if `nk` is removed. `nk` is
-  convenience (one place for the local-Supabase wiring and SQL formatting oxfmt
+  convenience (one place for the local-database wiring and SQL formatting oxfmt
   can't do), not a dependency the build hides behind.
 - **It carries no app logic.** If a command in `nk` ever did more than
   orchestrate standard tools, it would violate the prime directive and belong
@@ -119,21 +119,21 @@ buildable with plain `next build` if you remove it.
 
 ## The Django-app model for stateful packages
 
-Some packages (e.g. a future `@ingram-tech/newsletter`) need a database. We
+Some packages (e.g. `@ingram-tech/nk-marketing`) need a database. We
 treat these like Django apps:
 
 - The package **owns its tables and ships its own migration**. "Installing" it
   means adding the package and applying its migration. Ship the migration as a
   Drizzle schema fragment + generated SQL so it composes with the consuming
   site's `drizzle-kit` pipeline.
-- It takes the database connection by **injection** (`createNewsletter(db)`,
+- It takes the database connection by **injection** (`createMarketing({ db })`,
   where `db` is the shared `pg.Pool` or Drizzle instance from
   `@ingram-tech/nk-db`), defines its **own** row types, and never reaches into the
   consumer's schema. This keeps it portable.
 - Sites that don't need it simply don't install it — like leaving an app out of
   `INSTALLED_APPS`. We accept that some sites carry unused dependencies; that is
   cheaper than a formal inter-package dependency system at our scale.
-- Cross-cutting features (e.g. linking newsletter subscriptions to auth users)
+- Cross-cutting features (e.g. linking marketing subscriptions to auth users)
   are **opt-in** add-ons, not baked into the base package.
 
 Stateful packages depend on **Postgres** — the shared cluster, reached through
@@ -148,7 +148,7 @@ Defaults are chosen to keep us in control and in the EU where practical:
 - **Database (when needed):** one shared **DigitalOcean Managed Postgres**
   cluster — a database + dedicated role per app on a single cluster (DO bills per
   cluster; databases and roles on it are free). Accessed **directly via `pg`**,
-  never through a hosted REST/PostgREST wrapper. **Drizzle** is the schema,
+  never through a hosted REST wrapper. **Drizzle** is the schema,
   query, and migration layer (`drizzle-kit`); raw parameterized SQL via the
   shared `query/one/maybeOne/execute` helpers is the escape hatch. See
   [`db-package.md`](./db-package.md).
@@ -164,22 +164,23 @@ We deliberately avoid the next-forge default stack of US paid SaaS (Clerk,
 Prisma+Neon, Resend, etc.). We borrow next-forge's *package boundaries* as a
 reference architecture, not its vendors.
 
-### Migrating off Supabase (our previous default)
+### The re-baseline: off the all-in-one backend (our previous default)
 
-Supabase *was* the database/auth default. It is **hosted Postgres plus bundled
-services** (PostgREST, GoTrue auth, Storage, Realtime). The re-baseline keeps
-Postgres — self-hosted on our own cluster — and drops the bundle:
+The previous default was a **hosted all-in-one backend** — managed Postgres plus
+a bundle of services in front of it (an auto-generated REST API over the tables,
+a hosted auth service, object storage, realtime). The re-baseline keeps Postgres
+— self-hosted on our own cluster — and drops the bundle:
 
-- supabase-js / PostgREST → a direct `pg` + Drizzle layer (`@ingram-tech/nk-db`).
-- Supabase Auth → Better Auth (`@ingram-tech/nk-auth`,
-  [`better-auth-migration.md`](./better-auth-migration.md)).
-- Local Supabase (Docker) → PGlite.
+- The auto-generated REST client → a direct `pg` + Drizzle layer
+  (`@ingram-tech/nk-db`).
+- The hosted auth service → Better Auth (`@ingram-tech/nk-auth`).
+- The local Docker stack → PGlite.
 
-Most products have already moved. A couple that lean on Supabase-the-product the
-most — one for `pgvector`, one for Storage + heavy RLS — are scheduled as their
-**own migration projects**, not part of this re-baseline. The mechanics, gotchas, and the safe
-per-app runbook are captured in the Supabase→Postgres playbook (ops notes;
-should graduate into this `docs/` directory).
+Most products have already moved. A couple that lean hardest on the bundled
+services — one for `pgvector`, one for object storage + heavy RLS — are scheduled
+as their **own migration projects**, not part of this re-baseline. The mechanics,
+gotchas, and the safe per-app runbook are captured in the Postgres-migration
+playbook (ops notes; should graduate into this `docs/` directory).
 
 ## Two distribution channels
 

@@ -3,14 +3,12 @@ import { dbEnv, getDatabaseUrl, isConfigured } from "./keys.js";
 
 const DB_KEYS = [
 	"DATABASE_URL",
-	"POSTGRES_URL_NON_POOLING",
-	"POSTGRES_URL",
 	"DATABASE_SSL",
 	"DATABASE_CA_CERT",
 	"DATABASE_POOL_MAX",
 ] as const;
 
-describe("connection-string precedence", () => {
+describe("connection-string resolution", () => {
 	const saved: Record<string, string | undefined> = {};
 	beforeEach(() => {
 		for (const key of DB_KEYS) {
@@ -25,19 +23,13 @@ describe("connection-string precedence", () => {
 		}
 	});
 
-	it("prefers DATABASE_URL over the Supabase fallbacks", () => {
+	it("resolves DATABASE_URL", () => {
 		process.env.DATABASE_URL = "a";
-		process.env.POSTGRES_URL_NON_POOLING = "b";
-		process.env.POSTGRES_URL = "c";
 		expect(getDatabaseUrl()).toBe("a");
 	});
 
-	it("falls back to POSTGRES_URL_NON_POOLING, then POSTGRES_URL", () => {
-		process.env.POSTGRES_URL_NON_POOLING = "b";
-		process.env.POSTGRES_URL = "c";
-		expect(getDatabaseUrl()).toBe("b");
-		delete process.env.POSTGRES_URL_NON_POOLING;
-		expect(getDatabaseUrl()).toBe("c");
+	it("returns undefined when DATABASE_URL is unset", () => {
+		expect(getDatabaseUrl()).toBeUndefined();
 	});
 
 	it("isConfigured reflects presence", () => {

@@ -32,9 +32,10 @@ The shared Vitest preset is provided by
 ## Principles
 
 - **Prefer real over mocked.** Test pure functions directly; for data-layer
-  code, integration-test against a **real local Supabase** rather than mocking
-  the client. Probe a local instance and skip gracefully when it isn't running —
-  prefer that pattern instead of over-mocking.
+  code, integration-test against a **real local Postgres** (PGlite via
+  `@ingram-tech/nk-db`) rather than mocking the client. Probe a local instance
+  and skip gracefully when it isn't running — prefer that pattern instead of
+  over-mocking.
 - **Mock only the boundary.** The shared setup mocks `next/navigation` so
   components render in isolation; that's the kind of thing worth mocking. Don't
   mock your own business logic.

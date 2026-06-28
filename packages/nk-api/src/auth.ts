@@ -1,7 +1,7 @@
 /**
  * `createRequireAuth` — an auth-middleware factory parameterized by an identity
  * resolver, so an nk-api app stays decoupled from *how* the user is resolved
- * (Supabase cookies today, Better Auth tomorrow, a bearer token elsewhere).
+ * (a Better Auth session cookie, a bearer token, whatever the site uses).
  *
  * ```ts
  * import { createRequireAuth, type AuthEnv } from "@ingram-tech/nk-api";

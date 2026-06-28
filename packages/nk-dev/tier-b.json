@@ -6,10 +6,6 @@
 			{
 				"paths": [
 					{
-						"name": "@supabase/supabase-js",
-						"message": "Golden-path data access uses @ingram-tech/nk-db (direct pg + Drizzle), not supabase-js."
-					},
-					{
 						"name": "pg",
 						"importNames": ["Pool", "Client"],
 						"allowTypeImports": true,

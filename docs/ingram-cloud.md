@@ -22,7 +22,7 @@ it a shared, instrumented backend for AI features.
 ## Open questions (to resolve before building)
 
 - Transport: SDK package vs. hosted API vs. both.
-- Where state lives (Supabase vs. dedicated store) and how it injects.
+- Where state lives (the shared Postgres vs. a dedicated store) and how it injects.
 - Relationship to the AI Gateway / model-routing layer.
 
 When this graduates from placeholder to real, replace this file with a proper

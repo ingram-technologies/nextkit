@@ -1,6 +1,6 @@
 /**
  * `createApiApp` — the root OpenAPIHono for a versioned HTTP API, the standard
- * replacement for a PostgREST-style auto API. Wires the cross-cutting concerns
+ * alternative to an auto-generated REST API. Wires the cross-cutting concerns
  * once (validation envelope, `onError`, `notFound`, the OpenAPI document, Swagger
  * UI, a health check) and returns the app so the caller chains route modules:
  *

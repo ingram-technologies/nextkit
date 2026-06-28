@@ -8,7 +8,7 @@ import { run } from "./run.js";
 const require = createRequire(import.meta.url);
 
 // House SQL defaults, used only when the site has no Prettier config of its own
-// (matches the house tab style + Supabase's Postgres dialect).
+// (matches the house tab style + the PostgreSQL dialect).
 const SQL_DEFAULTS = { useTabs: true, language: "postgresql" };
 
 /**

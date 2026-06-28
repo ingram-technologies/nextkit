@@ -1,11 +1,9 @@
 -- @ingram-tech/nk-marketing — contacts, audiences, subscriptions, deliveries.
 --
 -- The stateful slice powering newsletter broadcasts AND post-signup lifecycle
--- email. This is the Postgres-native successor to @ingram-tech/newsletter
--- (which was Supabase/RLS-bound). Like @ingram-tech/nk-billing's ledger, these
--- tables carry NO row-level security: a nextkit site reaches them through its
--- app role and filters in the app layer. Add your own RLS only if your stack
--- needs it.
+-- email. Like @ingram-tech/nk-billing's ledger, these tables carry NO row-level
+-- security: a nextkit site reaches them through its app role and filters in the
+-- app layer. Add your own RLS only if your stack needs it.
 --
 -- Ship this as a Drizzle schema fragment + generated SQL so it composes with the
 -- consuming site's drizzle-kit pipeline (see docs/marketing.md). Table names are

@@ -2,7 +2,7 @@
 
 The standard HTTP API seam for Ingram services — a thin layer over
 [Hono](https://hono.dev) + [`@hono/zod-openapi`](https://github.com/honojs/middleware/tree/main/packages/zod-openapi).
-It's the deliberate replacement for a PostgREST-style auto-generated API: routes
+It's the deliberate alternative to an auto-generated REST API: routes
 are hand-authored with Zod schemas that double as request validation **and** an
 emitted OpenAPI document, behind one error envelope and one auth contract.
 

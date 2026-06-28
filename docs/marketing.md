@@ -1,8 +1,8 @@
 # Marketing & lifecycle email: `@ingram-tech/nk-marketing`
 
-**Status:** shipped. The Postgres/nk-db-native successor to
-`@ingram-tech/newsletter`. Read [`philosophy.md`](./philosophy.md) (Django-app
-model, EU-first vendor stance) first.
+**Status:** shipped. Postgres/nk-db-native marketing & lifecycle email. Read
+[`philosophy.md`](./philosophy.md) (Django-app model, EU-first vendor stance)
+first.
 
 ## Why this package exists
 
@@ -16,8 +16,7 @@ plumbing:
 
 Both need the same cross-cutting machinery: a contact identity, consent +
 suppression, RFC 8058 one-click unsubscribe, idempotent delivery, and a clean
-HTML/text renderer. `@ingram-tech/newsletter` did only #1 and was bound to
-Supabase. nk-marketing does both on Postgres, reusing
+HTML/text renderer. nk-marketing does both on Postgres, reusing
 [`@ingram-tech/nk-email`](../packages/nk-email) for transport (and its
 `escapeHtml` + `buildListUnsubscribeHeaders`).
 
@@ -89,11 +88,11 @@ for (const row of due) {
     campaignKey: "first-invoice-nudge",
     email: row.email,
     userId: row.user_id,
-    from: { name: "Peppost" },
-    subject: "Send your first Stripe e-invoice with Peppost",
+    from: { name: "Acme" },
+    subject: "Send your first Stripe e-invoice",
     content: "You're all set up — here's how to send your first invoice…",
     cta: { label: "Open dashboard", href: "https://example.com/dashboard" },
-    footerReason: "you have a Peppost account",
+    footerReason: "you have an account with us",
   }).catch((e) => logger.error("nudge failed", { email: row.email, error: e }));
 }
 ```
@@ -108,11 +107,3 @@ react to the user's own action, need no consent, and should NOT be gated by the
 marketing opt-out. Keep sending those directly via `@ingram-tech/nk-email`.
 nk-marketing is for **unsolicited / time-triggered** mail, which legally and for
 deliverability needs the unsubscribe + suppression this package provides.
-
-## Migrating off `@ingram-tech/newsletter`
-
-newsletter stays published for Supabase holdouts but is deprecated. To move:
-apply `0001_marketing.sql`, backfill `newsletters`→`marketing_audiences` and
-`newsletter_subscriptions`→`marketing_contacts`+`marketing_subscriptions`, swap
-`createNewsletter` for `createMarketing`, and repoint the unsubscribe route. The
-API is intentionally close (`subscribe`, `sendBroadcast` ≈ the old `send`).

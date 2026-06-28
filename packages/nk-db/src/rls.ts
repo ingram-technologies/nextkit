@@ -1,26 +1,20 @@
 /**
- * Row-Level Security for a **direct Postgres connection** (no PostgREST).
+ * Row-Level Security for a **direct Postgres connection** (`pg` / Drizzle).
  *
- * On Supabase, PostgREST is what made RLS work: per request it did
- * `SET ROLE authenticated` and set `request.jwt.claims` from the user's JWT, so
- * policies written against `auth.uid()` fired. The moment a site queries Postgres
- * directly (`pg` / Drizzle) — whether it's still on Supabase Postgres or has
- * moved to our DigitalOcean cluster — that setup is gone, and a plain connection
- * runs as the connection's role with **no claims**, so RLS is either bypassed
- * (privileged role) or denies everything.
- *
- * These helpers reproduce exactly what PostgREST did, per transaction: set the
- * claims GUC and `SET LOCAL ROLE`, so **existing `auth.uid()` policies keep
- * working unchanged**. It is pure Postgres, so it behaves identically on Supabase
- * and on DO. See `docs/db-package.md` (§RLS) and `docs/better-auth-migration.md`.
+ * A plain connection runs as the connection's role with **no request claims**, so
+ * RLS is either bypassed (privileged role) or denies everything. These helpers
+ * scope a transaction the way a JWT-claims RLS setup needs: per transaction they
+ * set the `request.jwt.claims` GUC and `SET LOCAL ROLE`, so policies written
+ * against `auth.uid()` (i.e. `current_setting('request.jwt.claims') ->> 'sub'`)
+ * fire correctly. It is pure Postgres. See `docs/db-package.md` (§RLS).
  *
  * Two requirements the caller owns (documented, not enforceable here):
  *   1. The pool must connect as a role that **does not bypass RLS** for the rows
  *      it touches — i.e. not the table owner and not a `BYPASSRLS` superuser for
  *      user-facing reads. (After `SET ROLE authenticated`, RLS applies even if the
- *      underlying connection is `postgres`, exactly as PostgREST relied on.)
+ *      underlying connection is a superuser.)
  *   2. The connecting role must be allowed to `SET ROLE` to the target role
- *      (Supabase's `authenticator`/`postgres` can; on DO, `GRANT app_user TO …`).
+ *      (e.g. `GRANT app_user TO the_connecting_role`).
  */
 
 /**
@@ -31,8 +25,8 @@
  */
 export interface RlsClaims {
 	/**
-	 * The user id. Becomes the `sub` claim → `auth.uid()`. For Supabase-style
-	 * policies that cast `sub` to `uuid`, this MUST be a valid UUID.
+	 * The user id. Becomes the `sub` claim → `auth.uid()`. For policies that cast
+	 * `sub` to `uuid`, this MUST be a valid UUID.
 	 */
 	sub: string;
 	/** The Postgres role to assume (the JWT `role` claim). Defaults to `"authenticated"`. */
@@ -55,7 +49,7 @@ export interface RlsOptions {
 
 /** The role assumed when neither `options.role` nor `claims.role` is set. */
 export const RLS_DEFAULT_ROLE = "authenticated";
-/** The GUC `auth.uid()` / `auth.role()` read; what PostgREST populated. */
+/** The GUC `auth.uid()` / `auth.role()` policies read claims from. */
 export const RLS_CLAIMS_SETTING = "request.jwt.claims";
 
 /** The concrete values a transaction is scoped with. */

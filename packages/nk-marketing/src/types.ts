@@ -3,13 +3,12 @@
  * and the public option/result shapes. Following the nk-billing precedent, these
  * are plain typed interfaces read via `db.query<Row>(...)` rather than Zod
  * schemas: the rows come back from a typed `pg`/nk-db query, not from untyped
- * Supabase JSON, so the boundary that the "validate with Zod" rule guards isn't
+ * external JSON, so the boundary that the "validate with Zod" rule guards isn't
  * crossed here.
  *
- * Timestamps are typed as `string` — a nextkit site configures `pg` to return
- * timestamptz as ISO strings (nk-db's `configureTimestampsAsStrings`). The
- * client only ever reads them for null-ness, so the exact representation does
- * not matter to this package.
+ * Timestamps are typed as `string`. The client only ever reads them for
+ * null-ness, so the exact representation `pg` returns does not matter to this
+ * package.
  */
 
 /** Row of `marketing_contacts`. */
@@ -83,7 +82,7 @@ export interface BroadcastOptions {
 	/**
 	 * If set, each recipient is claimed in `marketing_deliveries` under this key
 	 * before sending, making a re-run idempotent (the issue id is a good value).
-	 * Omit to send unconditionally to every active subscriber (legacy behaviour).
+	 * Omit to send unconditionally to every active subscriber.
 	 */
 	campaignKey?: string;
 }

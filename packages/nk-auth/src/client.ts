@@ -13,7 +13,7 @@
  *     plugins: [jwtClient(), passkeyClient()],
  *   });
  *
- * This exposes the call surface that replaces `supabase.auth.*`:
+ * This exposes the client auth call surface:
  *   signUp.email / signIn.email / signIn.social / signOut / useSession,
  *   plus passkey.* (register / authenticate).
  */

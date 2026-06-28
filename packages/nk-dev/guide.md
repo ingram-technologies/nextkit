@@ -77,7 +77,6 @@ the UI/page tree, and never expose internal plumbing under `/api/`.
 - `@ingram-tech/nk-api` — the standard HTTP API seam (Hono + `@hono/zod-openapi`): one `{ error, details? }` envelope, `createApiApp` / `createRouter`, auth + multi-tenant resource-scope middleware, pagination helpers, and an emitted OpenAPI/Swagger doc. Reach for it instead of hand-rolling route handlers
 - `@ingram-tech/nk-billing` — Stripe primitives: subscriptions, a Stripe-side wallet, and an optional Postgres credit ledger behind the `/credits` subpath. Prices resolve at runtime by Stripe `lookup_key` — **never hardcode a price id**, so test and live share one code path
 - `@ingram-tech/bot-protection` — invisible form protection (honeypot + timing + Vercel BotID)
-- `@ingram-tech/newsletter` — Supabase newsletter: subscribe / send, 1-click unsubscribe
 - `@ingram-tech/nk-i18n` — type-safe, English-as-key i18n: the English source text *is* the key (no `en.json`), ICU MessageFormat, colocated JSON catalogs; routing is left to the site
 - `@ingram-tech/nk-dev` — the whole dev toolchain in one devDependency: the `nk` command (`nk dev` boots local PGlite via `@ingram-tech/nk-db` if installed, then Next; plus `nk format` / `lint` / `knip` / `check` / `type-check` / `build`), the shared oxlint + oxfmt / TypeScript / Vitest config, knip, the oxfmt format-on-commit hook, and this guide. `nk check` runs every fast checker (oxlint, oxfmt, SQL, knip) in one gate. `nk init` scaffolds a site to use it all.
 

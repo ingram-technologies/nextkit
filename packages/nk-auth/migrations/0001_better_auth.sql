@@ -1,4 +1,4 @@
--- @ingram-tech/nk-auth — Better Auth schema for Supabase, hardened for RLS.
+-- @ingram-tech/nk-auth — Better Auth schema, hardened for RLS.
 --
 -- This mirrors Better Auth's core tables (user / session / account /
 -- verification), the `jwt` plugin's `jwks` table, and the `passkey` plugin's
@@ -7,14 +7,14 @@
 --     npx @better-auth/cli generate
 -- and re-run after upgrading better-auth.
 --
--- TWO hardening steps the generator does NOT produce, both required (see
--- docs/better-auth-migration.md):
---   1. New users default to a UUID id, because Supabase's auth.uid() casts the
---      JWT `sub` to `uuid`. A non-UUID id silently breaks RLS for new signups.
---   2. Deny-all RLS on every Better Auth table. They live in `public` and are
---      exposed by PostgREST; Better Auth itself reaches them through its own
---      privileged DATABASE_URL connection, which bypasses RLS, so denying anon /
---      authenticated access here costs nothing and closes the leak.
+-- TWO hardening steps the generator does NOT produce, both required:
+--   1. New users default to a UUID id, because `auth.uid()`-style RLS policies
+--      cast the JWT `sub` to `uuid`. A non-UUID id silently breaks RLS for new
+--      signups.
+--   2. Deny-all RLS on every Better Auth table — defense in depth. Better Auth
+--      itself reaches them through its own privileged DATABASE_URL connection,
+--      which bypasses RLS, so denying the app's RLS role any access here costs
+--      nothing and keeps the auth tables off-limits to user-facing queries.
 
 create extension if not exists "pgcrypto" with schema "extensions";
 
@@ -64,7 +64,7 @@ create table if not exists "public"."verification" (
 	"updatedAt" timestamptz not null default now()
 );
 
--- `jwt` plugin: holds the asymmetric keypair used to sign the RLS bridge token.
+-- `jwt` plugin: holds the asymmetric keypair used to sign session JWTs.
 create table if not exists "public"."jwks" (
 	"id" text primary key,
 	"publicKey" text not null,

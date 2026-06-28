@@ -25,7 +25,7 @@ type DrizzleTx<TSchema extends Record<string, unknown>> = Parameters<
 
 /**
  * Run `fn` inside a Drizzle transaction **scoped to a user**, so RLS policies
- * apply on a direct connection (no PostgREST). It sets `request.jwt.claims` +
+ * apply on a direct connection. It sets `request.jwt.claims` +
  * `SET LOCAL ROLE` (default `authenticated`) as the first statement, so existing
  * `auth.uid()` policies fire unchanged; the `tx` passed to `fn` is a normal
  * Drizzle transaction (full query builder + `tx.execute`). Use for user-facing

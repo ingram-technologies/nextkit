@@ -26,13 +26,14 @@ judgment-level conventions that humans and agents must follow.
   `typescript/no-explicit-any` — both fail `bun run check`.)
 - `noUncheckedIndexedAccess` is on — handle the `undefined` from index access.
 
-## Data access (Supabase)
+## Data access
 
-- **Always handle Supabase errors.** Every `insert`/`update`/`delete`/`upsert`
-  must destructure `{ data, error }` and check `error`, or chain
-  `.throwOnError()`. Never fire-and-forget a mutation.
-- **Type mutation payloads** with the generated `TablesInsert<"table">` /
-  `TablesUpdate<"table">` helpers — never `Record<string, unknown>`.
+- **Always handle database errors.** Never fire-and-forget a mutation — let
+  failures throw (or check and surface them), don't swallow them. On the nk-db
+  raw-SQL helpers, pass a Zod row schema so the result is validated, not cast
+  (see [`db-package.md`](./db-package.md)).
+- **Type mutation payloads** from the schema — use Drizzle's inferred
+  insert/update types, never `Record<string, unknown>`.
 
 ## Error handling
 

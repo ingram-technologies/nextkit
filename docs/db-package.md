@@ -2,13 +2,13 @@
 
 **Status:** shipped. `@ingram-tech/nk-db` is built and published; this doc is its
 design + rationale. It extracts the data layer that several products each
-hand-rolled during the Supabase→Postgres move into one versioned slice. Tier-B
+hand-rolled when they moved to self-hosted Postgres into one versioned slice. Tier-B
 adoption (replacing the hand-rolled `src/lib/db/` layers) is in progress. Read [`philosophy.md`](./philosophy.md) (vendor stance +
 Django-app model) first.
 
 ## Why this package exists
 
-Every product that moved off Supabase re-implemented the same three things:
+Every product that moved to self-hosted Postgres re-implemented the same three things:
 
 1. A `src/lib/db/pool.ts` — one shared `pg.Pool` with the right TLS for managed
    Postgres.
@@ -35,7 +35,7 @@ canonical pool moves *here*, and `nk-auth` consumes it by injection (see
 - It **is** infrastructure: the pool, the query helpers, the Drizzle factory,
   the dev/test harness, and the env contract for the database connection.
 - It is **not** a stateful package — it owns no tables and ships no migrations.
-  Apps (and stateful packages like a future `@ingram-tech/newsletter`) own their
+  Apps (and stateful packages like `@ingram-tech/nk-marketing`) own their
   schema via Drizzle; this package just gives them the connection to run it on.
 - It holds to the [prime directive](./philosophy.md#the-prime-directive-stay-indistinguishable-from-plain-nextjs):
   a consuming site uses plain `drizzle-orm` and plain `pg`. We ship the wiring,
@@ -52,7 +52,7 @@ packages/nk-db/
     pool.ts               # createPool(): the one shared pg.Pool (TLS-aware)
     drizzle.ts            # createDb(pool, schema): the Drizzle instance
     types.ts              # the timestamptz/jsonb type-parser setup
-    keys.ts               # env contract (DATABASE_URL precedence, SSL, pool max)
+    keys.ts               # env contract (DATABASE_URL, SSL, pool max)
     keys.test.ts
   pglite/
     dev.ts                # bin: nk-pglite-dev — boot PGlite for `next dev`
@@ -69,17 +69,12 @@ dev/test-only.
 
 ## The env contract (`keys.ts`)
 
-`getDatabaseUrl()` resolves the connection in this precedence — the property that
-let apps deploy the new code **while still pointed at Supabase Postgres**, before
-any data moved:
-
-1. `DATABASE_URL` — our DO cluster (or the local PGlite socket in dev).
-2. `POSTGRES_URL_NON_POOLING` — Supabase integration's autopopulated direct URL.
-3. `POSTGRES_URL` — Supabase integration's pooled URL.
+`getDatabaseUrl()` reads the connection from `DATABASE_URL` — our DO cluster, or
+the local PGlite socket in dev.
 
 | Var | Purpose |
 | --- | --- |
-| `DATABASE_URL` | direct Postgres (session-mode pooler / `:5432`, never PostgREST) |
+| `DATABASE_URL` | direct Postgres (session-mode pooler / `:5432`, never a REST proxy) |
 | `DATABASE_SSL` | `"true"` to require TLS (managed hosts) |
 | `DATABASE_CA_CERT` | PEM CA; when set, verify cert + hostname (`verify-full`) |
 | `DATABASE_POOL_MAX` | pool cap; **small on serverless** (e.g. 5 on Vercel) |
@@ -228,20 +223,18 @@ but use these where you genuinely must branch on the failure.
 
 ### Row-Level Security on a direct connection (`withRls` / `withRlsTransaction`)
 
-The thing every "keep RLS, drop PostgREST" migration re-derives by hand. On
-Supabase, **PostgREST** was what made RLS work: per request it ran `SET ROLE
-authenticated` and set `request.jwt.claims` from the user's JWT, so policies
-against `auth.uid()` fired. A direct `pg`/Drizzle connection has none of that — it
-runs as the connection's role with no claims, so RLS is silently **bypassed**
-(privileged role) or **denies everything**. The
-[better-auth-migration doc](./better-auth-migration.md) already names the
-destination ("tenant isolation is RLS via a dedicated app role") but several apps
-each hand-rolled the `SET LOCAL` dance to get there. nk-db now ships it.
+The thing every "keep RLS on a direct connection" migration re-derives by hand.
+A plain `pg`/Drizzle connection runs as the connection's role with **no request
+claims**, so RLS is silently **bypassed** (privileged role) or **denies
+everything** — nothing populates the claims a policy reads. The destination is
+"tenant isolation is RLS via a dedicated app role", but several apps each
+hand-rolled the `SET LOCAL` dance to get there. nk-db now ships it.
 
 `withRlsTransaction(db, claims, fn)` (Drizzle) and `withRls(claims, fn)` (the raw
 sibling of `withTx`) open a transaction and, as the first statement, set the
-claims GUC + `SET LOCAL ROLE` — reproducing PostgREST exactly, so **existing
-`auth.uid()` policies need no changes**:
+`request.jwt.claims` GUC + `SET LOCAL ROLE` per transaction, so policies written
+against `auth.uid()` (i.e. `current_setting('request.jwt.claims') ->> 'sub'`)
+fire — **existing `auth.uid()` policies need no changes**:
 
 ```ts
 // claims come straight from the Better Auth session — no JWT/JWKS bridge
@@ -252,15 +245,15 @@ const notes = await withRlsTransaction(db, { sub: session.user.id }, (tx) =>
 
 Design notes:
 
-- **It's pure Postgres**, so it works the same on Supabase Postgres and on DO —
-  the only Supabase-ism is that `auth.uid()`/`auth.role()` live in the `auth`
-  schema, which is two trivial functions to recreate on DO (`sub`/`role` out of
-  `request.jwt.claims`). This makes "keep RLS" a viable, portable alternative to
-  app-layer `where owner_id = …`, reusing policies a site already trusts.
-- **It sidesteps the dead JWKS bridge.** Bridge A (Better Auth JWKS as a Supabase
-  third-party issuer) only existed so PostgREST could populate the claim; setting
-  it ourselves from the session needs no third-party-auth registration — which is
-  unavailable on some Supabase plans anyway.
+- **It's pure Postgres**, so it behaves identically wherever the cluster lives.
+  The one convention to carry over is that `auth.uid()`/`auth.role()` live in the
+  `auth` schema — two trivial functions to recreate on a fresh cluster (`sub`/`role`
+  out of `request.jwt.claims`). This makes "keep RLS" a viable, portable
+  alternative to app-layer `where owner_id = …`, reusing policies a site already
+  trusts.
+- **It sidesteps any JWKS bridge.** Setting the claims ourselves from the Better
+  Auth session needs no third-party-auth registration and no JWKS issuer — the
+  claims come straight from the session.
 - **GUCs are transaction-local** (`is_local = true`): they reset at
   commit/rollback and never leak across pooled connections. Everything (GUC name,
   claims, role) is **bound, not interpolated** (`rlsPreamble` is the statement;
@@ -271,20 +264,20 @@ Design notes:
 - **`role` resolves** as `options.role ?? claims.role ?? "authenticated"`, so a DO
   app role (`app_user`) can differ from the JWT `role` claim.
 
-### Migrations: standardize on `drizzle/`, drop the `supabase/` folder name
+### Migrations: standardize on `drizzle/`
 
-The migrated apps still keep migrations in a folder literally named
-`supabase/migrations/` — a misleading legacy. New apps use `drizzle/`, generated
+Some migrated apps still keep migrations in a folder named after their old
+tooling — a misleading legacy. New apps use `drizzle/`, generated
 by `drizzle-kit generate` and applied in prod by a `scripts/migrate.ts` that runs
 them against `DATABASE_URL`. `nk dev` applies them to PGlite (below).
 
 ### Code-migration gotchas this package bakes in
 
-Two `pg`-vs-PostgREST quirks bite every app; `types.ts` sets them once so apps
+Two `pg` quirks bite every app; `types.ts` sets them once so apps
 don't each rediscover them:
 
-- **`timestamptz` comes back as a JS `Date`** from `pg`, but supabase-js returned
-  ISO **strings** (and generated types say `string`). String ops then break. We
+- **`timestamptz` comes back as a JS `Date`** from `pg`, whereas the old REST
+  client returned ISO **strings** (and generated types said `string`). String ops then break. We
   register a parser to keep them strings where the schema expects strings:
   `pg.types.setTypeParser(1184, (v) => v)` (OID 1184 = timestamptz).
 - **`jsonb` params:** `pg` turns a JS array into a Postgres array literal, not
@@ -294,7 +287,7 @@ don't each rediscover them:
 ## PGlite dev & test (the `./pglite` subpath)
 
 [PGlite](https://pglite.dev) is Postgres compiled to WASM, in-process — it kills
-the "run the whole Supabase Docker stack just to get a dev DB" pain. **PGlite
+the "run a whole Docker backend stack just to get a dev DB" pain. **PGlite
 0.5.x is PostgreSQL 18.3**, so `gen_random_uuid()`, `uuidv7()`, plpgsql, and RLS
 all work and dev matches a pg18 prod target. (Probe the version empirically on
 upgrade — the docs are vague.)
@@ -341,8 +334,9 @@ nk dev:
   2. Else                                                   → plain `next dev`.
 ```
 
-`nk dev` no longer boots local Supabase — the fleet has moved off it. The
-Supabase-Postgres holdouts run `supabase start` themselves until they migrate.
+`nk dev` boots PGlite for the golden-path local DB (see above) — the fleet has
+fully moved to self-hosted Postgres, so there's no hosted-backend Docker stack to
+start.
 
 ## Relationship to nk-auth
 
@@ -375,8 +369,8 @@ Per [enforce-what-you-can](./philosophy.md#enforce-what-you-can-document-what-yo
   as control flow — steer to `ON CONFLICT`, or to `isPgError` / `isUniqueViolation`
   for the cases that legitimately must branch on the failure (they also walk the
   `.cause` chain a flat check misses).
-- **oxlint rule (Tier B):** ban `@supabase/supabase-js` imports for data access
-  once a site is on the golden path.
+- **oxlint rule (Tier B):** ban legacy hosted-backend data-access client imports
+  once a site is on the golden path — force data access through nk-db.
 
 ## Decisions (locked)
 
@@ -401,5 +395,6 @@ Per [enforce-what-you-can](./philosophy.md#enforce-what-you-can-document-what-yo
   (raw) and `withRlsTransaction` (Drizzle) own the `SET LOCAL ROLE` +
   `request.jwt.claims` setup. Keeping RLS (claims from the Better Auth session)
   and app-layer `where owner_id = …` are both supported; RLS is the lower-churn
-  path when a site already has trusted policies. We do **not** depend on a
-  Supabase third-party JWKS issuer for this (see the dead-bridge note above).
+  path when a site already has trusted policies. We do **not** depend on any
+  third-party JWKS issuer for this — claims come straight from the session (see
+  the RLS notes above).

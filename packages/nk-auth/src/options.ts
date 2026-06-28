@@ -13,12 +13,17 @@ export { uuidGenerateId } from "./id.js";
  * and spreads these presets in. That keeps full plugin type inference at the
  * call site (where `declaration` is off) and respects the prime directive — the
  * site stays plain Better Auth, we just ship the shared config. JWT + org
- * presets live in `./jwt` and `./organization`. See docs/better-auth-migration.md.
+ * presets live in `./jwt` and `./organization`. See the package README.
  */
 
 /**
- * `emailAndPassword.password` config. Verifies with bcrypt so passwords
- * migrated from Supabase (bcrypt) keep working — Better Auth defaults to scrypt.
+ * `emailAndPassword.password` config that hashes/verifies with bcrypt.
+ *
+ * @deprecated LEGACY SUPPORT ONLY. Do not wire this into a new site. It exists
+ * solely so sites with pre-existing **bcrypt** password hashes keep verifying.
+ * Better Auth's default is scrypt — new sites should omit this and use that
+ * default. Sites still on bcrypt should migrate hashes to scrypt and drop this;
+ * see the nk-auth README (§"Migrating bcrypt passwords to scrypt") for the path.
  */
 export const bcryptPassword = {
 	hash: (password: string): Promise<string> => bcrypt.hash(password, 10),

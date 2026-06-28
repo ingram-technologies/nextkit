@@ -30,7 +30,6 @@ Read **[docs/philosophy.md](./docs/philosophy.md)** for the full reasoning.
 | [`@ingram-tech/nk-api`](./packages/nk-api) | Typed API toolkit: Hono + zod-openapi router, auth/scope guards, cursor pagination, and a typed client — mounts into a Next.js route |
 | [`@ingram-tech/nk-i18n`](./packages/nk-i18n) | Lightweight i18n: `intl-messageformat` formatting, Accept-Language negotiation, and React client helpers |
 | [`@ingram-tech/nk-marketing`](./packages/nk-marketing) | Postgres-backed marketing & lifecycle email: contacts + consent, newsletter audiences (broadcast), and idempotent triggered campaigns, with RFC 8058 one-click unsubscribe |
-| [`@ingram-tech/newsletter`](./packages/newsletter) | **Deprecated** → `nk-marketing`. Supabase-backed newsletter subscriptions + sending |
 
 More to come (blog). See [docs/](./docs/README.md).
 
