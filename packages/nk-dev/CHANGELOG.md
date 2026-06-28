@@ -1,5 +1,13 @@
 # @ingram-tech/nk-dev
 
+## 0.2.4
+
+### Patch Changes
+
+- beb294e: Remove the `@supabase/supabase-js` `no-restricted-imports` rule from the tier-b
+  oxlint config — the fleet no longer uses supabase-js, so the guardrail is moot.
+  The `pg` `Pool`/`Client` restriction (use `createPool` from nk-db) is unchanged.
+
 ## 0.2.3
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @ingram-tech/nk-api
 
+## 0.2.2
+
+### Patch Changes
+
+- beb294e: Docs/metadata only: reword the package description, README, and source comments
+  to describe nk-api as the alternative to an auto-generated REST API rather than
+  "a PostgREST-style auto API." No code change.
+
 ## 0.2.1
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
 	"name": "@ingram-tech/nk-auth",
-	"version": "0.8.0",
+	"version": "0.9.0",
 	"description": "The Ingram Better Auth foundation: composable presets (org, dual-shape JWT, active-org hooks, pg pool) for Next.js sites.",
 	"license": "MIT",
 	"type": "module",
@@ -61,7 +61,7 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
-		"@ingram-tech/nk-db": "^0.9.0",
+		"@ingram-tech/nk-db": "^1.0.0",
 		"bcrypt": "^6.0.0",
 		"jose": "^6.0.0",
 		"zod": "^4.0.0"
