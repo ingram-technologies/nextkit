@@ -14,7 +14,7 @@ exactly one Better Auth copy in the app.
 | `backendJwtOptions` / `verifyBackendJwt` (`./jwt`) | a JWT for the site's own backend API (custom `audience`) |
 | `nkOrganizationDefaults`, `lastActiveOrganizationHooks`, `lastActiveOrganizationUserField` (`./organization`) | org-plugin defaults + active-org restore/persist |
 | `createAuthPool` (`./pool`) | `pg` Pool with optional SSL CA verification |
-| `bcryptPassword`, `makeEmailSenders`, `makePasskeyOptions`, `uuidGenerateId` (`./`) | password verification, email hooks, passkeys, UUID ids |
+| `bcryptPassword`, `makeEmailSenders`, `makePasskeyOptions`, `passkeyOptionsForBaseUrl`, `uuidGenerateId` (`./`) | password verification, email hooks, passkeys (`passkeyOptionsForBaseUrl` derives `rpID`/`origin` from a single base URL), UUID ids |
 | `createAuthHelpers`, `safeNext` (`./server`) | validated App Router session helpers (`getSession` / `getUser` / `requireSession` / `requireUser` / `redirectIfAuthenticated`) with automatic `next` + stale-cookie signalling; `safeNext` validates a `?next=` param |
 | `createAuthMiddleware` (`./middleware`) | loop-safe edge middleware: gates unauthenticated users off protected paths, preserves `next`, and clears a stale session cookie so a bad session self-heals |
 
@@ -76,7 +76,7 @@ import {
 	authEnv,
 	bcryptPassword,
 	makeEmailSenders,
-	makePasskeyOptions,
+	passkeyOptionsForBaseUrl,
 	uuidGenerateId,
 } from "@ingram-tech/nk-auth";
 import { betterAuth } from "better-auth";
@@ -111,7 +111,10 @@ export const auth = betterAuth({
 		},
 	},
 	plugins: [
-		passkey(makePasskeyOptions({ rpId: "example.com", rpName: "Example", origin: env.baseURL })),
+		// Single sign-in origin: derive rpID (host) + origin from the base URL.
+		// For multi-origin / parent-domain sites use makePasskeyOptions({ rpId,
+		// rpName, origin }) and pass the registrable domain explicitly.
+		passkey(passkeyOptionsForBaseUrl(env.baseURL, "Example")),
 	],
 });
 ```

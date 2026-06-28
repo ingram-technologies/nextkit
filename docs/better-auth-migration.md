@@ -375,6 +375,20 @@ is mechanical, not hand-done:
 - **Bridge A vs B as the default** — this doc assumes A; confirm Supabase
   third-party JWKS registration is available on our plan.
 - **Passkey `rpID` strategy** for sites on multiple domains/subdomains.
+  `passkeyOptionsForBaseUrl(baseURL, rpName)` covers the single-origin default
+  (rpID = host); multi-origin sites still call `makePasskeyOptions` with an
+  explicit registrable domain.
+- **`text` vs `uuid` for the Better Auth id columns.** The migration template
+  (`migrations/0001_better_auth.sql`) types `user.id` / `*.userId` as `text`
+  (storing `gen_random_uuid()::text`), inherited from Better Auth's kysely
+  adapter and the Supabase text-id legacy. But every site using the documented
+  `uuidGenerateId` default mints real UUIDs, and at least one consumer (financica)
+  converted these to actual `uuid` columns so `auth.uid()` (which returns `uuid`)
+  compares against `userId` without a per-policy `::uuid` cast. The template and
+  the all-uuid happy path therefore disagree. Decide whether to ship a uuid-typed
+  variant of the template (or switch it outright) for greenfield sites that carry
+  no text-id legacy — a breaking change for existing text-id deployments, so it
+  needs a deliberate call, not a drive-by edit.
 
 ## References
 

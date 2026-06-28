@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { uuidGenerateId } from "./id.js";
+import { passkeyOptionsForBaseUrl } from "./options.js";
 
 describe("uuidGenerateId", () => {
 	it("returns a canonical UUID string", () => {
@@ -35,5 +36,35 @@ describe("uuidGenerateId", () => {
 	it("is unique across many calls", () => {
 		const ids = new Set(Array.from({ length: 1000 }, () => uuidGenerateId()));
 		expect(ids.size).toBe(1000);
+	});
+});
+
+describe("passkeyOptionsForBaseUrl", () => {
+	it("derives rpID from the hostname and keeps the full URL as origin", () => {
+		expect(passkeyOptionsForBaseUrl("https://example.com", "Example")).toEqual({
+			rpID: "example.com",
+			rpName: "Example",
+			origin: "https://example.com",
+		});
+	});
+
+	it("strips the scheme and port from rpID (the WebAuthn effective domain)", () => {
+		// rpID is the bare host: no scheme, no port, no path. Getting this wrong
+		// (e.g. leaving the :3000) silently breaks registration/auth, so pin it.
+		const opts = passkeyOptionsForBaseUrl("http://localhost:3000", "Dev");
+		expect(opts.rpID).toBe("localhost");
+		expect(opts.origin).toBe("http://localhost:3000");
+	});
+
+	it("uses the subdomain host, not the registrable domain", () => {
+		// The single-origin helper does not climb to a parent domain — a site that
+		// wants rpID "example.com" for "app.example.com" must call makePasskeyOptions.
+		expect(passkeyOptionsForBaseUrl("https://app.example.com", "App").rpID).toBe(
+			"app.example.com",
+		);
+	});
+
+	it("throws on a non-URL base (a misconfigured env surfaces loudly)", () => {
+		expect(() => passkeyOptionsForBaseUrl("not-a-url", "X")).toThrow();
 	});
 });

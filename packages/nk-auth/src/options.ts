@@ -47,6 +47,29 @@ export const makePasskeyOptions = (cfg: PasskeyConfig): PasskeyOptions => ({
 	origin: cfg.origin,
 });
 
+/**
+ * Derive passkey options from the site's single base URL: `rpID` = the URL's
+ * hostname (the WebAuthn effective domain — host only, no scheme or port) and
+ * `origin` = the URL itself. This is the common case (one sign-in origin), and
+ * it keeps the relying-party id and the registered origin in lockstep so they
+ * can't drift. Pass the same value the instance signs sessions for, e.g.:
+ *
+ *   passkey(passkeyOptionsForBaseUrl(env.baseURL, "Example"))
+ *
+ * Reach for `makePasskeyOptions` directly when a site spans multiple origins or
+ * must register against a parent registrable domain (e.g. rpID "example.com"
+ * for an "app.example.com" origin).
+ */
+export const passkeyOptionsForBaseUrl = (
+	baseURL: string,
+	rpName: string,
+): PasskeyOptions =>
+	makePasskeyOptions({
+		rpId: new URL(baseURL).hostname,
+		rpName,
+		origin: baseURL,
+	});
+
 /** Send one transactional email (wire to `@ingram-tech/nk-email`'s `sendEmail`). */
 export type SendEmail = (message: {
 	to: string;

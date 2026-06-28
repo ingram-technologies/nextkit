@@ -11,6 +11,7 @@ export {
 	makeEmailSenders,
 	makePasskeyOptions,
 	type PasskeyConfig,
+	passkeyOptionsForBaseUrl,
 	type SendEmail,
 } from "./options.js";
 export {
