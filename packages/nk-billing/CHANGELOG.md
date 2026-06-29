@@ -1,5 +1,12 @@
 # @ingram-tech/nk-billing
 
+## 0.2.1
+
+### Patch Changes
+
+- f0d0e25: Docs only: replace site-specific examples in code comments with generic
+  placeholders. No runtime or API change.
+
 ## 0.2.0
 
 ### Minor Changes

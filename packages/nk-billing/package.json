@@ -1,6 +1,6 @@
 {
 	"name": "@ingram-tech/nk-billing",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"description": "The Ingram billing foundation: composable Stripe primitives (client, customers, prices, currency, checkout, subscriptions, webhooks) plus an injection-based Postgres credit ledger and event-dedup store.",
 	"license": "MIT",
 	"type": "module",

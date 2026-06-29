@@ -1,5 +1,12 @@
 # @ingram-tech/nk-marketing
 
+## 0.2.3
+
+### Patch Changes
+
+- f0d0e25: Docs only: replace site-specific examples in the README and type comments with
+  generic placeholders. No runtime or API change.
+
 ## 0.2.2
 
 ### Patch Changes
