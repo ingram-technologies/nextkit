@@ -7,8 +7,8 @@ import {
 	uuidGenerateId,
 } from "./id";
 
-// 16-byte input (hex) -> canonical base58 body. Identical to the Python twin in
-// cloud.ingram.tech's `tests/test_ids.py` — this is the cross-impl contract.
+// 16-byte input (hex) -> canonical base58 body. These vectors are the
+// cross-impl contract: keep any non-JS twin of this codec identical to them.
 const VECTORS: Record<string, string> = {
 	"00000000000000000000000000000000": "1".repeat(22),
 	"00000000000000000000000000000001": `${"1".repeat(21)}2`,
@@ -81,5 +81,14 @@ describe("createIdRegistry", () => {
 		expect(() => ids.org.decode("org_short")).toThrow();
 		expect(ids.org.is(agentId)).toBe(false);
 		expect(ids.agent.is(agentId)).toBe(true);
+	});
+
+	it("decodeOrNull recovers a valid id and returns null otherwise", () => {
+		const uuid = uuidGenerateId();
+		const id = ids.org.encode(uuid);
+		expect(ids.org.decodeOrNull(id)).toBe(uuid);
+		expect(ids.org.decodeOrNull(ids.agent.mint())).toBeNull();
+		expect(ids.org.decodeOrNull("org_short")).toBeNull();
+		expect(ids.org.decodeOrNull("not-an-id")).toBeNull();
 	});
 });

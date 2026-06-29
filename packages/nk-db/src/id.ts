@@ -6,11 +6,11 @@ import { randomBytes } from "node:crypto";
  * so it stays `node:crypto`-only — no `pg` / `drizzle` — and any site can mint
  * ids without pulling a heavier slice.
  *
- * The Python twin lives in cloud.ingram.tech's `v1/core.py` (`new_id`); the
- * byte → string vectors in `id.test.ts` and that repo's `tests/test_ids.py` are
- * kept identical, so a stored UUIDv7 and an `agt_` / `smt_` id from the API are
- * the same encoding of the same 16 bytes. That cross-impl contract is the most
- * important property of this file — keep the vectors in lockstep.
+ * When a service has a non-JS twin of this codec (e.g. a Python API), keep its
+ * byte → string vectors identical to the ones in `id.test.ts`, so a stored
+ * UUIDv7 and a prefixed base58 id are the same encoding of the same 16 bytes.
+ * That cross-impl contract is the most important property of this file — keep
+ * the vectors in lockstep.
  *
  * Store the hyphenated UUIDv7 at rest (uuid columns stay native and time-ordered
  * for index locality) and use {@link toPrefixedId} to skin it as a prefixed
@@ -119,6 +119,12 @@ export interface IdHelper {
 	encode(uuid: string): string;
 	/** Recover the hyphenated UUIDv7; throws if the prefix / shape doesn't match. */
 	decode(id: string): string;
+	/**
+	 * Recover the hyphenated UUIDv7, or `null` if `id` isn't a well-formed
+	 * prefixed id for this entity. The throw-free {@link decode}, for validating
+	 * untrusted input (a path param, a query string) without a try/catch.
+	 */
+	decodeOrNull(id: string): string | null;
 	/** Whether `id` is a well-formed prefixed id for this entity. */
 	is(id: string): boolean;
 }
@@ -137,6 +143,7 @@ function makeHelper(prefix: string): IdHelper {
 			if (!matcher.test(id)) throw new Error(`not a ${prefix}_ id: ${id}`);
 			return fromPrefixedId(id);
 		},
+		decodeOrNull: (id) => (matcher.test(id) ? fromPrefixedId(id) : null),
 		is: (id) => matcher.test(id),
 	};
 }

@@ -37,6 +37,7 @@ export const errorResponses = {
 	404: errorResponse("Resource not found."),
 	409: errorResponse("Conflict (e.g. a duplicate or in-use resource)."),
 	422: errorResponse("A request shape or domain rule was violated."),
+	429: errorResponse("Too many requests (rate limited)."),
 } as const;
 
 /** A reusable OpenAPI response entry for a JSON success body. */

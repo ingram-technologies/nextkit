@@ -166,6 +166,46 @@ const rows = await q.range(offsetFor({ page, limit }), offsetFor({ page, limit }
 return c.json(paginate(rows, { page, limit, total }), 200);
 ```
 
+## Rate limiting (`rateLimit`)
+
+A zero-dependency, per-instance fixed-window limiter — the no-Redis default for
+cutting off single-client abuse. On a multi-replica deploy each replica keeps
+its own counter, so the effective limit is `limit * replica_count`; swap for a
+shared store if blast radius matters more than simplicity.
+
+```ts
+import { rateLimit } from "@ingram-tech/nk-api";
+
+// Per client IP. Exhausting the window short-circuits with the standard 429
+// envelope plus Retry-After / X-RateLimit-* headers.
+app.use("/api/v1/support", rateLimit({ limit: 5, windowMs: 60_000 }));
+
+// Scope by user/tenant instead of IP:
+app.use("/api/v1/*", rateLimit({ limit: 100, windowMs: 60_000, key: (c) => c.get("userId") }));
+```
+
+The primitives `checkRateLimit({ key, limit, windowMs })` and
+`getClientKey(headers)` are exported for use outside the middleware.
+
+## Webhook signatures (`verifyHmacSha256`)
+
+Length-checked, constant-time HMAC-SHA256 verification for the
+`/internal/webhooks/<provider>` route class. Verify against the **raw** body,
+before any JSON round-trip. (Stripe is the exception — use its SDK's
+`constructEvent`, via `@ingram-tech/nk-billing`.)
+
+```ts
+import { verifyHmacSha256, HttpError } from "@ingram-tech/nk-api";
+
+const raw = await c.req.text();
+const { valid } = verifyHmacSha256({
+  payload: raw,
+  signature: c.req.header("x-hub-signature-256") ?? "", // `sha256=…` prefix is stripped
+  secret: env.WEBHOOK_SECRET,
+});
+if (!valid) throw new HttpError(401, "Invalid webhook signature");
+```
+
 ## Consuming the API (`unwrap`)
 
 `unwrap` awaits a typed call and returns its success body, or throws the
