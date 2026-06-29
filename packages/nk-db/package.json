@@ -47,7 +47,7 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
-		"zod": "^4.0.0"
+		"zod": "^4.4.3"
 	},
 	"peerDependencies": {
 		"@electric-sql/pglite": ">=0.5.0",
@@ -64,14 +64,14 @@
 		}
 	},
 	"devDependencies": {
-		"@electric-sql/pglite": "^0.5.0",
-		"@electric-sql/pglite-socket": "^0.2.4",
+		"@electric-sql/pglite": "^0.5.3",
+		"@electric-sql/pglite-socket": "^0.2.6",
 		"@ingram-tech/nk-dev": "workspace:*",
-		"@types/node": "^25.0.0",
-		"@types/pg": "^8.11.0",
-		"drizzle-orm": "^0.45.0",
-		"pg": "^8.13.0",
+		"@types/node": "^26.0.1",
+		"@types/pg": "^8.20.0",
+		"drizzle-orm": "^0.45.2",
+		"pg": "^8.22.0",
 		"typescript": "^6.0.3",
-		"vitest": "^4.1.6"
+		"vitest": "^4.1.9"
 	}
 }

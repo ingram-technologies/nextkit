@@ -45,13 +45,13 @@
 	"dependencies": {
 		"@testing-library/jest-dom": "^6.9.1",
 		"jsdom": "^29.1.1",
-		"knip": "^6.17.1",
-		"oxfmt": "^0.55.0",
-		"oxlint": "^1.70.0",
-		"prettier": "^3.8.3",
+		"knip": "^6.23.0",
+		"oxfmt": "^0.56.0",
+		"oxlint": "^1.71.0",
+		"prettier": "^3.9.3",
 		"prettier-plugin-sql": "^0.20.0",
 		"typescript": "^6.0.3",
-		"vitest": "^4.1.6"
+		"vitest": "^4.1.9"
 	},
 	"engines": {
 		"node": ">=20"
