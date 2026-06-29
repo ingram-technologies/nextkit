@@ -76,11 +76,11 @@ const result = await marketing.sendLifecycle({
 	campaignKey: "first-invoice-nudge",
 	email: contact.email,
 	userId: contact.userId,
-	from: { name: "Peppost" },
-	subject: "Send your first Stripe e-invoice with Peppost",
+	from: { name: "Acme" },
+	subject: "Send your first invoice with Acme",
 	content: "You're all set up — here's how to send your first invoice…",
 	cta: { label: "Open dashboard", href: "https://example.com/dashboard" },
-	footerReason: "you have a Peppost account",
+	footerReason: "you have an Acme account",
 });
 // result.status: "sent" | "duplicate" | "suppressed"
 ```

@@ -310,7 +310,7 @@ describe("sendLifecycle", () => {
 		email: "a@acme.test",
 		subject: "Send your first invoice",
 		content: "Get started.",
-		from: { name: "Peppost" },
+		from: { name: "Acme" },
 	};
 
 	it("sends once, then reports duplicate", async () => {
@@ -318,7 +318,7 @@ describe("sendLifecycle", () => {
 		expect(await marketing.sendLifecycle(opts)).toEqual({ status: "duplicate" });
 		expect(sendMock).toHaveBeenCalledOnce();
 		const arg = sendMock.mock.calls[0]?.[0];
-		expect(arg?.from).toBe("Peppost <notifications@mail.test>");
+		expect(arg?.from).toBe("Acme <notifications@mail.test>");
 		expect(arg?.listUnsubscribe?.url).toContain("token=");
 	});
 

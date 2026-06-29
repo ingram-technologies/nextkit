@@ -50,7 +50,7 @@ export interface Cta {
 
 /** Sender identity for a lifecycle send (broadcasts take it from the audience). */
 export interface Sender {
-	/** Display name, e.g. "Peppost". */
+	/** Display name, e.g. "Acme". */
 	name: string;
 	/** Local part of the from address; defaults to "notifications". */
 	localPart?: string;
@@ -99,8 +99,8 @@ export interface LifecycleOptions {
 	cta?: Cta;
 	from: Sender;
 	/**
-	 * Footer line explaining why the contact received this, e.g. "you have a
-	 * Peppost account". Defaults to a generic account-based reason.
+	 * Footer line explaining why the contact received this, e.g. "you have an
+	 * Acme account". Defaults to a generic account-based reason.
 	 */
 	footerReason?: string;
 }

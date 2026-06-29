@@ -4,9 +4,9 @@
  * then finds it back by metadata search — no local `stripe_customer_id` column is
  * required just to locate the customer (though sites cache it for speed).
  *
- * The metadata key differs per site (`financica_organization_id`,
- * `integrain_org_id`, …), so it is always passed in explicitly via
- * {@link CustomerRef} rather than baked in here — that is the framework seam.
+ * The metadata key differs per site (`acme_organization_id`, `acme_user_id`,
+ * …), so it is always passed in explicitly via {@link CustomerRef} rather than
+ * baked in here — that is the framework seam.
  */
 
 import type Stripe from "stripe";
@@ -15,7 +15,7 @@ import { getStripe } from "./client.js";
 /** Identifies a Stripe customer by a metadata tag → local entity id. */
 export interface CustomerRef {
 	/** The Stripe `metadata` key the local id is stored under, e.g.
-	 *  "integrain_org_id". Choose one per site and use it everywhere. */
+	 *  "acme_org_id". Choose one per site and use it everywhere. */
 	metadataKey: string;
 	/** The local entity id (org id, user id, …). */
 	id: string;

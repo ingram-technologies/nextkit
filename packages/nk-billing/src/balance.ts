@@ -1,6 +1,6 @@
 /**
- * Customer-balance wallet — Stripe's own credit ledger, for pay-as-you-go sites
- * (domains.ingram.tech). Distinct from the in-app credit ledger in
+ * Customer-balance wallet — Stripe's own credit ledger, for pay-as-you-go
+ * sites. Distinct from the in-app credit ledger in
  * `@ingram-tech/nk-billing/credits`: this stores the balance *in Stripe* as a
  * signed integer (negative = credit available to the customer), so there is no
  * local table to keep in sync. Pick this when the unit you sell is money;

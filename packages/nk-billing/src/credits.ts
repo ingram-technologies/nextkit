@@ -1,6 +1,6 @@
 /**
  * The in-app credit ledger — the stateful half of nk-billing, for sites that
- * meter usage in abstract "credits" rather than money (integrain). It follows
+ * meter usage in abstract "credits" rather than money. It follows
  * nextkit's Django-app model: this package owns its tables and ships their
  * migration (`migrations/0001_billing.sql`), and takes the database connection by
  * **injection** so it never reaches into the consuming site's schema.

@@ -4,8 +4,9 @@
  *
  * This is the one pattern every Ingram site had hand-rolled identically (the
  * `getStripe()` singleton); it lives here once now. Single-mode sites call
- * {@link getStripe}; the dual-mode site (cloud.ingram.tech) calls
- * {@link stripeFor} with a mode and gets one memoised client per mode.
+ * {@link getStripe}; a dual-mode site (its own merchant of record, running the
+ * Stripe sandbox beside live) calls {@link stripeFor} with a mode and gets one
+ * memoised client per mode.
  */
 
 import Stripe from "stripe";
