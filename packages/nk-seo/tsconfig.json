@@ -1,0 +1,20 @@
+{
+	"extends": "@ingram-tech/nk-dev/tsconfig/base.json",
+	"compilerOptions": {
+		"outDir": "dist",
+		"rootDir": "src",
+		// Override the base's "nodenext": hreflang.tsx imports next/headers, whose
+		// type exports don't resolve under NodeNext. Build with "bundler" like a
+		// Next app (same carve-out as nk-auth). Relative imports keep explicit .js
+		// extensions, so the published dist is valid Node ESM regardless.
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"jsx": "react-jsx",
+		// The components (json-ld.tsx, hreflang.tsx) render JSX and touch DOM
+		// element types; HreflangLinks reads next/headers.
+		"lib": ["esnext", "dom", "dom.iterable"],
+		"types": ["node", "react"]
+	},
+	"include": ["src"],
+	"exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.tsx"]
+}

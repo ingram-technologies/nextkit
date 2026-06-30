@@ -1,0 +1,315 @@
+/**
+ * Typed schema.org JSON-LD builders. Each returns a plain object ready to hand
+ * to `<JsonLd>` (from "@ingram-tech/nk-seo/components").
+ *
+ * The standalone builders take values as-is: pass **absolute** URLs for
+ * `url`/`image`/`logo` fields. If your pages work in site-relative paths and
+ * share one Organization, prefer {@link createSeo}, which resolves paths against
+ * a base URL and injects the publisher/provider for you.
+ */
+
+const CONTEXT = "https://schema.org";
+
+/** A schema.org node. Hand it to `<JsonLd data={...} />`. */
+export type JsonLdNode = Record<string, unknown>;
+
+// --- FAQPage ---------------------------------------------------------------
+
+export interface FaqItem {
+	question: string;
+	answer: string;
+}
+
+/** FAQPage: marks up a list of question/answer pairs for FAQ rich results. */
+export function faqPage(items: FaqItem[]): JsonLdNode {
+	return {
+		"@context": CONTEXT,
+		"@type": "FAQPage",
+		mainEntity: items.map((item) => ({
+			"@type": "Question",
+			name: item.question,
+			acceptedAnswer: { "@type": "Answer", text: item.answer },
+		})),
+	};
+}
+
+// --- BreadcrumbList --------------------------------------------------------
+
+export interface BreadcrumbItem {
+	name: string;
+	/** Absolute URL of the crumb. */
+	url: string;
+}
+
+/** BreadcrumbList: the trail of links Google shows in place of the raw URL. */
+export function breadcrumbList(items: BreadcrumbItem[]): JsonLdNode {
+	return {
+		"@context": CONTEXT,
+		"@type": "BreadcrumbList",
+		itemListElement: items.map((item, index) => ({
+			"@type": "ListItem",
+			position: index + 1,
+			name: item.name,
+			item: item.url,
+		})),
+	};
+}
+
+// --- Organization ----------------------------------------------------------
+
+export interface OrganizationInput {
+	name: string;
+	/** Absolute URL of the organization's site. */
+	url?: string;
+	/** Absolute URL of the logo image. */
+	logo?: string;
+	description?: string;
+	email?: string;
+	/** Profile/social URLs that corroborate the entity (LinkedIn, Crunchbase…). */
+	sameAs?: string[];
+}
+
+/** Organization node without `@context`, for embedding as publisher/provider. */
+function organizationNode(input: OrganizationInput): JsonLdNode {
+	return {
+		"@type": "Organization",
+		name: input.name,
+		...(input.url ? { url: input.url } : {}),
+		...(input.logo ? { logo: { "@type": "ImageObject", url: input.logo } } : {}),
+		...(input.description ? { description: input.description } : {}),
+		...(input.email ? { email: input.email } : {}),
+		...(input.sameAs?.length ? { sameAs: input.sameAs } : {}),
+	};
+}
+
+/** Organization: the entity behind the site (for the knowledge panel). */
+export function organization(input: OrganizationInput): JsonLdNode {
+	return { "@context": CONTEXT, ...organizationNode(input) };
+}
+
+// --- WebSite ---------------------------------------------------------------
+
+export interface WebsiteInput {
+	name: string;
+	/** Absolute URL of the site root. */
+	url: string;
+	publisher?: OrganizationInput;
+}
+
+/** WebSite: identifies the site as an entity; pair with {@link organization}. */
+export function website(input: WebsiteInput): JsonLdNode {
+	return {
+		"@context": CONTEXT,
+		"@type": "WebSite",
+		name: input.name,
+		url: input.url,
+		...(input.publisher ? { publisher: organizationNode(input.publisher) } : {}),
+	};
+}
+
+// --- SoftwareApplication ---------------------------------------------------
+
+export interface OfferInput {
+	priceCurrency: string;
+	/** Single price. Mutually exclusive with low/high (which emit an AggregateOffer). */
+	price?: string | number;
+	lowPrice?: string | number;
+	highPrice?: string | number;
+	offerCount?: string | number;
+	/** Absolute URL of the pricing/offer page. */
+	url?: string;
+}
+
+function offerNode(offer: OfferInput): JsonLdNode {
+	const isAggregate = offer.lowPrice !== undefined || offer.highPrice !== undefined;
+	if (isAggregate) {
+		return {
+			"@type": "AggregateOffer",
+			priceCurrency: offer.priceCurrency,
+			...(offer.lowPrice !== undefined
+				? { lowPrice: String(offer.lowPrice) }
+				: {}),
+			...(offer.highPrice !== undefined
+				? { highPrice: String(offer.highPrice) }
+				: {}),
+			...(offer.offerCount !== undefined
+				? { offerCount: String(offer.offerCount) }
+				: {}),
+			...(offer.url ? { url: offer.url } : {}),
+		};
+	}
+	return {
+		"@type": "Offer",
+		priceCurrency: offer.priceCurrency,
+		...(offer.price !== undefined ? { price: String(offer.price) } : {}),
+		...(offer.url ? { url: offer.url } : {}),
+	};
+}
+
+export interface SoftwareApplicationInput {
+	name: string;
+	description?: string;
+	/** Absolute URL of the app/marketing page. */
+	url?: string;
+	/** e.g. "BusinessApplication", "FinanceApplication". */
+	applicationCategory?: string;
+	/** e.g. "Web". */
+	operatingSystem?: string;
+	offers?: OfferInput;
+}
+
+/** SoftwareApplication: marks a product page as an app for rich results. */
+export function softwareApplication(input: SoftwareApplicationInput): JsonLdNode {
+	return {
+		"@context": CONTEXT,
+		"@type": "SoftwareApplication",
+		name: input.name,
+		...(input.applicationCategory
+			? { applicationCategory: input.applicationCategory }
+			: {}),
+		...(input.operatingSystem ? { operatingSystem: input.operatingSystem } : {}),
+		...(input.url ? { url: input.url } : {}),
+		...(input.description ? { description: input.description } : {}),
+		...(input.offers ? { offers: offerNode(input.offers) } : {}),
+	};
+}
+
+// --- Article ---------------------------------------------------------------
+
+export interface ArticleAuthor {
+	name: string;
+	/** Absolute URL of the author's profile/page. */
+	url?: string;
+}
+
+export interface ArticleInput {
+	headline: string;
+	/** Absolute canonical URL of the article. */
+	url: string;
+	description?: string;
+	type?: "Article" | "BlogPosting" | "NewsArticle" | "ScholarlyArticle";
+	datePublished?: string;
+	/** Defaults to `datePublished` when omitted. */
+	dateModified?: string;
+	authors?: ArticleAuthor[];
+	/** Absolute URL of the lead image. */
+	image?: string;
+	keywords?: string[];
+	publisher?: OrganizationInput;
+}
+
+/** Article (or BlogPosting/NewsArticle/ScholarlyArticle) for editorial pages. */
+export function article(input: ArticleInput): JsonLdNode {
+	const dateModified = input.dateModified ?? input.datePublished;
+	return {
+		"@context": CONTEXT,
+		"@type": input.type ?? "Article",
+		headline: input.headline,
+		url: input.url,
+		mainEntityOfPage: input.url,
+		...(input.description ? { description: input.description } : {}),
+		...(input.authors?.length
+			? {
+					author: input.authors.map((author) => ({
+						"@type": "Person",
+						name: author.name,
+						...(author.url ? { url: author.url } : {}),
+					})),
+				}
+			: {}),
+		...(input.publisher ? { publisher: organizationNode(input.publisher) } : {}),
+		...(input.datePublished ? { datePublished: input.datePublished } : {}),
+		...(dateModified ? { dateModified } : {}),
+		...(input.image ? { image: input.image } : {}),
+		...(input.keywords?.length ? { keywords: input.keywords } : {}),
+	};
+}
+
+// --- Factory ---------------------------------------------------------------
+
+export interface SeoConfig {
+	/** Absolute site origin, e.g. "https://financica.app". */
+	baseUrl: string;
+	/** Shared publisher/provider, injected into article()/website()/organization(). */
+	organization?: OrganizationInput;
+}
+
+/** A path-aware version of a crumb: `path` is resolved against the base URL. */
+export interface BreadcrumbPath {
+	name: string;
+	path: string;
+}
+
+/**
+ * Binds the builders to a site so callers pass site-relative paths instead of
+ * absolute URLs, and the configured Organization is injected automatically.
+ *
+ * @example
+ * const seo = createSeo({ baseUrl: getServerUrl(), organization: ORG });
+ * <JsonLd data={seo.article({ path: `/blog/${slug}`, headline, datePublished })} />
+ */
+export function createSeo(config: SeoConfig) {
+	const absolute = (path: string): string =>
+		/^https?:\/\//.test(path) ? path : new URL(path, config.baseUrl).toString();
+
+	return {
+		/** Resolve a site-relative path to an absolute URL. */
+		absolute,
+		/** FAQPage (path-free). */
+		faqPage,
+		/** BreadcrumbList from site-relative paths. */
+		breadcrumbs(items: BreadcrumbPath[]): JsonLdNode {
+			return breadcrumbList(
+				items.map((item) => ({ name: item.name, url: absolute(item.path) })),
+			);
+		},
+		/** Organization from config (with optional per-call overrides). */
+		organization(overrides?: Partial<OrganizationInput>): JsonLdNode {
+			if (!config.organization) {
+				throw new Error(
+					"createSeo: organization() needs `organization` in config",
+				);
+			}
+			return organization({ ...config.organization, ...overrides });
+		},
+		/** WebSite from config, defaulting name/url/publisher to the configured org. */
+		website(input?: Partial<WebsiteInput>): JsonLdNode {
+			const name = input?.name ?? config.organization?.name;
+			if (!name) {
+				throw new Error(
+					"createSeo: website() needs a name or configured organization",
+				);
+			}
+			return website({
+				name,
+				url: input?.url ?? config.baseUrl,
+				publisher: input?.publisher ?? config.organization,
+			});
+		},
+		/** SoftwareApplication; `path` (default "/") is resolved to an absolute URL. */
+		softwareApplication(
+			input: Omit<SoftwareApplicationInput, "url"> & { path?: string },
+		): JsonLdNode {
+			const { path, ...rest } = input;
+			return softwareApplication({ ...rest, url: absolute(path ?? "/") });
+		},
+		/** Article; `path`/`image` are resolved and the configured org becomes publisher. */
+		article(
+			input: Omit<ArticleInput, "url" | "image" | "publisher"> & {
+				path: string;
+				image?: string;
+				publisher?: OrganizationInput;
+			},
+		): JsonLdNode {
+			const { path, image, publisher, ...rest } = input;
+			return article({
+				...rest,
+				url: absolute(path),
+				...(image ? { image: absolute(image) } : {}),
+				publisher: publisher ?? config.organization,
+			});
+		},
+	};
+}
+
+export type Seo = ReturnType<typeof createSeo>;

@@ -33,7 +33,7 @@
     },
     "packages/nk-api": {
       "name": "@ingram-tech/nk-api",
-      "version": "0.2.1",
+      "version": "0.3.0",
       "dependencies": {
         "@hono/swagger-ui": "^0.6.1",
       },
@@ -52,7 +52,7 @@
     },
     "packages/nk-auth": {
       "name": "@ingram-tech/nk-auth",
-      "version": "0.8.0",
+      "version": "0.9.1",
       "dependencies": {
         "@ingram-tech/nk-db": "^0.9.0",
         "bcrypt": "^6.0.0",
@@ -103,7 +103,7 @@
     },
     "packages/nk-db": {
       "name": "@ingram-tech/nk-db",
-      "version": "0.9.1",
+      "version": "1.1.0",
       "bin": {
         "nk-pglite-dev": "./dist/pglite/dev.js",
         "nk-pg-migrate": "./dist/migrate-bin.js",
@@ -135,7 +135,7 @@
     },
     "packages/nk-dev": {
       "name": "@ingram-tech/nk-dev",
-      "version": "0.2.3",
+      "version": "0.2.4",
       "bin": {
         "nk": "bin/nk.js",
         "nextkit-format-staged": "bin/format-staged.mjs",
@@ -184,7 +184,7 @@
     },
     "packages/nk-marketing": {
       "name": "@ingram-tech/nk-marketing",
-      "version": "0.2.1",
+      "version": "0.2.2",
       "dependencies": {
         "@ingram-tech/nk-email": "workspace:^",
       },
@@ -194,6 +194,27 @@
         "typescript": "^6.0.3",
         "vitest": "^4.1.9",
       },
+    },
+    "packages/nk-seo": {
+      "name": "@ingram-tech/nk-seo",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@ingram-tech/nk-dev": "workspace:*",
+        "@types/node": "^26.0.1",
+        "@types/react": "^19.2.17",
+        "next": "^16.0.0",
+        "react": "^19.2.7",
+        "typescript": "^6.0.3",
+        "vitest": "^4.1.9",
+      },
+      "peerDependencies": {
+        "next": ">=14.0.0",
+        "react": "^18.0.0 || ^19.0.0",
+      },
+      "optionalPeers": [
+        "next",
+        "react",
+      ],
     },
   },
   "packages": {
@@ -386,6 +407,8 @@
     "@ingram-tech/nk-i18n": ["@ingram-tech/nk-i18n@workspace:packages/nk-i18n"],
 
     "@ingram-tech/nk-marketing": ["@ingram-tech/nk-marketing@workspace:packages/nk-marketing"],
+
+    "@ingram-tech/nk-seo": ["@ingram-tech/nk-seo@workspace:packages/nk-seo"],
 
     "@inquirer/external-editor": ["@inquirer/external-editor@1.0.3", "", { "dependencies": { "chardet": "^2.1.1", "iconv-lite": "^0.7.0" }, "peerDependencies": { "@types/node": ">=18" }, "optionalPeers": ["@types/node"] }, "sha512-RWbSrDiYmO4LbejWY7ttpxczuwQyZLBUyygsA9Nsv95hpzUWwnNTVQmAq3xuh7vNwCp07UTmE5i11XAEExx4RA=="],
 
