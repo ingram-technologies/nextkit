@@ -225,6 +225,212 @@ export function article(input: ArticleInput): JsonLdNode {
 	};
 }
 
+// --- Person ----------------------------------------------------------------
+
+export interface PersonInput {
+	name: string;
+	/** Absolute URL of the person's page/profile. */
+	url?: string;
+	jobTitle?: string;
+	/** Employer: an Organization, or just its name. */
+	worksFor?: OrganizationInput | string;
+	/** Absolute URL of a portrait image. */
+	image?: string;
+	description?: string;
+	email?: string;
+	/** Profile/social URLs that corroborate the person. */
+	sameAs?: string[];
+	/** Home location place name, e.g. "Brussels, Belgium". */
+	homeLocation?: string;
+}
+
+/** Person: identifies an individual as an entity (portfolio, team, author bios). */
+export function person(input: PersonInput): JsonLdNode {
+	const worksFor =
+		typeof input.worksFor === "string"
+			? { "@type": "Organization", name: input.worksFor }
+			: input.worksFor
+				? organizationNode(input.worksFor)
+				: undefined;
+	return {
+		"@context": CONTEXT,
+		"@type": "Person",
+		name: input.name,
+		...(input.url ? { url: input.url } : {}),
+		...(input.jobTitle ? { jobTitle: input.jobTitle } : {}),
+		...(worksFor ? { worksFor } : {}),
+		...(input.image ? { image: input.image } : {}),
+		...(input.description ? { description: input.description } : {}),
+		...(input.email ? { email: input.email } : {}),
+		...(input.sameAs?.length ? { sameAs: input.sameAs } : {}),
+		...(input.homeLocation
+			? { homeLocation: { "@type": "Place", name: input.homeLocation } }
+			: {}),
+	};
+}
+
+// --- LocalBusiness ---------------------------------------------------------
+
+export interface PostalAddressInput {
+	streetAddress?: string;
+	addressLocality?: string;
+	addressRegion?: string;
+	postalCode?: string;
+	/** ISO country code, e.g. "BE". */
+	addressCountry?: string;
+}
+
+export interface GeoInput {
+	latitude: number;
+	longitude: number;
+}
+
+export interface AggregateRatingInput {
+	ratingValue: string | number;
+	reviewCount: string | number;
+}
+
+export interface LocalBusinessInput {
+	name: string;
+	/** Absolute URL of the business site. */
+	url?: string;
+	description?: string;
+	/** Absolute image URL(s). */
+	image?: string | string[];
+	/** Absolute logo URL. */
+	logo?: string;
+	email?: string;
+	telephone?: string;
+	/** e.g. "€€". */
+	priceRange?: string;
+	openingHours?: string | string[];
+	address?: PostalAddressInput;
+	geo?: GeoInput;
+	/** Map deep-link URL. */
+	hasMap?: string;
+	aggregateRating?: AggregateRatingInput;
+	sameAs?: string[];
+	/** schema.org LocalBusiness subtype, e.g. "Store", "ArtGallery". Default "LocalBusiness". */
+	type?: string;
+}
+
+/** LocalBusiness (or a subtype): a physical business for local/maps SEO. */
+export function localBusiness(input: LocalBusinessInput): JsonLdNode {
+	return {
+		"@context": CONTEXT,
+		"@type": input.type ?? "LocalBusiness",
+		name: input.name,
+		...(input.url ? { url: input.url } : {}),
+		...(input.description ? { description: input.description } : {}),
+		...(input.image
+			? { image: Array.isArray(input.image) ? input.image : [input.image] }
+			: {}),
+		...(input.logo ? { logo: input.logo } : {}),
+		...(input.email ? { email: input.email } : {}),
+		...(input.telephone ? { telephone: input.telephone } : {}),
+		...(input.priceRange ? { priceRange: input.priceRange } : {}),
+		...(input.openingHours ? { openingHours: input.openingHours } : {}),
+		...(input.address
+			? { address: { "@type": "PostalAddress", ...input.address } }
+			: {}),
+		...(input.geo
+			? {
+					geo: {
+						"@type": "GeoCoordinates",
+						latitude: input.geo.latitude,
+						longitude: input.geo.longitude,
+					},
+				}
+			: {}),
+		...(input.hasMap ? { hasMap: input.hasMap } : {}),
+		...(input.aggregateRating
+			? {
+					aggregateRating: {
+						"@type": "AggregateRating",
+						ratingValue: String(input.aggregateRating.ratingValue),
+						reviewCount: String(input.aggregateRating.reviewCount),
+					},
+				}
+			: {}),
+		...(input.sameAs?.length ? { sameAs: input.sameAs } : {}),
+	};
+}
+
+// --- Event -----------------------------------------------------------------
+
+export interface EventLocationInput {
+	name?: string;
+	/** Postal address string or a URL for online events. */
+	address?: string;
+	/** Absolute URL (physical place page or online joining link). */
+	url?: string;
+	/** Set true for a fully virtual event (emits VirtualLocation). */
+	online?: boolean;
+}
+
+export interface EventInput {
+	name: string;
+	/** ISO 8601 start, e.g. "2026-09-30" or "2026-09-30T09:00:00+02:00". */
+	startDate: string;
+	/** ISO 8601 end. Defaults to startDate. */
+	endDate?: string;
+	description?: string;
+	/** Absolute URL of the event page. */
+	url?: string;
+	/** Absolute image URL(s). */
+	image?: string | string[];
+	location?: EventLocationInput;
+	organizer?: OrganizationInput;
+	offers?: OfferInput;
+	/** Defaults to "https://schema.org/EventScheduled". */
+	eventStatus?: string;
+	attendanceMode?: "offline" | "online" | "mixed";
+}
+
+const ATTENDANCE_MODE: Record<string, string> = {
+	offline: "https://schema.org/OfflineEventAttendanceMode",
+	online: "https://schema.org/OnlineEventAttendanceMode",
+	mixed: "https://schema.org/MixedEventAttendanceMode",
+};
+
+function eventLocationNode(location: EventLocationInput): JsonLdNode {
+	if (location.online) {
+		return {
+			"@type": "VirtualLocation",
+			...(location.url ? { url: location.url } : {}),
+		};
+	}
+	return {
+		"@type": "Place",
+		...(location.name ? { name: location.name } : {}),
+		...(location.address ? { address: location.address } : {}),
+		...(location.url ? { url: location.url } : {}),
+	};
+}
+
+/** Event: a scheduled happening (summit, workshop, conference) for event rich results. */
+export function event(input: EventInput): JsonLdNode {
+	return {
+		"@context": CONTEXT,
+		"@type": "Event",
+		name: input.name,
+		startDate: input.startDate,
+		endDate: input.endDate ?? input.startDate,
+		eventStatus: input.eventStatus ?? "https://schema.org/EventScheduled",
+		...(input.attendanceMode
+			? { eventAttendanceMode: ATTENDANCE_MODE[input.attendanceMode] }
+			: {}),
+		...(input.description ? { description: input.description } : {}),
+		...(input.url ? { url: input.url } : {}),
+		...(input.image
+			? { image: Array.isArray(input.image) ? input.image : [input.image] }
+			: {}),
+		...(input.location ? { location: eventLocationNode(input.location) } : {}),
+		...(input.organizer ? { organizer: organizationNode(input.organizer) } : {}),
+		...(input.offers ? { offers: offerNode(input.offers) } : {}),
+	};
+}
+
 // --- Factory ---------------------------------------------------------------
 
 export interface SeoConfig {

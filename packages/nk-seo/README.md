@@ -4,9 +4,9 @@ SEO primitives for Next.js sites, factored out of the patterns every Ingram site
 kept re-implementing:
 
 1. **`<JsonLd>`** + **typed schema.org builders** — `faqPage`, `breadcrumbList`,
-   `article`, `softwareApplication`, `organization`, `website`, and a
-   `createSeo` factory that resolves site-relative paths and injects your
-   publisher.
+   `article`, `softwareApplication`, `organization`, `website`, `person`,
+   `localBusiness`, `event`, and a `createSeo` factory that resolves site-relative
+   paths and injects your publisher.
 2. **`createMetadata`** — a Next `Metadata` factory: canonical + OpenGraph +
    Twitter card from one title/description/path.
 3. **`<HreflangLinks>`** — self-referencing canonical plus per-locale `hreflang`

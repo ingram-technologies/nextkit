@@ -1,5 +1,14 @@
 # @ingram-tech/nk-seo
 
+## 0.3.0
+
+### Minor Changes
+
+- Add `person`, `localBusiness`, and `event` schema.org builders (with `Person`,
+  `LocalBusiness` incl. address/geo/rating, and `Event` incl. attendance mode and
+  virtual locations). Covers the entity types business/personal/event sites need
+  beyond Organization/WebSite.
+
 ## 0.2.0
 
 ### Minor Changes

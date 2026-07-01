@@ -3,8 +3,11 @@ import {
 	article,
 	breadcrumbList,
 	createSeo,
+	event,
 	faqPage,
+	localBusiness,
 	organization,
+	person,
 	softwareApplication,
 	website,
 } from "./schema.js";
@@ -133,6 +136,88 @@ describe("organization / website", () => {
 
 	it("keeps @context on a top-level organization", () => {
 		expect(organization({ name: "Acme" })["@context"]).toBe("https://schema.org");
+	});
+});
+
+describe("person", () => {
+	it("maps a string worksFor to an Organization node and wraps homeLocation as a Place", () => {
+		const result = person({
+			name: "Jane Doe",
+			jobTitle: "Founder",
+			worksFor: "Acme",
+			homeLocation: "Brussels, Belgium",
+		});
+		expect(result).toMatchObject({
+			"@type": "Person",
+			name: "Jane Doe",
+			jobTitle: "Founder",
+			worksFor: { "@type": "Organization", name: "Acme" },
+			homeLocation: { "@type": "Place", name: "Brussels, Belgium" },
+		});
+	});
+});
+
+describe("localBusiness", () => {
+	it("nests address/geo/rating and normalises a single image to an array", () => {
+		const result = localBusiness({
+			name: "Studio",
+			type: "ArtGallery",
+			image: "https://x.test/cover.jpg",
+			address: {
+				streetAddress: "Rue X 1",
+				postalCode: "1000",
+				addressCountry: "BE",
+			},
+			geo: { latitude: 50.8, longitude: 4.3 },
+			aggregateRating: { ratingValue: "5.0", reviewCount: 14 },
+		});
+		expect(result).toMatchObject({
+			"@type": "ArtGallery",
+			image: ["https://x.test/cover.jpg"],
+			address: {
+				"@type": "PostalAddress",
+				streetAddress: "Rue X 1",
+				postalCode: "1000",
+				addressCountry: "BE",
+			},
+			geo: { "@type": "GeoCoordinates", latitude: 50.8, longitude: 4.3 },
+			aggregateRating: {
+				"@type": "AggregateRating",
+				ratingValue: "5.0",
+				reviewCount: "14",
+			},
+		});
+	});
+});
+
+describe("event", () => {
+	it("defaults endDate/status and encodes the attendance mode + place", () => {
+		const result = event({
+			name: "Summit",
+			startDate: "2026-09-30",
+			attendanceMode: "offline",
+			location: { name: "Venue", address: "Brussels" },
+		});
+		expect(result).toMatchObject({
+			"@type": "Event",
+			startDate: "2026-09-30",
+			endDate: "2026-09-30",
+			eventStatus: "https://schema.org/EventScheduled",
+			eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+			location: { "@type": "Place", name: "Venue", address: "Brussels" },
+		});
+	});
+
+	it("emits a VirtualLocation for online events", () => {
+		const result = event({
+			name: "Webinar",
+			startDate: "2026-01-01",
+			location: { online: true, url: "https://x.test/join" },
+		});
+		expect(result.location).toEqual({
+			"@type": "VirtualLocation",
+			url: "https://x.test/join",
+		});
 	});
 });
 
