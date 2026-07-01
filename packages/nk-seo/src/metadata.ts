@@ -4,7 +4,7 @@ import type { Metadata } from "next";
  * Per-site defaults for {@link createMetadata}. Set once, reuse on every page.
  */
 export interface MetadataSiteConfig {
-	/** Absolute site origin, e.g. "https://ingram.tech". */
+	/** Absolute site origin, e.g. "https://example.com". */
 	baseUrl: string;
 	/** OpenGraph `siteName`. */
 	siteName: string;
@@ -44,10 +44,10 @@ export interface PageMetadataInput {
  *
  * @example
  * export const metadata = createMetadata({
- *   baseUrl: "https://ingram.tech",
- *   siteName: "Ingram Technologies",
+ *   baseUrl: "https://example.com",
+ *   siteName: "Acme",
  *   defaultImage: "/images/og.png",
- *   twitterSite: "@IngramTech",
+ *   twitterSite: "@acme",
  * });
  * // in a page:
  * export const metadata = pageMetadata({ title, description, path: "/services" });

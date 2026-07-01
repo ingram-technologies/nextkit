@@ -23,7 +23,7 @@ export interface SitemapRoute {
 }
 
 export interface SitemapConfig {
-	/** Absolute site origin, e.g. "https://peppo.st". */
+	/** Absolute site origin, e.g. "https://example.com". */
 	baseUrl: string;
 	/** The indexable routes. Strings or `SitemapRoute` objects may be mixed. */
 	routes: Array<string | SitemapRoute>;
@@ -69,7 +69,7 @@ export function createSitemap(config: SitemapConfig): MetadataRoute.Sitemap {
 }
 
 export interface RobotsConfig {
-	/** Absolute site origin, e.g. "https://peppo.st". */
+	/** Absolute site origin, e.g. "https://example.com". */
 	baseUrl: string;
 	/**
 	 * Whether this deployment is the canonical production host. When false, the

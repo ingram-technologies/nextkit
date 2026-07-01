@@ -51,10 +51,10 @@ const DEFAULTS = {
  * export const contentType = "image/png";
  * export default () =>
  *   ogImageResponse({
- *     title: "Send Stripe invoices via Peppol",
- *     subtitle: "Compliant EU e-invoicing. No subscription.",
- *     wordmark: "Peppost",
- *     footer: "peppo.st",
+ *     title: "Ship faster with Acme",
+ *     subtitle: "The all-in-one platform for modern teams.",
+ *     wordmark: "Acme",
+ *     footer: "example.com",
  *   });
  */
 export function ogImageResponse(options: OgImageOptions): ImageResponse {

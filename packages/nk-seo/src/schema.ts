@@ -441,7 +441,7 @@ export function event(input: EventInput): JsonLdNode {
 // --- Factory ---------------------------------------------------------------
 
 export interface SeoConfig {
-	/** Absolute site origin, e.g. "https://financica.app". */
+	/** Absolute site origin, e.g. "https://example.com". */
 	baseUrl: string;
 	/** Shared publisher/provider, injected into article()/website()/organization(). */
 	organization?: OrganizationInput;

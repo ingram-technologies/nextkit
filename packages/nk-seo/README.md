@@ -1,7 +1,7 @@
 # @ingram-tech/nk-seo
 
-SEO primitives for Next.js sites, factored out of the patterns every Ingram site
-kept re-implementing:
+SEO primitives for Next.js sites, factored out of the patterns Next.js sites
+keep re-implementing:
 
 1. **`<JsonLd>`** + **typed schema.org builders** — `faqPage`, `breadcrumbList`,
    `article`, `softwareApplication`, `organization`, `website`, `person`,
@@ -38,17 +38,17 @@ import { createSeo } from "@ingram-tech/nk-seo";
 const seo = createSeo({
 	baseUrl: getServerUrl(),
 	organization: {
-		name: "Financica",
-		url: "https://financica.app",
-		logo: "https://financica.app/logo.png",
-		sameAs: ["https://linkedin.com/company/financica"],
+		name: "Acme",
+		url: "https://example.com",
+		logo: "https://example.com/logo.png",
+		sameAs: ["https://www.linkedin.com/company/acme"],
 	},
 });
 
 // Homepage:
 <JsonLd
 	data={seo.softwareApplication({
-		name: "Financica",
+		name: "Acme",
 		applicationCategory: "BusinessApplication",
 		operatingSystem: "Web",
 		offers: { priceCurrency: "EUR", lowPrice: 59, highPrice: 299, offerCount: 2, url: "/pricing" },
@@ -74,11 +74,11 @@ Already have absolute URLs and don't want the factory? The standalone builders
 import { createMetadata } from "@ingram-tech/nk-seo";
 
 export const pageMetadata = createMetadata({
-	baseUrl: "https://ingram.tech",
-	siteName: "Ingram Technologies",
+	baseUrl: "https://example.com",
+	siteName: "Acme",
 	defaultImage: "/images/og.png",
 	locale: "en_US",
-	twitterSite: "@IngramTech",
+	twitterSite: "@acme",
 });
 
 // app/services/page.tsx
@@ -138,14 +138,14 @@ import { ogImageResponse } from "@ingram-tech/nk-seo/og";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "Peppost — Send Stripe invoices via Peppol";
+export const alt = "Acme — Ship faster";
 
 export default () =>
 	ogImageResponse({
-		title: "Send Stripe invoices via Peppol",
-		subtitle: "Compliant EU e-invoicing. No subscription.",
-		wordmark: "Peppost",
-		footer: "peppo.st",
+		title: "Ship faster with Acme",
+		subtitle: "The all-in-one platform for modern teams.",
+		wordmark: "Acme",
+		footer: "example.com",
 		accent: "#565ac9",
 	});
 ```
@@ -170,11 +170,11 @@ res.headers.set("x-pathname", req.nextUrl.pathname);
 import { HreflangLinks } from "@ingram-tech/nk-seo/components";
 
 // Query-param locales (?hl=fr):
-<HreflangLinks baseUrl="https://financica.app" locales={["en", "fr", "nl"]} />
+<HreflangLinks baseUrl="https://example.com" locales={["en", "fr", "nl"]} />
 
 // Path-prefix locales (/fr/about), default locale bare, regional hreflang tags:
 <HreflangLinks
-	baseUrl="https://malinamore.studio"
+	baseUrl="https://example.com"
 	locales={["en", "fr", "nl"]}
 	strategy="prefix"
 	defaultLocale="en"

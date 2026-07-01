@@ -26,4 +26,4 @@
   `organization`, `website`) plus a `createSeo` factory, a `createMetadata`
   factory (canonical + OpenGraph + Twitter), and `<JsonLd>` / `<HreflangLinks>`
   components. Consolidates the structured-data, metadata, and hreflang code that
-  ingram.tech, malinamore.studio, and financica each re-implemented.
+  Next.js sites each re-implemented.

@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 
 export interface HreflangLinksProps {
-	/** Absolute site origin, e.g. "https://financica.app". */
+	/** Absolute site origin, e.g. "https://example.com". */
 	baseUrl: string;
 	/** Locales to emit `<link rel="alternate" hreflang>` for, e.g. ["en", "fr", "nl"]. */
 	locales: readonly string[];

@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import { createMetadata } from "./metadata.js";
 
 const pageMetadata = createMetadata({
-	baseUrl: "https://ingram.test",
-	siteName: "Ingram",
+	baseUrl: "https://example.test",
+	siteName: "Acme",
 	defaultImage: "/og.png",
 	locale: "en_US",
-	twitterSite: "@Ingram",
+	twitterSite: "@acme",
 });
 
 describe("createMetadata", () => {
@@ -16,17 +16,17 @@ describe("createMetadata", () => {
 			description: "What we do",
 			path: "/services",
 		});
-		expect(meta.alternates?.canonical).toBe("https://ingram.test/services");
-		expect(meta.openGraph?.url).toBe("https://ingram.test/services");
-		expect(meta.openGraph?.siteName).toBe("Ingram");
+		expect(meta.alternates?.canonical).toBe("https://example.test/services");
+		expect(meta.openGraph?.url).toBe("https://example.test/services");
+		expect(meta.openGraph?.siteName).toBe("Acme");
 	});
 
 	it("resolves the default image to an absolute Twitter/OG image", () => {
 		const meta = pageMetadata({ title: "T", description: "D", path: "/" });
 		expect(meta.twitter).toMatchObject({
 			card: "summary_large_image",
-			site: "@Ingram",
-			images: ["https://ingram.test/og.png"],
+			site: "@acme",
+			images: ["https://example.test/og.png"],
 		});
 	});
 
@@ -38,7 +38,7 @@ describe("createMetadata", () => {
 			image: "/custom.png",
 		});
 		expect(meta.twitter).toMatchObject({
-			images: ["https://ingram.test/custom.png"],
+			images: ["https://example.test/custom.png"],
 		});
 	});
 
