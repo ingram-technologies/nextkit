@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { createRobots, createSitemap } from "./routes.js";
 
-const baseUrl = "https://peppo.test";
+const baseUrl = "https://acme.test";
 
 describe("createSitemap", () => {
 	it("resolves relative paths and defaults priority (1 for root, 0.7 otherwise)", () => {
 		const map = createSitemap({ baseUrl, routes: ["/", "/pricing"] });
 		expect(map).toEqual([
-			{ url: "https://peppo.test/", priority: 1 },
-			{ url: "https://peppo.test/pricing", priority: 0.7 },
+			{ url: "https://acme.test/", priority: 1 },
+			{ url: "https://acme.test/pricing", priority: 0.7 },
 		]);
 	});
 
@@ -30,7 +30,7 @@ describe("createSitemap", () => {
 			routes: ["/a", { path: "/b", changeFrequency: "daily", priority: 0.9 }],
 		});
 		expect(map[0]).toEqual({
-			url: "https://peppo.test/a",
+			url: "https://acme.test/a",
 			lastModified: when,
 			changeFrequency: "monthly",
 			priority: 0.5,
@@ -56,8 +56,8 @@ describe("createRobots", () => {
 		});
 		expect(robots).toEqual({
 			rules: { userAgent: "*", allow: "/", disallow: ["/api/", "/login"] },
-			sitemap: "https://peppo.test/sitemap.xml",
-			host: "https://peppo.test",
+			sitemap: "https://acme.test/sitemap.xml",
+			host: "https://acme.test",
 		});
 	});
 
@@ -69,7 +69,7 @@ describe("createRobots", () => {
 		});
 		expect(robots).toEqual({
 			rules: { userAgent: "*", allow: "/" },
-			host: "https://peppo.test",
+			host: "https://acme.test",
 		});
 	});
 });

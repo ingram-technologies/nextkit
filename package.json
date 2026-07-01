@@ -16,7 +16,7 @@
 		"build": "bun run --filter '*' build",
 		"lint": "oxlint",
 		"format": "oxfmt --write .",
-		"check": "oxlint && oxfmt --check .",
+		"check": "oxlint && oxfmt --check . && bun run scripts/check-site-names.ts",
 		"type-check": "bun run --filter '*' type-check",
 		"test": "bun run --filter '*' test",
 		"ci": "bun run check && bun run build && bun run type-check && bun run test",

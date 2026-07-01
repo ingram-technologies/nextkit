@@ -18,4 +18,4 @@
   wallet (`./balance`) and an injection-based Postgres credit ledger with
   event-dedup (`@ingram-tech/nk-billing/credits`, ships `migrations/0001_billing.sql`).
   Consolidates the `getStripe()` singleton + checkout/webhook/credit patterns
-  independently grown in financica, integrain, thornhill, cloud, and domains.
+  independently grown across five of our sites.
