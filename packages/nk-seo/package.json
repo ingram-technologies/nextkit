@@ -23,6 +23,10 @@
 		"./components": {
 			"types": "./dist/components.d.ts",
 			"import": "./dist/components.js"
+		},
+		"./og": {
+			"types": "./dist/og.d.ts",
+			"import": "./dist/og.js"
 		}
 	},
 	"scripts": {

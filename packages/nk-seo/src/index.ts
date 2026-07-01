@@ -39,3 +39,10 @@ export {
 	type PageMetadata,
 	type PageMetadataInput,
 } from "./metadata.js";
+export {
+	createRobots,
+	createSitemap,
+	type RobotsConfig,
+	type SitemapConfig,
+	type SitemapRoute,
+} from "./routes.js";

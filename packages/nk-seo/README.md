@@ -9,7 +9,12 @@ kept re-implementing:
    paths and injects your publisher.
 2. **`createMetadata`** — a Next `Metadata` factory: canonical + OpenGraph +
    Twitter card from one title/description/path.
-3. **`<HreflangLinks>`** — self-referencing canonical plus per-locale `hreflang`
+3. **`createSitemap` / `createRobots`** — `app/sitemap.ts` and `app/robots.ts`
+   route helpers; `createRobots` blanket-disallows non-production hosts so
+   Vercel preview / branch URLs never get indexed.
+4. **`ogImageResponse`** (`@ingram-tech/nk-seo/og`) — a branded `next/og` share
+   card that sidesteps the Satori multi-child pitfall.
+5. **`<HreflangLinks>`** — self-referencing canonical plus per-locale `hreflang`
    alternates (query-param or path-prefix strategy).
 
 The package root (`@ingram-tech/nk-seo`) is **pure** — builders and the metadata
@@ -87,6 +92,68 @@ export const metadata = pageMetadata({
 Produces `title`, `description`, a self-referencing `alternates.canonical`,
 `openGraph`, and a `summary_large_image` Twitter card. Pass `noIndex`, `keywords`,
 `type: "article"`, or per-page `openGraph`/`twitter` overrides as needed.
+
+## Sitemap & robots
+
+```ts
+// app/sitemap.ts
+import { createSitemap } from "@ingram-tech/nk-seo";
+
+export default () =>
+	createSitemap({
+		baseUrl: getServerUrl(), // your deployment's own origin
+		routes: ["/", "/pricing", "/docs", "/faq", "/support"],
+	});
+```
+
+`"/"` defaults to priority 1, every other route to 0.7; pass objects
+(`{ path, lastModified, changeFrequency, priority }`) to override, or set
+`lastModified` / `defaultChangeFrequency` / `defaultPriority` site-wide.
+Absolute URLs pass through untouched.
+
+```ts
+// app/robots.ts
+import { createRobots } from "@ingram-tech/nk-seo";
+
+export default () =>
+	createRobots({
+		baseUrl: getServerUrl(),
+		isProduction: process.env.VERCEL_ENV === "production",
+		disallow: ["/api/", "/internal/", "/login"],
+	});
+```
+
+When `isProduction` is false the whole site is disallowed — the one SEO
+safeguard everyone forgets on Vercel, where preview and branch deployments are
+otherwise crawlable and compete with the production domain for the same content.
+
+## Open Graph image
+
+`@ingram-tech/nk-seo/og` is a separate entry (it pulls in `next/og`), so the
+package root and `/components` never carry the renderer.
+
+```tsx
+// app/opengraph-image.tsx  (and re-export from app/twitter-image.tsx)
+import { ogImageResponse } from "@ingram-tech/nk-seo/og";
+
+export const size = { width: 1200, height: 630 };
+export const contentType = "image/png";
+export const alt = "Peppost — Send Stripe invoices via Peppol";
+
+export default () =>
+	ogImageResponse({
+		title: "Send Stripe invoices via Peppol",
+		subtitle: "Compliant EU e-invoicing. No subscription.",
+		wordmark: "Peppost",
+		footer: "peppo.st",
+		accent: "#565ac9",
+	});
+```
+
+The template encodes the Satori rule that trips everyone up: every node with
+more than one child sets `display: flex`, and text nodes are never mixed with
+sibling elements — so the headline stays a plain string and the accent rides on
+the mark, not a coloured `<span>` inside the title.
 
 ## Hreflang & canonical
 
