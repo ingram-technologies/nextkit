@@ -1,5 +1,13 @@
 # @ingram-tech/nk-seo
 
+## 0.4.0
+
+### Minor Changes
+
+- `organization()` now accepts optional `address` (PostalAddress) and `telephone`,
+  so a company with a real office address can emit it on the Organization node
+  (and, via `publisher`, on WebSite) without dropping to LocalBusiness.
+
 ## 0.3.0
 
 ### Minor Changes

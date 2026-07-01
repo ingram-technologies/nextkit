@@ -65,6 +65,9 @@ export interface OrganizationInput {
 	logo?: string;
 	description?: string;
 	email?: string;
+	telephone?: string;
+	/** Registered/office postal address. */
+	address?: PostalAddressInput;
 	/** Profile/social URLs that corroborate the entity (LinkedIn, Crunchbase…). */
 	sameAs?: string[];
 }
@@ -78,6 +81,10 @@ function organizationNode(input: OrganizationInput): JsonLdNode {
 		...(input.logo ? { logo: { "@type": "ImageObject", url: input.logo } } : {}),
 		...(input.description ? { description: input.description } : {}),
 		...(input.email ? { email: input.email } : {}),
+		...(input.telephone ? { telephone: input.telephone } : {}),
+		...(input.address
+			? { address: { "@type": "PostalAddress", ...input.address } }
+			: {}),
 		...(input.sameAs?.length ? { sameAs: input.sameAs } : {}),
 	};
 }

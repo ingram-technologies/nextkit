@@ -137,6 +137,27 @@ describe("organization / website", () => {
 	it("keeps @context on a top-level organization", () => {
 		expect(organization({ name: "Acme" })["@context"]).toBe("https://schema.org");
 	});
+
+	it("nests a postal address and telephone when provided", () => {
+		const result = organization({
+			name: "Acme",
+			telephone: "+32 2 000 00 00",
+			address: {
+				streetAddress: "Rue X 1",
+				postalCode: "1000",
+				addressCountry: "BE",
+			},
+		});
+		expect(result).toMatchObject({
+			telephone: "+32 2 000 00 00",
+			address: {
+				"@type": "PostalAddress",
+				streetAddress: "Rue X 1",
+				postalCode: "1000",
+				addressCountry: "BE",
+			},
+		});
+	});
 });
 
 describe("person", () => {
