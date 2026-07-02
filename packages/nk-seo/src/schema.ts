@@ -1,17 +1,23 @@
+import { absoluteUrl } from "./url.js";
+
 /**
- * Typed schema.org JSON-LD builders. Each returns a plain object ready to hand
+ * Typed schema.org JSON-LD builders. Each returns a typed node ready to hand
  * to `<JsonLd>` (from "@ingram-tech/nk-seo/components").
  *
  * The standalone builders take values as-is: pass **absolute** URLs for
  * `url`/`image`/`logo` fields. If your pages work in site-relative paths and
  * share one Organization, prefer {@link createSeo}, which resolves paths against
- * a base URL and injects the publisher/provider for you.
+ * a base URL (including nested `logo`/`offers.url` fields) and injects the
+ * publisher/provider for you.
  */
 
 const CONTEXT = "https://schema.org";
 
-/** A schema.org node. Hand it to `<JsonLd data={...} />`. */
+/** A loosely-typed schema.org node. The builders return more precise subtypes. */
 export type JsonLdNode = Record<string, unknown>;
+
+/** A top-level schema.org node: the payload plus its `@context`. */
+export type WithContext<T> = T & { "@context": "https://schema.org" };
 
 // --- FAQPage ---------------------------------------------------------------
 
@@ -20,8 +26,19 @@ export interface FaqItem {
 	answer: string;
 }
 
+export type QuestionNode = {
+	"@type": "Question";
+	name: string;
+	acceptedAnswer: { "@type": "Answer"; text: string };
+};
+
+export type FaqPageNode = {
+	"@type": "FAQPage";
+	mainEntity: QuestionNode[];
+};
+
 /** FAQPage: marks up a list of question/answer pairs for FAQ rich results. */
-export function faqPage(items: FaqItem[]): JsonLdNode {
+export function faqPage(items: FaqItem[]): WithContext<FaqPageNode> {
 	return {
 		"@context": CONTEXT,
 		"@type": "FAQPage",
@@ -41,8 +58,22 @@ export interface BreadcrumbItem {
 	url: string;
 }
 
+export type ListItemNode = {
+	"@type": "ListItem";
+	position: number;
+	name: string;
+	item: string;
+};
+
+export type BreadcrumbListNode = {
+	"@type": "BreadcrumbList";
+	itemListElement: ListItemNode[];
+};
+
 /** BreadcrumbList: the trail of links Google shows in place of the raw URL. */
-export function breadcrumbList(items: BreadcrumbItem[]): JsonLdNode {
+export function breadcrumbList(
+	items: BreadcrumbItem[],
+): WithContext<BreadcrumbListNode> {
 	return {
 		"@context": CONTEXT,
 		"@type": "BreadcrumbList",
@@ -72,8 +103,24 @@ export interface OrganizationInput {
 	sameAs?: string[];
 }
 
+export type PostalAddressNode = { "@type": "PostalAddress" } & PostalAddressInput;
+
+export type ImageObjectNode = { "@type": "ImageObject"; url: string };
+
+export type OrganizationNode = {
+	"@type": "Organization";
+	name: string;
+	url?: string;
+	logo?: ImageObjectNode;
+	description?: string;
+	email?: string;
+	telephone?: string;
+	address?: PostalAddressNode;
+	sameAs?: string[];
+};
+
 /** Organization node without `@context`, for embedding as publisher/provider. */
-function organizationNode(input: OrganizationInput): JsonLdNode {
+function organizationNode(input: OrganizationInput): OrganizationNode {
 	return {
 		"@type": "Organization",
 		name: input.name,
@@ -90,7 +137,7 @@ function organizationNode(input: OrganizationInput): JsonLdNode {
 }
 
 /** Organization: the entity behind the site (for the knowledge panel). */
-export function organization(input: OrganizationInput): JsonLdNode {
+export function organization(input: OrganizationInput): WithContext<OrganizationNode> {
 	return { "@context": CONTEXT, ...organizationNode(input) };
 }
 
@@ -103,8 +150,15 @@ export interface WebsiteInput {
 	publisher?: OrganizationInput;
 }
 
+export type WebsiteNode = {
+	"@type": "WebSite";
+	name: string;
+	url: string;
+	publisher?: OrganizationNode;
+};
+
 /** WebSite: identifies the site as an entity; pair with {@link organization}. */
-export function website(input: WebsiteInput): JsonLdNode {
+export function website(input: WebsiteInput): WithContext<WebsiteNode> {
 	return {
 		"@context": CONTEXT,
 		"@type": "WebSite",
@@ -127,7 +181,23 @@ export interface OfferInput {
 	url?: string;
 }
 
-function offerNode(offer: OfferInput): JsonLdNode {
+export type OfferNode = {
+	"@type": "Offer";
+	priceCurrency: string;
+	price?: string;
+	url?: string;
+};
+
+export type AggregateOfferNode = {
+	"@type": "AggregateOffer";
+	priceCurrency: string;
+	lowPrice?: string;
+	highPrice?: string;
+	offerCount?: string;
+	url?: string;
+};
+
+function offerNode(offer: OfferInput): OfferNode | AggregateOfferNode {
 	const isAggregate = offer.lowPrice !== undefined || offer.highPrice !== undefined;
 	if (isAggregate) {
 		return {
@@ -165,8 +235,20 @@ export interface SoftwareApplicationInput {
 	offers?: OfferInput;
 }
 
+export type SoftwareApplicationNode = {
+	"@type": "SoftwareApplication";
+	name: string;
+	applicationCategory?: string;
+	operatingSystem?: string;
+	url?: string;
+	description?: string;
+	offers?: OfferNode | AggregateOfferNode;
+};
+
 /** SoftwareApplication: marks a product page as an app for rich results. */
-export function softwareApplication(input: SoftwareApplicationInput): JsonLdNode {
+export function softwareApplication(
+	input: SoftwareApplicationInput,
+): WithContext<SoftwareApplicationNode> {
 	return {
 		"@context": CONTEXT,
 		"@type": "SoftwareApplication",
@@ -205,8 +287,24 @@ export interface ArticleInput {
 	publisher?: OrganizationInput;
 }
 
+export type ArticleAuthorNode = { "@type": "Person"; name: string; url?: string };
+
+export type ArticleNode = {
+	"@type": "Article" | "BlogPosting" | "NewsArticle" | "ScholarlyArticle";
+	headline: string;
+	url: string;
+	mainEntityOfPage: string;
+	description?: string;
+	author?: ArticleAuthorNode[];
+	publisher?: OrganizationNode;
+	datePublished?: string;
+	dateModified?: string;
+	image?: string;
+	keywords?: string[];
+};
+
 /** Article (or BlogPosting/NewsArticle/ScholarlyArticle) for editorial pages. */
-export function article(input: ArticleInput): JsonLdNode {
+export function article(input: ArticleInput): WithContext<ArticleNode> {
 	const dateModified = input.dateModified ?? input.datePublished;
 	return {
 		"@context": CONTEXT,
@@ -218,7 +316,7 @@ export function article(input: ArticleInput): JsonLdNode {
 		...(input.authors?.length
 			? {
 					author: input.authors.map((author) => ({
-						"@type": "Person",
+						"@type": "Person" as const,
 						name: author.name,
 						...(author.url ? { url: author.url } : {}),
 					})),
@@ -251,11 +349,24 @@ export interface PersonInput {
 	homeLocation?: string;
 }
 
+export type PersonNode = {
+	"@type": "Person";
+	name: string;
+	url?: string;
+	jobTitle?: string;
+	worksFor?: OrganizationNode;
+	image?: string;
+	description?: string;
+	email?: string;
+	sameAs?: string[];
+	homeLocation?: { "@type": "Place"; name: string };
+};
+
 /** Person: identifies an individual as an entity (portfolio, team, author bios). */
-export function person(input: PersonInput): JsonLdNode {
+export function person(input: PersonInput): WithContext<PersonNode> {
 	const worksFor =
 		typeof input.worksFor === "string"
-			? { "@type": "Organization", name: input.worksFor }
+			? organizationNode({ name: input.worksFor })
 			: input.worksFor
 				? organizationNode(input.worksFor)
 				: undefined;
@@ -271,7 +382,7 @@ export function person(input: PersonInput): JsonLdNode {
 		...(input.email ? { email: input.email } : {}),
 		...(input.sameAs?.length ? { sameAs: input.sameAs } : {}),
 		...(input.homeLocation
-			? { homeLocation: { "@type": "Place", name: input.homeLocation } }
+			? { homeLocation: { "@type": "Place" as const, name: input.homeLocation } }
 			: {}),
 	};
 }
@@ -321,8 +432,41 @@ export interface LocalBusinessInput {
 	type?: string;
 }
 
+export type GeoCoordinatesNode = {
+	"@type": "GeoCoordinates";
+	latitude: number;
+	longitude: number;
+};
+
+export type AggregateRatingNode = {
+	"@type": "AggregateRating";
+	ratingValue: string;
+	reviewCount: string;
+};
+
+export type LocalBusinessNode = {
+	/** "LocalBusiness" or the subtype passed as `type`. */
+	"@type": string;
+	name: string;
+	url?: string;
+	description?: string;
+	image?: string[];
+	logo?: string;
+	email?: string;
+	telephone?: string;
+	priceRange?: string;
+	openingHours?: string | string[];
+	address?: PostalAddressNode;
+	geo?: GeoCoordinatesNode;
+	hasMap?: string;
+	aggregateRating?: AggregateRatingNode;
+	sameAs?: string[];
+};
+
 /** LocalBusiness (or a subtype): a physical business for local/maps SEO. */
-export function localBusiness(input: LocalBusinessInput): JsonLdNode {
+export function localBusiness(
+	input: LocalBusinessInput,
+): WithContext<LocalBusinessNode> {
 	return {
 		"@context": CONTEXT,
 		"@type": input.type ?? "LocalBusiness",
@@ -394,13 +538,39 @@ export interface EventInput {
 	attendanceMode?: "offline" | "online" | "mixed";
 }
 
-const ATTENDANCE_MODE: Record<string, string> = {
+export type PlaceNode = {
+	"@type": "Place";
+	name?: string;
+	address?: string;
+	url?: string;
+};
+
+export type VirtualLocationNode = { "@type": "VirtualLocation"; url?: string };
+
+export type EventNode = {
+	"@type": "Event";
+	name: string;
+	startDate: string;
+	endDate: string;
+	eventStatus: string;
+	eventAttendanceMode?: string;
+	description?: string;
+	url?: string;
+	image?: string[];
+	location?: PlaceNode | VirtualLocationNode;
+	organizer?: OrganizationNode;
+	offers?: OfferNode | AggregateOfferNode;
+};
+
+const ATTENDANCE_MODE: Record<NonNullable<EventInput["attendanceMode"]>, string> = {
 	offline: "https://schema.org/OfflineEventAttendanceMode",
 	online: "https://schema.org/OnlineEventAttendanceMode",
 	mixed: "https://schema.org/MixedEventAttendanceMode",
 };
 
-function eventLocationNode(location: EventLocationInput): JsonLdNode {
+function eventLocationNode(
+	location: EventLocationInput,
+): PlaceNode | VirtualLocationNode {
 	if (location.online) {
 		return {
 			"@type": "VirtualLocation",
@@ -416,7 +586,7 @@ function eventLocationNode(location: EventLocationInput): JsonLdNode {
 }
 
 /** Event: a scheduled happening (summit, workshop, conference) for event rich results. */
-export function event(input: EventInput): JsonLdNode {
+export function event(input: EventInput): WithContext<EventNode> {
 	return {
 		"@context": CONTEXT,
 		"@type": "Event",
@@ -441,9 +611,13 @@ export function event(input: EventInput): JsonLdNode {
 // --- Factory ---------------------------------------------------------------
 
 export interface SeoConfig {
-	/** Absolute site origin, e.g. "https://example.com". */
+	/** Absolute site origin, e.g. "https://acme.example". */
 	baseUrl: string;
-	/** Shared publisher/provider, injected into article()/website()/organization(). */
+	/**
+	 * Shared publisher/provider, injected into article()/website()/organization().
+	 * Its `url` and `logo` may be site-relative — they are resolved against
+	 * `baseUrl`.
+	 */
 	organization?: OrganizationInput;
 }
 
@@ -456,14 +630,26 @@ export interface BreadcrumbPath {
 /**
  * Binds the builders to a site so callers pass site-relative paths instead of
  * absolute URLs, and the configured Organization is injected automatically.
+ * Nested URL fields (`organization.url`/`logo`, `offers.url`, article `image`)
+ * are resolved too — JSON-LD must never ship relative URLs.
  *
  * @example
  * const seo = createSeo({ baseUrl: getServerUrl(), organization: ORG });
  * <JsonLd data={seo.article({ path: `/blog/${slug}`, headline, datePublished })} />
  */
 export function createSeo(config: SeoConfig) {
-	const absolute = (path: string): string =>
-		/^https?:\/\//.test(path) ? path : new URL(path, config.baseUrl).toString();
+	const absolute = (path: string): string => absoluteUrl(path, config.baseUrl);
+
+	const resolveOrg = (org: OrganizationInput): OrganizationInput => ({
+		...org,
+		...(org.url ? { url: absolute(org.url) } : {}),
+		...(org.logo ? { logo: absolute(org.logo) } : {}),
+	});
+
+	const resolveOffers = (offers: OfferInput): OfferInput => ({
+		...offers,
+		...(offers.url ? { url: absolute(offers.url) } : {}),
+	});
 
 	return {
 		/** Resolve a site-relative path to an absolute URL. */
@@ -471,40 +657,47 @@ export function createSeo(config: SeoConfig) {
 		/** FAQPage (path-free). */
 		faqPage,
 		/** BreadcrumbList from site-relative paths. */
-		breadcrumbs(items: BreadcrumbPath[]): JsonLdNode {
+		breadcrumbs(items: BreadcrumbPath[]): WithContext<BreadcrumbListNode> {
 			return breadcrumbList(
 				items.map((item) => ({ name: item.name, url: absolute(item.path) })),
 			);
 		},
 		/** Organization from config (with optional per-call overrides). */
-		organization(overrides?: Partial<OrganizationInput>): JsonLdNode {
+		organization(
+			overrides?: Partial<OrganizationInput>,
+		): WithContext<OrganizationNode> {
 			if (!config.organization) {
 				throw new Error(
 					"createSeo: organization() needs `organization` in config",
 				);
 			}
-			return organization({ ...config.organization, ...overrides });
+			return organization(resolveOrg({ ...config.organization, ...overrides }));
 		},
 		/** WebSite from config, defaulting name/url/publisher to the configured org. */
-		website(input?: Partial<WebsiteInput>): JsonLdNode {
+		website(input?: Partial<WebsiteInput>): WithContext<WebsiteNode> {
 			const name = input?.name ?? config.organization?.name;
 			if (!name) {
 				throw new Error(
 					"createSeo: website() needs a name or configured organization",
 				);
 			}
+			const publisher = input?.publisher ?? config.organization;
 			return website({
 				name,
-				url: input?.url ?? config.baseUrl,
-				publisher: input?.publisher ?? config.organization,
+				url: absolute(input?.url ?? config.baseUrl),
+				...(publisher ? { publisher: resolveOrg(publisher) } : {}),
 			});
 		},
-		/** SoftwareApplication; `path` (default "/") is resolved to an absolute URL. */
+		/** SoftwareApplication; `path` (default "/") and `offers.url` are resolved. */
 		softwareApplication(
 			input: Omit<SoftwareApplicationInput, "url"> & { path?: string },
-		): JsonLdNode {
-			const { path, ...rest } = input;
-			return softwareApplication({ ...rest, url: absolute(path ?? "/") });
+		): WithContext<SoftwareApplicationNode> {
+			const { path, offers, ...rest } = input;
+			return softwareApplication({
+				...rest,
+				url: absolute(path ?? "/"),
+				...(offers ? { offers: resolveOffers(offers) } : {}),
+			});
 		},
 		/** Article; `path`/`image` are resolved and the configured org becomes publisher. */
 		article(
@@ -513,13 +706,16 @@ export function createSeo(config: SeoConfig) {
 				image?: string;
 				publisher?: OrganizationInput;
 			},
-		): JsonLdNode {
+		): WithContext<ArticleNode> {
 			const { path, image, publisher, ...rest } = input;
+			const resolvedPublisher = publisher ?? config.organization;
 			return article({
 				...rest,
 				url: absolute(path),
 				...(image ? { image: absolute(image) } : {}),
-				publisher: publisher ?? config.organization,
+				...(resolvedPublisher
+					? { publisher: resolveOrg(resolvedPublisher) }
+					: {}),
 			});
 		},
 	};

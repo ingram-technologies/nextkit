@@ -57,6 +57,11 @@ describe("createMetadata", () => {
 		expect(meta.robots).toBeUndefined();
 	});
 
+	it("sets metadataBase so Next can resolve any leftover relative URLs", () => {
+		const meta = pageMetadata({ title: "T", description: "D", path: "/p" });
+		expect(meta.metadataBase).toEqual(new URL("https://example.test"));
+	});
+
 	it("merges a per-page openGraph override (article type)", () => {
 		const meta = pageMetadata({
 			title: "Post",
@@ -65,5 +70,30 @@ describe("createMetadata", () => {
 			type: "article",
 		});
 		expect(meta.openGraph?.type).toBe("article");
+	});
+});
+
+describe("pageMetadata.root", () => {
+	it("emits a plain default title when no template is configured", () => {
+		const root = pageMetadata.root();
+		expect(root.title).toBe("Acme");
+		expect(root.metadataBase).toEqual(new URL("https://example.test"));
+	});
+
+	it("emits title.default + title.template when titleTemplate is configured", () => {
+		const withTemplate = createMetadata({
+			baseUrl: "https://example.test",
+			siteName: "Acme",
+			titleTemplate: "%s | Acme",
+		});
+		expect(withTemplate.root({ description: "About us" })).toMatchObject({
+			title: { default: "Acme", template: "%s | Acme" },
+			description: "About us",
+		});
+	});
+
+	it("lets overrides win over the generated metadata", () => {
+		const root = pageMetadata.root({ overrides: { title: "Custom" } });
+		expect(root.title).toBe("Custom");
 	});
 });

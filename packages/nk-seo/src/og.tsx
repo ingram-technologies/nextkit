@@ -1,5 +1,7 @@
 import { ImageResponse } from "next/og";
 
+type ImageResponseOptions = NonNullable<ConstructorParameters<typeof ImageResponse>[1]>;
+
 /**
  * A branded Open Graph / Twitter card built with `next/og`. Lives on its own
  * entry (`@ingram-tech/nk-seo/og`) because it imports `next/og` (satori + the
@@ -22,6 +24,11 @@ export interface OgImageOptions {
 	footer?: string;
 	/** Brand name shown next to the mark, top-left. */
 	wordmark?: string;
+	/**
+	 * Logo image rendered as the top-left mark instead of the accent square.
+	 * Absolute URL or data URI (Satori fetches it at render time).
+	 */
+	logo?: string;
 	/** Accent colour — the mark, and the eyebrow if present. Default indigo. */
 	accent?: string;
 	background?: string;
@@ -30,6 +37,13 @@ export interface OgImageOptions {
 	/** Secondary text colour (subtitle, footer). */
 	muted?: string;
 	size?: { width: number; height: number };
+	/**
+	 * Custom fonts, passed through to `ImageResponse` (Satori accepts raw
+	 * TTF/OTF/WOFF data). Pair with `fontFamily` to actually use them.
+	 */
+	fonts?: ImageResponseOptions["fonts"];
+	/** Font family for the whole card. Default "sans-serif". */
+	fontFamily?: string;
 }
 
 const DEFAULTS = {
@@ -74,18 +88,22 @@ export function ogImageResponse(options: OgImageOptions): ImageResponse {
 				justifyContent: "space-between",
 				background,
 				padding: "80px",
-				fontFamily: "sans-serif",
+				fontFamily: options.fontFamily ?? "sans-serif",
 			}}
 		>
 			<div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-				<div
-					style={{
-						width: "44px",
-						height: "44px",
-						borderRadius: "12px",
-						background: accent,
-					}}
-				/>
+				{options.logo ? (
+					<img src={options.logo} width={44} height={44} alt="" />
+				) : (
+					<div
+						style={{
+							width: "44px",
+							height: "44px",
+							borderRadius: "12px",
+							background: accent,
+						}}
+					/>
+				)}
 				{options.wordmark ? (
 					<div style={{ fontSize: "40px", fontWeight: 600, color: ink }}>
 						{options.wordmark}
@@ -132,6 +150,6 @@ export function ogImageResponse(options: OgImageOptions): ImageResponse {
 				<div style={{ display: "flex" }} />
 			)}
 		</div>,
-		size,
+		{ ...size, ...(options.fonts ? { fonts: options.fonts } : {}) },
 	);
 }

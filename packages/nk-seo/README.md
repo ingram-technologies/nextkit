@@ -61,11 +61,17 @@ const seo = createSeo({
 <JsonLd data={seo.breadcrumbs([{ name: "Home", path: "/" }, { name: "Blog", path: "/blog" }, { name: title, path: `/blog/${slug}` }])} />
 ```
 
-Already have absolute URLs and don't want the factory? The standalone builders
-(`faqPage`, `article`, `breadcrumbList`, …) take absolute URLs directly.
+`createSeo` resolves **nested** URL fields too — the organization's `url`/`logo`
+and `offers.url` may be site-relative, as in the example above. Already have
+absolute URLs and don't want the factory? The standalone builders (`faqPage`,
+`article`, `breadcrumbList`, …) take absolute URLs directly (they resolve
+nothing).
 
-`<JsonLd data={...} />` accepts a single node or an array (e.g.
-`[organization(org), website(site)]` on the homepage).
+Every builder returns a typed node (`FaqPageNode`, `ArticleNode`, …), so the
+shape survives past the call site. `<JsonLd data={...} />` accepts a single node
+or an array (e.g. `[organization(org), website(site)]` on the homepage), and
+escapes `<` on serialization so CMS-sourced strings can't break out of the
+`<script>` tag.
 
 ## Page metadata
 
@@ -76,10 +82,14 @@ import { createMetadata } from "@ingram-tech/nk-seo";
 export const pageMetadata = createMetadata({
 	baseUrl: "https://example.com",
 	siteName: "Acme",
+	titleTemplate: "%s | Acme",
 	defaultImage: "/images/og.png",
 	locale: "en_US",
 	twitterSite: "@acme",
 });
+
+// app/layout.tsx — metadataBase + default title (+ template when configured):
+export const metadata = pageMetadata.root({ description: "The Acme platform." });
 
 // app/services/page.tsx
 export const metadata = pageMetadata({
@@ -91,7 +101,9 @@ export const metadata = pageMetadata({
 
 Produces `title`, `description`, a self-referencing `alternates.canonical`,
 `openGraph`, and a `summary_large_image` Twitter card. Pass `noIndex`, `keywords`,
-`type: "article"`, or per-page `openGraph`/`twitter` overrides as needed.
+`type: "article"`, or per-page `openGraph`/`twitter` overrides as needed. With
+`titleTemplate` set, `pageMetadata.root()` emits `title.template`, so plain page
+titles render as "Services | Acme" without every page appending the suffix.
 
 ## Sitemap & robots
 
@@ -107,9 +119,12 @@ export default () =>
 ```
 
 `"/"` defaults to priority 1, every other route to 0.7; pass objects
-(`{ path, lastModified, changeFrequency, priority }`) to override, or set
-`lastModified` / `defaultChangeFrequency` / `defaultPriority` site-wide.
-Absolute URLs pass through untouched.
+(`{ path, lastModified, changeFrequency, priority, languages }`) to override, or
+set `lastModified` / `defaultChangeFrequency` / `defaultPriority` site-wide.
+Absolute URLs pass through untouched; a `priority` outside 0–1 throws (Google
+would silently reject the whole entry). Localized routes can declare their
+alternates — `languages: { en: "/about", fr: "/fr/about" }` — mirroring what
+`<HreflangLinks>` emits on the page itself.
 
 ```ts
 // app/robots.ts
@@ -150,10 +165,21 @@ export default () =>
 	});
 ```
 
+Pass `logo` (absolute URL or data URI) to replace the accent-square mark with
+your logo, and `fonts` + `fontFamily` to render with the brand typeface —
+`fonts` is forwarded to `ImageResponse`, which takes raw TTF/OTF/WOFF data.
+
 The template encodes the Satori rule that trips everyone up: every node with
 more than one child sets `display: flex`, and text nodes are never mixed with
 sibling elements — so the headline stays a plain string and the accent rides on
 the mark, not a coloured `<span>` inside the title.
+
+No linter or type-check validates Satori-supported CSS (`ImageResponse` accepts
+all of `React.CSSProperties`; Satori silently drops what it doesn't know), so
+the only real validator is rendering. This package renders its template through
+the real satori + resvg pipeline in its own tests; if a site hand-rolls extra
+cards, give it the same guard — a vitest file (node environment) that renders
+each `opengraph-image.tsx` and asserts a valid PNG comes out.
 
 ## Hreflang & canonical
 
@@ -183,4 +209,15 @@ import { HreflangLinks } from "@ingram-tech/nk-seo/components";
 />
 ```
 
-Pass `pathname` explicitly if you don't use the `x-pathname` header.
+Pass `pathname` explicitly if you don't use the `x-pathname` header. When
+neither is available the component **throws** instead of guessing — a silent
+fallback would canonicalize every page to the homepage, the kind of site-wide
+SEO bug nobody notices for months.
+
+Two rules of the road:
+
+- **One canonical per page.** If your pages already set `alternates.canonical`
+  (e.g. via `createMetadata`), render `<HreflangLinks canonical={false} />`.
+- Building metadata instead of rendering links? The pure `hreflangAlternates`
+  (package root) returns the same `{ canonical, links }` for use in
+  `generateMetadata`.

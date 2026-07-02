@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { absoluteUrl } from "./url.js";
 
 /**
  * Route-handler helpers for `app/sitemap.ts` and `app/robots.ts`. Pure — no
@@ -12,6 +13,11 @@ import type { MetadataRoute } from "next";
 
 type ChangeFrequency = NonNullable<MetadataRoute.Sitemap[number]["changeFrequency"]>;
 
+/** hreflang → URL map, keyed by the locale codes Next accepts. */
+export type SitemapLanguages = NonNullable<
+	NonNullable<MetadataRoute.Sitemap[number]["alternates"]>["languages"]
+>;
+
 /** A sitemap entry. A bare string is shorthand for `{ path }`. */
 export interface SitemapRoute {
 	/** Site-relative path (e.g. "/pricing") or an absolute URL. */
@@ -20,6 +26,12 @@ export interface SitemapRoute {
 	changeFrequency?: ChangeFrequency;
 	/** 0.0–1.0. Defaults to 1 for "/" and {@link SitemapConfig.defaultPriority} otherwise. */
 	priority?: number;
+	/**
+	 * Per-locale alternates of this route (hreflang → site-relative path or
+	 * absolute URL), e.g. `{ en: "/about", fr: "/fr/about" }`. Pairs with
+	 * `<HreflangLinks>` / `hreflangAlternates` on the page side.
+	 */
+	languages?: SitemapLanguages;
 }
 
 export interface SitemapConfig {
@@ -35,8 +47,18 @@ export interface SitemapConfig {
 	defaultPriority?: number;
 }
 
-const toAbsolute = (path: string, baseUrl: string): string =>
-	/^https?:\/\//.test(path) ? path : new URL(path, baseUrl).toString();
+const resolveLanguages = (
+	languages: SitemapLanguages,
+	baseUrl: string,
+): SitemapLanguages =>
+	// Object.entries/fromEntries erase the hreflang key union; the keys are
+	// passed through unchanged (only values are resolved), so restoring it is safe.
+	Object.fromEntries(
+		Object.entries(languages).map(([locale, path]) => [
+			locale,
+			path === undefined ? path : absoluteUrl(path, baseUrl),
+		]),
+	) as SitemapLanguages;
 
 /**
  * Builds a `MetadataRoute.Sitemap` from a list of routes, resolving relative
@@ -59,11 +81,26 @@ export function createSitemap(config: SitemapConfig): MetadataRoute.Sitemap {
 		const lastModified = route.lastModified ?? config.lastModified;
 		const changeFrequency = route.changeFrequency ?? config.defaultChangeFrequency;
 		const priority = route.priority ?? (route.path === "/" ? 1 : defaultPriority);
+		if (priority < 0 || priority > 1) {
+			throw new RangeError(
+				`createSitemap: priority must be between 0 and 1, got ${priority} for "${route.path}"`,
+			);
+		}
 		return {
-			url: toAbsolute(route.path, config.baseUrl),
+			url: absoluteUrl(route.path, config.baseUrl),
 			...(lastModified ? { lastModified } : {}),
 			...(changeFrequency ? { changeFrequency } : {}),
 			priority,
+			...(route.languages
+				? {
+						alternates: {
+							languages: resolveLanguages(
+								route.languages,
+								config.baseUrl,
+							),
+						},
+					}
+				: {}),
 		};
 	});
 }
@@ -114,7 +151,6 @@ export function createRobots(config: RobotsConfig): MetadataRoute.Robots {
 			allow: config.allow ?? "/",
 			...(config.disallow?.length ? { disallow: config.disallow } : {}),
 		},
-		...(sitemapPath ? { sitemap: toAbsolute(sitemapPath, config.baseUrl) } : {}),
-		host: config.baseUrl,
+		...(sitemapPath ? { sitemap: absoluteUrl(sitemapPath, config.baseUrl) } : {}),
 	};
 }

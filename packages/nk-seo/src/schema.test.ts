@@ -285,4 +285,30 @@ describe("createSeo", () => {
 		const bare = createSeo({ baseUrl: "https://x.test" });
 		expect(() => bare.organization()).toThrow(/organization/);
 	});
+
+	it("resolves offers.url in softwareApplication()", () => {
+		const result = seo.softwareApplication({
+			name: "App",
+			offers: { priceCurrency: "EUR", price: 9, url: "/pricing" },
+		});
+		expect(result.url).toBe("https://x.test/");
+		expect(result.offers).toMatchObject({ url: "https://x.test/pricing" });
+	});
+
+	it("resolves a site-relative organization url/logo everywhere the org is injected", () => {
+		const relative = createSeo({
+			baseUrl: "https://x.test",
+			organization: { name: "Acme", url: "/", logo: "/logo.png" },
+		});
+		expect(relative.organization()).toMatchObject({
+			url: "https://x.test/",
+			logo: { "@type": "ImageObject", url: "https://x.test/logo.png" },
+		});
+		expect(relative.website().publisher).toMatchObject({
+			logo: { url: "https://x.test/logo.png" },
+		});
+		expect(
+			relative.article({ path: "/blog/x", headline: "X" }).publisher,
+		).toMatchObject({ url: "https://x.test/" });
+	});
 });

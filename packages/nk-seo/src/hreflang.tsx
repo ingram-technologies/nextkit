@@ -1,10 +1,7 @@
 import { headers } from "next/headers";
+import { hreflangAlternates, type HreflangConfig } from "./alternates.js";
 
-export interface HreflangLinksProps {
-	/** Absolute site origin, e.g. "https://example.com". */
-	baseUrl: string;
-	/** Locales to emit `<link rel="alternate" hreflang>` for, e.g. ["en", "fr", "nl"]. */
-	locales: readonly string[];
+export interface HreflangLinksProps extends HreflangConfig {
 	/**
 	 * Path being rendered. Defaults to the `x-pathname` request header (set it in
 	 * middleware: `headers.set("x-pathname", req.nextUrl.pathname)`). Pass
@@ -12,19 +9,10 @@ export interface HreflangLinksProps {
 	 */
 	pathname?: string;
 	/**
-	 * How locale is encoded in the alternate URLs:
-	 *  - `"query"` (default): `${baseUrl}${path}?${param}=${locale}` for every locale.
-	 *  - `"prefix"`: the default locale stays at the bare path; others get
-	 *    `/${locale}${path}` (matches a localized-rewrite setup).
+	 * Emit a self-referencing `<link rel="canonical">`. Default `true`.
+	 * Disable it if the page's metadata already sets `alternates.canonical`
+	 * (e.g. via `createMetadata`) — a page must not declare two canonicals.
 	 */
-	strategy?: "query" | "prefix";
-	/** Query-param name for the `"query"` strategy. Default `"hl"`. */
-	param?: string;
-	/** Default (unprefixed) locale for the `"prefix"` strategy. */
-	defaultLocale?: string;
-	/** Optional locale → hreflang tag map, e.g. `{ en: "en-BE", fr: "fr-BE" }`. */
-	hrefLangTags?: Record<string, string>;
-	/** Emit a self-referencing `<link rel="canonical">`. Default `true`. */
 	canonical?: boolean;
 }
 
@@ -32,43 +20,37 @@ export interface HreflangLinksProps {
  * Emits `<link rel="canonical">` plus per-locale `<link rel="alternate" hreflang>`
  * (and an `x-default`) for the current path. Render inside `<head>` (e.g. from
  * the root layout). Server component — reads the `x-pathname` header by default.
+ *
+ * Throws when neither `pathname` nor the header is available: silently falling
+ * back would canonicalize every page to the homepage, a site-wide
+ * duplicate-content bug that is otherwise invisible.
  */
 export async function HreflangLinks({
-	baseUrl,
-	locales,
 	pathname,
-	strategy = "query",
-	param = "hl",
-	defaultLocale,
-	hrefLangTags,
 	canonical = true,
+	...config
 }: HreflangLinksProps) {
-	const path = pathname ?? (await headers()).get("x-pathname") ?? "/";
-	const canonicalUrl = `${baseUrl}${path}`;
-
-	const hrefFor = (locale: string): string => {
-		if (strategy === "prefix") {
-			if (defaultLocale && locale === defaultLocale) {
-				return canonicalUrl;
-			}
-			const clean = path === "/" ? "" : path;
-			return `${baseUrl}/${locale}${clean}`;
-		}
-		return `${canonicalUrl}?${param}=${locale}`;
-	};
+	const path = pathname ?? (await headers()).get("x-pathname");
+	if (!path) {
+		throw new Error(
+			"HreflangLinks: no `pathname` prop and no `x-pathname` request header. " +
+				'Set the header in middleware (`res.headers.set("x-pathname", req.nextUrl.pathname)`) ' +
+				"or pass `pathname` explicitly.",
+		);
+	}
+	const { canonical: canonicalUrl, links } = hreflangAlternates(config, path);
 
 	return (
 		<>
 			{canonical ? <link rel="canonical" href={canonicalUrl} /> : null}
-			{locales.map((locale) => (
+			{links.map((link) => (
 				<link
-					key={locale}
+					key={link.hrefLang}
 					rel="alternate"
-					hrefLang={hrefLangTags?.[locale] ?? locale}
-					href={hrefFor(locale)}
+					hrefLang={link.hrefLang}
+					href={link.href}
 				/>
 			))}
-			<link rel="alternate" hrefLang="x-default" href={canonicalUrl} />
 		</>
 	);
 }

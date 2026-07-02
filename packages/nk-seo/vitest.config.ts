@@ -1,9 +1,10 @@
 import { defineConfig } from "vitest/config";
 
-// The builders and metadata factory are pure functions; no DOM needed.
+// Node environment throughout: the builders are pure functions, and the og
+// render test needs node (jsdom breaks resvg's SVG→PNG step).
 export default defineConfig({
 	test: {
 		environment: "node",
-		include: ["src/**/*.test.ts"],
+		include: ["src/**/*.test.{ts,tsx}"],
 	},
 });

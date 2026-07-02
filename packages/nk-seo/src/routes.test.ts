@@ -40,6 +40,34 @@ describe("createSitemap", () => {
 			priority: 0.9,
 		});
 	});
+
+	it("resolves per-locale language alternates against the base URL", () => {
+		const [entry] = createSitemap({
+			baseUrl,
+			routes: [
+				{
+					path: "/about",
+					languages: { en: "/about", fr: "/fr/about", "x-default": "/about" },
+				},
+			],
+		});
+		expect(entry.alternates).toEqual({
+			languages: {
+				en: "https://acme.test/about",
+				fr: "https://acme.test/fr/about",
+				"x-default": "https://acme.test/about",
+			},
+		});
+	});
+
+	it("rejects a priority outside 0–1", () => {
+		expect(() =>
+			createSitemap({ baseUrl, routes: [{ path: "/a", priority: 7 }] }),
+		).toThrow(RangeError);
+		expect(() =>
+			createSitemap({ baseUrl, routes: ["/a"], defaultPriority: -0.1 }),
+		).toThrow(/priority/);
+	});
 });
 
 describe("createRobots", () => {
@@ -57,7 +85,6 @@ describe("createRobots", () => {
 		expect(robots).toEqual({
 			rules: { userAgent: "*", allow: "/", disallow: ["/api/", "/login"] },
 			sitemap: "https://acme.test/sitemap.xml",
-			host: "https://acme.test",
 		});
 	});
 
@@ -69,7 +96,6 @@ describe("createRobots", () => {
 		});
 		expect(robots).toEqual({
 			rules: { userAgent: "*", allow: "/" },
-			host: "https://acme.test",
 		});
 	});
 });
