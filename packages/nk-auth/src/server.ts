@@ -25,6 +25,7 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { NK_AUTH_PATH_HEADER, signInUrl } from "./gating-internals.js";
+import { CREDENTIAL_PROVIDER_ID } from "./password.js";
 
 /**
  * Validate a `next` redirect param: returns it only if it's an internal,
@@ -46,6 +47,15 @@ interface SessionLike {
 interface AuthLike<S extends SessionLike> {
 	api: {
 		getSession: (input: { headers: Headers }) => Promise<S | null>;
+		/**
+		 * Better Auth's `/list-accounts`: the auth methods linked to the current
+		 * session's user, each `{ providerId }` ("credential" for email/password,
+		 * or a social provider like "google"). Present on every real `betterAuth()`
+		 * instance; powers `getLinkedProviders` / `hasCredentialAccount` below.
+		 */
+		listUserAccounts: (input: {
+			headers: Headers;
+		}) => Promise<Array<{ providerId: string }>>;
 	};
 }
 
@@ -123,11 +133,38 @@ export function createAuthHelpers<S extends SessionLike>(
 		if (await getSession()) redirect(to);
 	}
 
+	/**
+	 * The `providerId`s linked to the current session's user — "credential" for
+	 * email/password, plus any social providers ("google", …). Empty when signed
+	 * out. Reads Better Auth's own `/list-accounts`, so a site never queries the
+	 * `account` table or hard-codes provider strings itself.
+	 */
+	async function getLinkedProviders(): Promise<string[]> {
+		const accounts = await auth.api.listUserAccounts({
+			headers: await headers(),
+		});
+		return accounts.map((account) => account.providerId);
+	}
+
+	/**
+	 * Whether the current user has an email/password credential. Drives the
+	 * "Change password" vs "Set password" decision on a security page: a user who
+	 * signed up purely through a social provider has none until they set one
+	 * (typically via the reset-password / forgot-password flow — see the
+	 * `useResetPassword` client hook). Returns false when signed out.
+	 */
+	async function hasCredentialAccount(): Promise<boolean> {
+		const providers = await getLinkedProviders();
+		return providers.includes(CREDENTIAL_PROVIDER_ID);
+	}
+
 	return {
 		getSession,
 		getUser,
 		requireSession,
 		requireUser,
 		redirectIfAuthenticated,
+		getLinkedProviders,
+		hasCredentialAccount,
 	};
 }

@@ -176,6 +176,8 @@ export const {
 	requireSession,
 	requireUser,
 	redirectIfAuthenticated,
+	getLinkedProviders, // providerIds linked to the current user
+	hasCredentialAccount, // does the current user have an email/password login?
 } = createAuthHelpers(auth);
 ```
 
@@ -243,6 +245,84 @@ the cookie-present case the guard reads it from the `x-nk-auth-path` header
 middleware injects — so the self-heal (next + clearing) needs the middleware.
 Sites that skip middleware still get validated gating from the server helpers,
 just without automatic `next`/clearing.
+
+## 6. Passwords: change, set, and reset
+
+nk-auth owns the reset **sender** (`makeEmailSenders.sendResetPassword`, §2) and
+now closes the loop so a site never touches Better Auth's `account` table or
+endpoint names directly. Three pieces:
+
+**Detect what login the user has.** A social-only account (Google, …) has no
+password credential until it sets one. `hasCredentialAccount()` drives the
+"Change password" vs "Set password" choice on a security page; reach for
+`getLinkedProviders()` when you need the full list.
+
+```tsx
+// app/settings/security/page.tsx (server component)
+import { hasCredentialAccount } from "@/lib/auth/session";
+export default async function Security() {
+	return (await hasCredentialAccount()) ? <ChangePassword /> : <SetPassword />;
+}
+```
+
+**Set a password without a current one.** A social-only user has no current
+password to verify, so the re-auth is an emailed reset link — clicking it proves
+account ownership. Trigger it with the standard client call; there is no separate
+"set password" endpoint:
+
+```ts
+await authClient.requestPasswordReset({
+	email,
+	redirectTo: "/reset-password", // your token-consumer page (below)
+});
+```
+
+Better Auth's reset endpoint **creates** the credential when the user has none,
+so the same flow both resets a forgotten password and sets a first one. That
+guarantee is pinned by `reset-password.test.ts` against a real instance, so a
+Better Auth upgrade can't silently break the set-password path.
+
+**Consume the token.** The email link lands on your page with `?token=` (or
+`?error=INVALID_TOKEN`). `useResetPassword` is the headless state machine —
+invalid-token, submitting, success, and policy validation (length + match) —
+against the shared `passwordSchema` bounds. You bring the shell:
+
+```tsx
+"use client";
+import { useResetPassword } from "@ingram-tech/nk-auth/client";
+import { authClient } from "@/lib/auth/client";
+
+export function ResetPasswordForm({ token }: { token: string | null }) {
+	const { status, error, submit } = useResetPassword(authClient, { token });
+	if (status === "invalid") return <p>This link is invalid or has expired.</p>;
+	if (status === "success") return <p>Password set. You can now sign in.</p>;
+	// <form onSubmit={() => submit(newPassword, confirm)}>; render `error.code`
+	// (stable, for i18n) or `error.message` (English fallback).
+}
+```
+
+Policy constants live at `@ingram-tech/nk-auth/password` (pure, importable from
+both ends): `DEFAULT_MIN_PASSWORD_LENGTH` / `DEFAULT_MAX_PASSWORD_LENGTH`,
+`passwordSchema()`, and `validateNewPassword()`. Pass your resolved bounds to
+`useResetPassword({ token, minLength, maxLength })` if you override Better Auth's
+defaults, so the form and the server never drift.
+
+**`.well-known/change-password`.** Add the [W3C well-known
+redirect](https://w3c.github.io/webappsec-change-password-url/) so password
+managers deep-link straight to your security page. It's a per-app route target,
+so nk-auth documents the convention rather than shipping it — in `next.config`:
+
+```ts
+async redirects() {
+	return [
+		{
+			source: "/.well-known/change-password",
+			destination: "/settings/security", // your Change/Set password page
+			permanent: false,
+		},
+	];
+}
+```
 
 ## Migrating bcrypt passwords to scrypt
 

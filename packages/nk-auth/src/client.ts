@@ -20,5 +20,25 @@
 export { passkeyClient } from "@better-auth/passkey/client";
 export { jwtClient } from "better-auth/client/plugins";
 export { createAuthClient } from "better-auth/react";
+// Password-policy primitives (pure), so a reset form validates against the same
+// bounds the server enforces without a second import.
+export {
+	CREDENTIAL_PROVIDER_ID,
+	DEFAULT_MAX_PASSWORD_LENGTH,
+	DEFAULT_MIN_PASSWORD_LENGTH,
+	type PasswordPolicy,
+	passwordSchema,
+	type ResetPasswordError,
+	type ResetPasswordErrorCode,
+	validateNewPassword,
+} from "./password.js";
 // Re-exported here too so the client can set `basePath` without a server import.
 export { authBasePath } from "./paths.js";
+// Headless reset-/set-password controller (React hook); the site brings the shell.
+export {
+	type ResetPasswordClient,
+	type ResetPasswordStatus,
+	type UseResetPassword,
+	type UseResetPasswordOptions,
+	useResetPassword,
+} from "./reset-password.js";

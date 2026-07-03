@@ -19,5 +19,15 @@ export {
 	lastActiveOrganizationUserField,
 	nkOrganizationDefaults,
 } from "./organization.js";
+export {
+	CREDENTIAL_PROVIDER_ID,
+	DEFAULT_MAX_PASSWORD_LENGTH,
+	DEFAULT_MIN_PASSWORD_LENGTH,
+	type PasswordPolicy,
+	passwordSchema,
+	type ResetPasswordError,
+	type ResetPasswordErrorCode,
+	validateNewPassword,
+} from "./password.js";
 export { authBasePath } from "./paths.js";
 export { createAuthPool } from "./pool.js";

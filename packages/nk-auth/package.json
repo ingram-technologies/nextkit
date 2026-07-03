@@ -41,6 +41,10 @@
 			"types": "./dist/paths.d.ts",
 			"import": "./dist/paths.js"
 		},
+		"./password": {
+			"types": "./dist/password.d.ts",
+			"import": "./dist/password.js"
+		},
 		"./server": {
 			"types": "./dist/server.d.ts",
 			"import": "./dist/server.js"

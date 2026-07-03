@@ -32,7 +32,17 @@ const session = { user: { id: "u1", email: "a@b.com" }, session: { id: "s1" } };
 const helpers = (
 	value: typeof session | null,
 	options?: Parameters<typeof createAuthHelpers>[1],
-) => createAuthHelpers({ api: { getSession: async () => value } }, options);
+	accounts: Array<{ providerId: string }> = [],
+) =>
+	createAuthHelpers(
+		{
+			api: {
+				getSession: async () => value,
+				listUserAccounts: async () => accounts,
+			},
+		},
+		options,
+	);
 
 describe("createAuthHelpers", () => {
 	it("getSession / getUser return the validated values", async () => {
@@ -96,5 +106,28 @@ describe("createAuthHelpers", () => {
 		await expect(
 			helpers(null).redirectIfAuthenticated("/dashboard"),
 		).resolves.toBeUndefined();
+	});
+
+	it("getLinkedProviders lists the current user's providerIds", async () => {
+		const { getLinkedProviders } = helpers(session, undefined, [
+			{ providerId: "google" },
+			{ providerId: "credential" },
+		]);
+		expect(await getLinkedProviders()).toEqual(["google", "credential"]);
+	});
+
+	it("hasCredentialAccount is true when a credential account exists", async () => {
+		const { hasCredentialAccount } = helpers(session, undefined, [
+			{ providerId: "google" },
+			{ providerId: "credential" },
+		]);
+		expect(await hasCredentialAccount()).toBe(true);
+	});
+
+	it("hasCredentialAccount is false for a social-only user (drives Set vs Change password)", async () => {
+		const { hasCredentialAccount } = helpers(session, undefined, [
+			{ providerId: "google" },
+		]);
+		expect(await hasCredentialAccount()).toBe(false);
 	});
 });
