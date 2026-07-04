@@ -26,8 +26,8 @@ describe("authEnv", () => {
 		expect(isConfigured()).toBe(true);
 	});
 
-	it("throws listing every missing/invalid var", () => {
-		process.env = { ...original };
+	it("throws listing every missing/invalid var in production", () => {
+		process.env = { ...original, NODE_ENV: "production" };
 		delete process.env.BETTER_AUTH_SECRET;
 		delete process.env.DATABASE_URL;
 		process.env.BETTER_AUTH_URL = "not-a-url";
@@ -35,5 +35,19 @@ describe("authEnv", () => {
 		expect(() => authEnv()).toThrow(/BETTER_AUTH_SECRET/);
 		expect(() => authEnv()).toThrow(/BETTER_AUTH_URL/);
 		expect(() => authEnv()).toThrow(/DATABASE_URL/);
+	});
+
+	it("falls back to a dev placeholder secret outside production", () => {
+		process.env = { ...VALID, NODE_ENV: "development" };
+		delete process.env.BETTER_AUTH_SECRET;
+		expect(isConfigured()).toBe(true);
+		expect(authEnv().secret).toMatch(/insecure-placeholder/);
+	});
+
+	it("keeps BETTER_AUTH_SECRET required in production", () => {
+		process.env = { ...VALID, NODE_ENV: "production" };
+		delete process.env.BETTER_AUTH_SECRET;
+		expect(isConfigured()).toBe(false);
+		expect(() => authEnv()).toThrow(/BETTER_AUTH_SECRET/);
 	});
 });

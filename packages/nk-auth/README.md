@@ -48,6 +48,10 @@ BETTER_AUTH_URL=https://example.com
 DATABASE_URL=…                  # direct Postgres connection (:5432)
 ```
 
+Outside production, `BETTER_AUTH_SECRET` falls back to a well-known insecure
+placeholder, so local dev and tests run without setting it (a warning is logged).
+In production it stays required — a missing secret throws at startup.
+
 ## 1. Apply the schema
 
 ```bash
