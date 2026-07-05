@@ -18,6 +18,9 @@ with the philosophy, then dip into specifics as needed.
   Postgres pool, Drizzle, and the PGlite dev/test harness (`nk dev`).
 - **[marketing.md](./marketing.md)** — `@ingram-tech/nk-marketing`: contacts +
   consent, newsletter broadcasts, and idempotent lifecycle/triggered email.
+- **[blog.md](./blog.md)** — `@ingram-tech/nk-blog`: frontmatter-indexed posts,
+  limited-MDX rendering, the component vocabulary, GitHub publish, migration
+  recipe.
 - **[creating-a-package.md](./creating-a-package.md)** — checklist for new
   packages.
 - **[releasing.md](./releasing.md)** — versioning + npm Trusted Publishing flow.
