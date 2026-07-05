@@ -1,0 +1,18 @@
+{
+	"extends": "@ingram-tech/nk-dev/tsconfig/base.json",
+	"compilerOptions": {
+		"outDir": "dist",
+		"rootDir": "src",
+		// Override the base's "nodenext": the JSX entries (render.tsx, unstyled/)
+		// build with "bundler" like a Next app (same carve-out as nk-seo/nk-auth).
+		// Relative imports keep explicit .js extensions, so the published dist is
+		// valid Node ESM regardless.
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"jsx": "react-jsx",
+		"lib": ["esnext", "dom", "dom.iterable"],
+		"types": ["node", "react"]
+	},
+	"include": ["src"],
+	"exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.tsx"]
+}
