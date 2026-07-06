@@ -31,6 +31,14 @@ Trusted Publisher**, add:
 versions were bootstrapped with a one-time local `npm publish`, so all five are
 ready to wire up now.)
 
+**New packages:** the OIDC release CAN first-publish a brand-new package (seen
+with `nk-blog@0.1.0`, 2026-07) — no local bootstrap needed. Expect npm's
+new-package quarantine afterwards: for ~15 minutes the registry GETs 404 and a
+republish attempt 403s with "cannot publish over previously published
+versions". That state means it worked — wait for it to become visible, don't
+bump the version or publish locally. Then attach the trusted publisher (above)
+for subsequent releases.
+
 ## Troubleshooting: `E404 ... PUT /@ingram-tech%2f<pkg>` on publish
 
 If a CI release run logs `using npm trusted publishing` and then fails with:
