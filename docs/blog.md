@@ -36,7 +36,11 @@ drift between a site and the admin publisher.
 - **Build-time only.** `fsSource` is for `generateStaticParams` (+
   `dynamicParams = false`), sitemap, and RSS route handlers — all build-time.
   Serverless output tracing does not follow `fs` reads inside a package, so
-  request-time reads would 404 in production. The only runtime reader is
+  request-time reads would 404 in production. Concretely: every route that
+  calls the reader (listing, sitemap, RSS, OG images) must stay static — no
+  `searchParams`/headers reads; use `export const dynamic = "force-static"`
+  on route handlers. A `"use client"` page can't call the reader at all:
+  split it and pass previews down as props. The only runtime reader is
   `githubSource` (the admin publisher listing a target's real posts).
 
 ## Entry points
