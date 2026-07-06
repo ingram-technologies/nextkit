@@ -92,3 +92,13 @@ describe("createIdRegistry", () => {
 		expect(ids.org.decodeOrNull("not-an-id")).toBeNull();
 	});
 });
+
+describe("decode58 range", () => {
+	it("rejects a 22-char body that overflows 128 bits instead of aliasing", () => {
+		// 58^22 > 2^128: the all-'z' body is regex-valid but out of uuid range;
+		// truncating it would make two distinct wire ids decode to one UUID.
+		expect(() => fromPrefixedId("x_zzzzzzzzzzzzzzzzzzzzzz")).toThrow(
+			/out of uuid range/,
+		);
+	});
+});

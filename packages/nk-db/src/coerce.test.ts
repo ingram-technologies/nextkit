@@ -48,3 +48,19 @@ describe("pgNumericToNumber", () => {
 		expect(pgNumericToNumber(null)).toBeNull();
 	});
 });
+
+describe("pgTimestampToIso offset-less timestamps", () => {
+	it("treats a `timestamp without time zone` text form as UTC, not host-local", () => {
+		// Without the fix this shifts by the host timezone (correct only on UTC).
+		expect(pgTimestampToIso("2026-06-21 18:22:08.331494")).toBe(
+			"2026-06-21T18:22:08.331Z",
+		);
+		expect(pgTimestampToIso("2026-06-21T18:22:08")).toBe(
+			"2026-06-21T18:22:08.000Z",
+		);
+	});
+
+	it("still parses date-only values as UTC", () => {
+		expect(pgTimestampToIso("2026-06-21")).toBe("2026-06-21T00:00:00.000Z");
+	});
+});

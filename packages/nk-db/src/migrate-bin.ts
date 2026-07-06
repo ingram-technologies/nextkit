@@ -28,7 +28,14 @@ const argv = process.argv.slice(2);
 const flag = (name: string): boolean => argv.includes(name);
 const value = (name: string): string | undefined => {
 	const i = argv.indexOf(name);
-	return i >= 0 ? argv[i + 1] : undefined;
+	const next = i >= 0 ? argv[i + 1] : undefined;
+	// `--migrations --status` must not eat the flag as its value (or silently
+	// fall back to the default on a trailing `--migrations`).
+	if (i >= 0 && (next === undefined || next.startsWith("--"))) {
+		console.error(`nk-pg-migrate: ${name} requires a value`);
+		process.exit(1);
+	}
+	return next;
 };
 
 const migrationsFolder =

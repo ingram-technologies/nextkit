@@ -10,8 +10,17 @@ export interface CreatePoolConfig {
 	max?: number;
 }
 
-const isLocal = (connectionString: string): boolean =>
-	connectionString.includes("127.0.0.1") || connectionString.includes("localhost");
+const LOCAL_HOSTS = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
+
+const isLocal = (connectionString: string): boolean => {
+	// Parse the URL: a substring check would misclassify a remote URL whose
+	// password or database name happens to contain "localhost".
+	try {
+		return LOCAL_HOSTS.has(new URL(connectionString).hostname);
+	} catch {
+		return false;
+	}
+};
 
 /**
  * Un-escape a PEM CA cert that arrived with literal `\n` instead of real
@@ -60,19 +69,23 @@ export const createPool = (config: CreatePoolConfig = {}): Pool => {
 	}
 	const caCert = normalizeCaCert(config.caCert ?? env?.caCert);
 	const local = isLocal(connectionString);
-	const max = config.max ?? env?.poolMax ?? (local ? 1 : undefined);
+	// Local wins over the env: a pulled .env (e.g. `vercel env pull`) carries the
+	// production DATABASE_POOL_MAX/DATABASE_CA_CERT, but the PGlite socket is
+	// single-connection and speaks no TLS — honoring them breaks dev. An explicit
+	// `config.max` in code still applies.
+	const max = config.max ?? (local ? 1 : env?.poolMax);
 
 	const base: PoolConfig = max === undefined ? {} : { max };
 
+	if (local) {
+		return new Pool({ ...base, connectionString });
+	}
 	if (caCert) {
 		return new Pool({
 			...base,
 			connectionString,
 			ssl: { ca: caCert, rejectUnauthorized: true },
 		});
-	}
-	if (local) {
-		return new Pool({ ...base, connectionString });
 	}
 	const url = new URL(connectionString);
 	url.searchParams.delete("sslmode");

@@ -17,13 +17,21 @@
  *
  * `Date` parses both Postgres' space-separated form and the `+00:00` offset
  * form to the same instant, and `.toISOString()` emits the canonical `T…Z`.
- * `null` passes through.
+ * An offset-less value (a `timestamp` *without* time zone column) is treated
+ * as UTC — `new Date()` alone would read it in the server's local zone, so the
+ * same row would shift by host timezone. `null` passes through.
  */
 export function pgTimestampToIso(value: string): string;
 export function pgTimestampToIso(value: null): null;
 export function pgTimestampToIso(value: string | null): string | null;
 export function pgTimestampToIso(value: string | null): string | null {
-	return value === null ? null : new Date(value).toISOString();
+	if (value === null) return null;
+	// Postgres text forms: "YYYY-MM-DD HH:MM:SS[.ffffff]" with an optional
+	// trailing offset like "+00", "+05:30" or "Z". A time with no offset gets
+	// UTC appended; a date-only value already parses as UTC per the Date spec.
+	const needsUtcMarker =
+		/\d{2}:\d{2}/.test(value) && !/(?:[+-]\d{2}(?::?\d{2})?|Z)$/i.test(value);
+	return new Date(needsUtcMarker ? `${value}Z` : value).toISOString();
 }
 
 /**

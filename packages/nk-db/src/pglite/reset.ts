@@ -26,6 +26,6 @@ export async function resetPublicTables(query: Queryable): Promise<void> {
 		"select tablename from pg_tables where schemaname = 'public'",
 	);
 	if (rows.length === 0) return;
-	const list = rows.map((row) => `"${row.tablename}"`).join(", ");
+	const list = rows.map((row) => `"${row.tablename.replace(/"/g, '""')}"`).join(", ");
 	await query(`truncate table ${list} restart identity cascade`);
 }

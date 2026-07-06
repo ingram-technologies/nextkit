@@ -220,7 +220,10 @@ export const createQueries = (pool: Pool): PoolQueries => {
 			await client.query("commit");
 			return result;
 		} catch (error) {
-			await client.query("rollback");
+			// Swallow rollback failures: if the failing query destroyed the
+			// connection, the rollback's own "Connection terminated" would mask the
+			// real error.
+			await client.query("rollback").catch(() => {});
 			throw error;
 		} finally {
 			client.release();

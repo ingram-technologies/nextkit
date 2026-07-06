@@ -68,6 +68,9 @@ function decode58(body: string): Uint8Array {
 		if (v < 0) throw new Error(`invalid base58 char: ${ch}`);
 		n = n * 58n + BigInt(v);
 	}
+	// 58^22 slightly exceeds 2^128, so a high-range 22-char body can overflow 16
+	// bytes; silently truncating would alias two distinct wire ids to one UUID.
+	if (n >= 1n << 128n) throw new Error(`base58 value out of uuid range: ${body}`);
 	const bytes = new Uint8Array(16);
 	for (let i = 15; i >= 0; i--) {
 		bytes[i] = Number(n & 0xffn);

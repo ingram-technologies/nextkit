@@ -78,20 +78,27 @@ export const createPgliteServer = async (
 	options: PgliteServerOptions = {},
 ): Promise<PgliteServer> => {
 	const host = options.host ?? "127.0.0.1";
-	const port = options.port ?? Number(process.env.PGLITE_PORT ?? 5432);
+	const envPort = Number(process.env.PGLITE_PORT ?? 5432);
+	if (!Number.isInteger(envPort) || envPort < 0 || envPort > 65535) {
+		throw new Error(
+			`@ingram-tech/nk-db: invalid PGLITE_PORT "${process.env.PGLITE_PORT}"`,
+		);
+	}
+	const port = options.port ?? envPort;
 	const migrationsFolder = options.migrationsFolder ?? "drizzle";
 	const { dataDir } = options;
 
 	if (options.fresh && dataDir && existsSync(dataDir)) {
 		await rm(dataDir, { recursive: true, force: true });
 	}
-	const needsMigrations = !dataDir || !existsSync(dataDir);
 	const db = dataDir
 		? await PGlite.create({ dataDir, extensions: options.extensions })
 		: await PGlite.create({ extensions: options.extensions });
-	if (needsMigrations) {
-		await (options.migrate ?? defaultMigrate(migrationsFolder))(db);
-	}
+	// Always run migrations: the drizzle migrator is journal-tracked, so on an
+	// existing dataDir this applies only what's new (previously it was skipped
+	// entirely whenever the dir existed, silently ignoring added migrations
+	// until a --fresh wipe). A custom `migrate` must be idempotent the same way.
+	await (options.migrate ?? defaultMigrate(migrationsFolder))(db);
 
 	const server = new PGLiteSocketServer({ db, host, port });
 	await server.start();
@@ -135,6 +142,12 @@ export const startPgliteDev = async (
 	process.on("SIGINT", () => child.kill("SIGINT"));
 	process.on("SIGTERM", () => child.kill("SIGTERM"));
 	child.on("exit", (code) => void close(code ?? 0));
+	// Without this, a failed spawn (e.g. bunx missing) is an uncaught exception
+	// and the socket server never shuts down.
+	child.on("error", (err) => {
+		console.error(`nk(pglite): failed to start next dev: ${err.message}`);
+		void close(1);
+	});
 };
 
 export interface TestDb {

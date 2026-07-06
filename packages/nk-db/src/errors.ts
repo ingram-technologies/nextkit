@@ -16,7 +16,12 @@ export const PG_UNIQUE_VIOLATION = "23505";
  */
 export const isPgError = (error: unknown, code: string): boolean => {
 	let current: unknown = error;
-	while (current !== null && current !== undefined) {
+	// Depth cap: a cyclic `.cause` chain (err.cause = err) must not hang.
+	for (
+		let depth = 0;
+		depth < 32 && current !== null && current !== undefined;
+		depth++
+	) {
 		if (typeof current === "object" && "code" in current && current.code === code) {
 			return true;
 		}

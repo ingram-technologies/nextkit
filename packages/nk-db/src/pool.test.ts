@@ -34,3 +34,38 @@ describe("createPool ssl wiring", () => {
 		await pool.end();
 	});
 });
+
+describe("createPool local-socket precedence", () => {
+	it("caps a local pool at max 1 even when DATABASE_POOL_MAX says otherwise", async () => {
+		process.env.DATABASE_URL =
+			"postgresql://postgres:postgres@127.0.0.1:5432/postgres";
+		process.env.DATABASE_POOL_MAX = "5";
+		try {
+			const pool = createPool();
+			expect(pool.options.max).toBe(1);
+			await pool.end();
+		} finally {
+			delete process.env.DATABASE_URL;
+			delete process.env.DATABASE_POOL_MAX;
+		}
+	});
+
+	it("does not enable TLS against a local socket even when a CA cert is set", async () => {
+		const pool = createPool({
+			connectionString: "postgresql://postgres:postgres@localhost:5432/postgres",
+			caCert: REAL,
+		});
+		expect(pool.options.ssl).toBeUndefined();
+		expect(pool.options.max).toBe(1);
+		await pool.end();
+	});
+
+	it("does not misclassify a remote URL whose password mentions localhost", async () => {
+		const pool = createPool({
+			connectionString: "postgres://u:localhost@db.example.com:5432/app",
+		});
+		// pg fills its own default (10) when we don't force the local max:1.
+		expect(pool.options.max).not.toBe(1);
+		await pool.end();
+	});
+});

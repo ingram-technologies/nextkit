@@ -22,6 +22,8 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Pool } from "pg";
+import { z } from "zod";
+import { isPgError } from "./errors.js";
 import { type CreatePoolConfig, createPool } from "./pool.js";
 
 /** One migration as recorded in `drizzle/meta/_journal.json` + its file hash. */
@@ -68,6 +70,10 @@ const DEFAULTS = {
 	migrationsSchema: "drizzle",
 } as const;
 
+const journalSchema = z.object({
+	entries: z.array(z.object({ idx: z.number(), when: z.number(), tag: z.string() })),
+});
+
 /**
  * Read `meta/_journal.json` + each `.sql` and compute the per-file hash the same
  * way drizzle does (`sha256` of the raw file). Decoupled from drizzle's internal
@@ -80,9 +86,7 @@ export const readJournal = (
 	if (!existsSync(journalPath)) {
 		throw new Error(`@ingram-tech/nk-db: no migration journal at ${journalPath}`);
 	}
-	const journal = JSON.parse(readFileSync(journalPath, "utf8")) as {
-		entries: { idx: number; when: number; tag: string }[];
-	};
+	const journal = journalSchema.parse(JSON.parse(readFileSync(journalPath, "utf8")));
 	return journal.entries.map((entry) => {
 		const sql = readFileSync(join(migrationsFolder, `${entry.tag}.sql`), "utf8");
 		return {
@@ -120,9 +124,13 @@ export interface MigrationDrift {
 const qualified = (schema: string, table: string): string =>
 	`"${schema.replace(/"/g, '""')}"."${table.replace(/"/g, '""')}"`;
 
+/** The `.query` surface shared by `Pool` and a checked-out `PoolClient`, so the
+ *  inspect path can run over the advisory-lock client in {@link runMigrations}. */
+type Queryable = Pick<Pool, "query">;
+
 /** Read the journal table; returns [] if it doesn't exist yet (fresh DB). */
 const readRecorded = async (
-	pool: Pool,
+	pool: Queryable,
 	schema: string,
 	table: string,
 ): Promise<RecordedMigration[]> => {
@@ -135,7 +143,7 @@ const readRecorded = async (
 		return rows.map((r) => ({ hash: r.hash, createdAt: Number(r.created_at) }));
 	} catch (err) {
 		// 42P01 = undefined_table → never migrated; not an error.
-		if ((err as { code?: string }).code === "42P01") return [];
+		if (isPgError(err, "42P01")) return [];
 		throw err;
 	}
 };
@@ -183,15 +191,24 @@ export const inspectMigrations = async (
 	const table = config.migrationsTable ?? DEFAULTS.migrationsTable;
 	const { pool, release } = acquire(config);
 	try {
-		const files = readJournal(folder);
-		const recorded = await readRecorded(pool, schema, table);
-		const drift = detectDrift(files, recorded);
-		const maxRecorded = recorded.reduce((m, r) => Math.max(m, r.createdAt), 0);
-		const pending = files.filter((f) => f.folderMillis > maxRecorded);
-		return { files, recorded, pending, drifted: Boolean(drift), drift };
+		return await inspectWith(pool, folder, schema, table);
 	} finally {
 		await release();
 	}
+};
+
+const inspectWith = async (
+	db: Queryable,
+	folder: string,
+	schema: string,
+	table: string,
+): Promise<MigrationStatus> => {
+	const files = readJournal(folder);
+	const recorded = await readRecorded(db, schema, table);
+	const drift = detectDrift(files, recorded);
+	const maxRecorded = recorded.reduce((m, r) => Math.max(m, r.createdAt), 0);
+	const pending = files.filter((f) => f.folderMillis > maxRecorded);
+	return { files, recorded, pending, drifted: Boolean(drift), drift };
 };
 
 /** Thrown by {@link runMigrations} when the journal is out of sync with the
@@ -221,11 +238,25 @@ export interface MigrateResult {
 	applied: string[];
 }
 
+// Advisory-lock identity for the migration runner (two arbitrary-but-stable
+// int32s, `classid`/`objid`). Session-scoped on the client that runs the whole
+// migration, so a crashed runner releases it with its connection.
+const MIGRATE_LOCK_CLASS = 0x6e6b_6462; // "nkdb"
+const MIGRATE_LOCK_ID = 1;
+
 /**
  * Apply pending migrations with the real drizzle-orm migrator. Runs a drift
  * pre-flight first and throws {@link MigrationDriftError} (not a confusing
  * `already exists`) when the journal is out of sync. Surfaces the actual
  * Postgres error on a failing statement.
+ *
+ * Concurrency-safe: the whole run (pre-flight + migrate) happens on one client
+ * holding `pg_advisory_lock`, because drizzle's migrator takes no lock of its
+ * own — two concurrent deploys would otherwise both see the same pending set,
+ * double-apply it, and leave duplicate journal rows (i.e. permanent drift).
+ * The second runner blocks on the lock, then sees an up-to-date journal and
+ * no-ops. Everything runs on that single client (not the pool) so a `max: 1`
+ * pool — the local PGlite case — can't deadlock against the lock holder.
  */
 export const runMigrations = async (
 	config: MigrateConfig = {},
@@ -234,20 +265,35 @@ export const runMigrations = async (
 	const schema = config.migrationsSchema ?? DEFAULTS.migrationsSchema;
 	const table = config.migrationsTable ?? DEFAULTS.migrationsTable;
 
-	const status = await inspectMigrations(config);
-	if (status.drifted) throw new MigrationDriftError(status);
-	if (status.pending.length === 0) return { applied: [] };
-
 	const { pool, release } = acquire(config);
 	try {
-		const { drizzle } = await import("drizzle-orm/node-postgres");
-		const { migrate } = await import("drizzle-orm/node-postgres/migrator");
-		await migrate(drizzle(pool), {
-			migrationsFolder: folder,
-			migrationsTable: table,
-			migrationsSchema: schema,
-		});
-		return { applied: status.pending.map((m) => m.tag) };
+		const client = await pool.connect();
+		try {
+			await client.query("select pg_advisory_lock($1, $2)", [
+				MIGRATE_LOCK_CLASS,
+				MIGRATE_LOCK_ID,
+			]);
+			const status = await inspectWith(client, folder, schema, table);
+			if (status.drifted) throw new MigrationDriftError(status);
+			if (status.pending.length === 0) return { applied: [] };
+
+			const { drizzle } = await import("drizzle-orm/node-postgres");
+			const { migrate } = await import("drizzle-orm/node-postgres/migrator");
+			await migrate(drizzle(client), {
+				migrationsFolder: folder,
+				migrationsTable: table,
+				migrationsSchema: schema,
+			});
+			return { applied: status.pending.map((m) => m.tag) };
+		} finally {
+			await client
+				.query("select pg_advisory_unlock($1, $2)", [
+					MIGRATE_LOCK_CLASS,
+					MIGRATE_LOCK_ID,
+				])
+				.catch(() => {});
+			client.release();
+		}
 	} finally {
 		await release();
 	}
