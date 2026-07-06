@@ -15,10 +15,17 @@ export const NK_AUTH_PATH_HEADER = "x-nk-auth-path";
 /**
  * Accept only an internal, non-protocol-relative path as a post-login redirect,
  * so `next` can never be turned into an open redirect to another origin.
+ *
+ * Beyond the `//` check, backslashes and ASCII controls must also be rejected:
+ * browsers treat `\` as `/` in http(s) URLs (so `/\evil.com` resolves to
+ * `https://evil.com/`) and the URL parser strips tab/newline (so an encoded
+ * `/\t/evil.com` collapses to `//evil.com`).
  */
 export function safeNextParam(value: string | null | undefined): string | null {
 	if (!value) return null;
 	if (!value.startsWith("/") || value.startsWith("//")) return null;
+	// oxlint-disable-next-line no-control-regex -- rejecting control chars is the point
+	if (/[\\\u0000-\u001f\u007f]/.test(value)) return null;
 	return value;
 }
 

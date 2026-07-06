@@ -60,12 +60,12 @@
 		"./migrations/*": "./migrations/*"
 	},
 	"scripts": {
-		"build": "tsc -p tsconfig.json",
+		"build": "rm -rf dist && tsc -p tsconfig.json",
 		"type-check": "tsc -p tsconfig.json --noEmit",
 		"test": "vitest run"
 	},
 	"dependencies": {
-		"@ingram-tech/nk-db": "^1.1.0",
+		"@ingram-tech/nk-db": "workspace:^",
 		"bcrypt": "^6.0.0",
 		"jose": "^6.2.3",
 		"zod": "^4.4.3"

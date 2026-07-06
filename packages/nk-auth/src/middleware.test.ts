@@ -95,11 +95,19 @@ describe("createAuthMiddleware — request behavior", () => {
 		expect(url?.pathname).toBe("/login");
 		expect(url?.searchParams.get("stale")).toBeNull();
 		expect(url?.searchParams.get("next")).toBe("/dashboard");
-		// The Better Auth cookie is expired on the redirect response.
-		expect(
-			res.headers
-				.getSetCookie()
-				.some((c) => c.includes("__Secure-better-auth.session_token=")),
-		).toBe(true);
+		// The Better Auth cookie is expired on the redirect response. The deletion
+		// Set-Cookie for a __Secure- cookie must itself carry Secure, or browsers
+		// reject it and the dead cookie survives.
+		const deletion = res.headers
+			.getSetCookie()
+			.find((c) => c.includes("__Secure-better-auth.session_token="));
+		expect(deletion).toBeTruthy();
+		expect(deletion?.toLowerCase()).toContain("secure");
+	});
+
+	it("does not gate longer path segments sharing a protected prefix", () => {
+		cookiePresent = false;
+		// "/app" must not gate "/application".
+		expect(loc(mw(req("/application")))).toBeNull();
 	});
 });

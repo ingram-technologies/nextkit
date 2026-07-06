@@ -90,7 +90,19 @@ export function createAuthMiddleware(config: AuthMiddlewareConfig) {
 			to.searchParams.delete("stale");
 			const res = NextResponse.redirect(to);
 			for (const cookie of request.cookies.getAll()) {
-				if (cookie.name.includes(cookiePrefix)) res.cookies.delete(cookie.name);
+				if (cookie.name.includes(cookiePrefix)) {
+					// `__Secure-`/`__Host-` cookies: browsers reject the deletion
+					// Set-Cookie unless it carries the Secure attribute itself, so a
+					// bare delete() would silently leave the dead cookie in place on
+					// HTTPS and re-run this handshake on every visit.
+					res.cookies.delete({
+						name: cookie.name,
+						path: "/",
+						secure:
+							cookie.name.startsWith("__Secure-") ||
+							cookie.name.startsWith("__Host-"),
+					});
+				}
 			}
 			return res;
 		}
@@ -101,7 +113,9 @@ export function createAuthMiddleware(config: AuthMiddlewareConfig) {
 		//    remember where they were going.
 		if (
 			!hasSessionCookie &&
-			config.protectedPaths.some((p) => path.startsWith(p))
+			// Segment-boundary match: "/app" must gate "/app" and "/app/x" but not
+			// "/application".
+			config.protectedPaths.some((p) => path === p || path.startsWith(`${p}/`))
 		) {
 			const original = request.nextUrl.pathname + request.nextUrl.search;
 			const to = request.nextUrl.clone();

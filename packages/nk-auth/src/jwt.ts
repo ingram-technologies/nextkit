@@ -36,6 +36,13 @@ export const backendJwtOptions = (config: BackendJwtConfig): JwtOptions => ({
 
 const jwksCache = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
 
+// Forced-reload throttle (per JWKS URL). The no-matching-key path is reachable
+// by anyone who can send a request with a made-up `kid`, and `.reload()`
+// deliberately bypasses jose's cooldown — unthrottled, garbage tokens would
+// each cost a fresh fetch against the auth origin.
+const RELOAD_COOLDOWN_MS = 30_000;
+const lastForcedReload = new Map<string, number>();
+
 /**
  * Verify a Better-Auth-minted backend JWT (EdDSA) against the issuer's JWKS.
  * For use by the backend that consumes `backendJwtOptions` tokens. Throws on an
@@ -68,6 +75,9 @@ export const verifyBackendJwt = async (params: {
 		audience: params.audience,
 		issuer: params.issuer,
 		algorithms: ["EdDSA"],
+		// Tolerate a few seconds of clock skew between the minting and verifying
+		// hosts; jose's default of 0 fails legitimate tokens at exp/nbf boundaries.
+		clockTolerance: 5,
 	};
 	try {
 		const { payload } = await jwtVerify(params.token, jwks, options);
@@ -75,7 +85,14 @@ export const verifyBackendJwt = async (params: {
 	} catch (err) {
 		if (!(err instanceof joseErrors.JWKSNoMatchingKey)) throw err;
 		// `kid` absent from the cached JWKS — almost always a just-rotated signing
-		// key. Force a refresh past the cooldown and retry exactly once.
+		// key. Force a refresh past the cooldown and retry exactly once, at most
+		// once per cooldown window so unknown-`kid` garbage can't hammer the
+		// issuer.
+		const now = Date.now();
+		if (now - (lastForcedReload.get(cacheKey) ?? 0) < RELOAD_COOLDOWN_MS) {
+			throw err;
+		}
+		lastForcedReload.set(cacheKey, now);
 		await jwks.reload();
 		const { payload } = await jwtVerify(params.token, jwks, options);
 		return payload;

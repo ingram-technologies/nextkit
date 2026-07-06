@@ -16,8 +16,6 @@
 --      which bypasses RLS, so denying the app's RLS role any access here costs
 --      nothing and keeps the auth tables off-limits to user-facing queries.
 
-create extension if not exists "pgcrypto" with schema "extensions";
-
 create table if not exists "public"."user" (
 	"id" text primary key default gen_random_uuid()::text, -- hardening (1)
 	"name" text not null,

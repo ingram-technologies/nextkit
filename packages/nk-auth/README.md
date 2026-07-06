@@ -128,8 +128,9 @@ export const auth = betterAuth({
 // app/auth/[...all]/route.ts — a standard Next.js route handler.
 // Lives at /auth (set via `basePath: authBasePath`), NOT /api/auth: auth is a
 // user-facing surface (sign-in, OAuth callbacks), not an internal machine API.
+import { toNextJsHandler } from "better-auth/next-js";
 import { auth } from "@/lib/auth";
-export const { GET, POST } = auth.handler;
+export const { GET, POST } = toNextJsHandler(auth);
 ```
 
 ## 3. Query data with RLS intact
