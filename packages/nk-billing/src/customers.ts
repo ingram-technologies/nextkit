@@ -34,6 +34,12 @@ export interface CustomerDetails {
 	} | null;
 }
 
+// Stripe's search syntax delimits values with single quotes; an unescaped
+// quote in an interpolated value would let a crafted id alter the query (it
+// supports OR) and match another tenant's customer.
+const escapeSearchValue = (value: string): string =>
+	value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+
 /** The customer for `ref`, found by metadata search, or null if none exists yet.
  *  Read paths use this so merely viewing a billing page never mints an empty
  *  customer. */
@@ -42,7 +48,7 @@ export async function findCustomer(
 	stripe: Stripe = getStripe(),
 ): Promise<Stripe.Customer | null> {
 	const found = await stripe.customers.search({
-		query: `metadata['${ref.metadataKey}']:'${ref.id}'`,
+		query: `metadata['${escapeSearchValue(ref.metadataKey)}']:'${escapeSearchValue(ref.id)}'`,
 		limit: 1,
 	});
 	return found.data[0] ?? null;
@@ -73,7 +79,13 @@ export async function findOrCreateCustomer(
 		};
 	}
 
-	const customer = await stripe.customers.create(params);
+	// Idempotency-keyed on the ref: `customers.search` is eventually consistent
+	// (freshly created customers can be invisible for up to ~a minute), so two
+	// concurrent find-then-create calls both miss — the key makes Stripe hand
+	// both the same customer instead of minting a duplicate.
+	const customer = await stripe.customers.create(params, {
+		idempotencyKey: `cust_create_${ref.metadataKey}_${ref.id}`,
+	});
 
 	if (details.vatNumber) {
 		try {

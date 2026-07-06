@@ -11,6 +11,7 @@
  */
 
 import type Stripe from "stripe";
+import { BillingError } from "./errors.js";
 import { getStripe } from "./client.js";
 
 export interface Balance {
@@ -20,21 +21,34 @@ export interface Balance {
 }
 
 /** Read a customer's available wallet balance (Stripe's negative credit balance,
- *  sign-flipped to positive). A deleted customer reads as zero. */
+ *  sign-flipped to positive and clamped at zero — a positive Stripe balance is
+ *  an amount owed, not available credit). A deleted customer reads as zero. */
 export async function readBalance(
 	customerId: string,
 	stripe: Stripe = getStripe(),
 ): Promise<Balance> {
 	const customer = await stripe.customers.retrieve(customerId);
 	if (customer.deleted) return { amount: 0, currency: "eur" };
-	return { amount: -customer.balance, currency: customer.currency ?? "eur" };
+	return {
+		amount: Math.max(0, -customer.balance),
+		currency: customer.currency ?? "eur",
+	};
 }
 
-/** Debit the wallet by `amountCents`. Stripe rejects a debit that would push the
- *  balance positive (the customer would owe us), giving a hard over-spend
- *  guarantee with no pre-flight check. Idempotency-keyed by `idempotencyTag` so
- *  retries can't double-debit — tie the tag to the action that triggered the
- *  spend (e.g. the operation's own idempotency key). */
+/** Debit the wallet by `amountCents`, throwing {@link BillingError}
+ *  (`insufficient_credits`) when the customer's credit doesn't cover it.
+ *
+ *  Stripe does NOT reject a debit that pushes the balance positive (a positive
+ *  balance is simply owed on the next invoice — which a PAYG site never
+ *  issues), so the guarantee is enforced here: after the debit we check the
+ *  transaction's `ending_balance`, and if the customer would owe money we
+ *  reverse the debit and throw. Two concurrent overspends both apply, then
+ *  both observe the positive balance and reverse — the wallet converges to its
+ *  pre-race state minus at most the covered amount.
+ *
+ *  Idempotency-keyed by `idempotencyTag` so retries can't double-debit — tie
+ *  the tag to the action that triggered the spend (e.g. the operation's own
+ *  idempotency key). */
 export async function debitBalance(
 	opts: {
 		customerId: string;
@@ -46,7 +60,13 @@ export async function debitBalance(
 	},
 	stripe: Stripe = getStripe(),
 ): Promise<void> {
-	await stripe.customers.createBalanceTransaction(
+	if (!Number.isSafeInteger(opts.amountCents) || opts.amountCents <= 0) {
+		// A negative amount would silently *credit* the wallet.
+		throw new RangeError(
+			`debitBalance amountCents must be a positive integer, got ${opts.amountCents}`,
+		);
+	}
+	const txn = await stripe.customers.createBalanceTransaction(
 		opts.customerId,
 		{
 			amount: opts.amountCents,
@@ -56,4 +76,20 @@ export async function debitBalance(
 		},
 		{ idempotencyKey: `bal_debit_${opts.idempotencyTag}` },
 	);
+	if (txn.ending_balance > 0) {
+		await stripe.customers.createBalanceTransaction(
+			opts.customerId,
+			{
+				amount: -opts.amountCents,
+				currency: opts.currency,
+				description: `Reversal (insufficient balance): ${opts.description}`,
+				metadata: opts.metadata ?? {},
+			},
+			{ idempotencyKey: `bal_debit_reversal_${opts.idempotencyTag}` },
+		);
+		throw new BillingError(
+			"insufficient_credits",
+			"Insufficient balance for this debit.",
+		);
+	}
 }

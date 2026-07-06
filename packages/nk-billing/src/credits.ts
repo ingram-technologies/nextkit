@@ -50,11 +50,16 @@ export type SpendResult =
 	| { ok: false; reason: DenyReason };
 
 interface LedgerRow {
-	credits_balance: number;
+	// bigint: `pg` returns it as a string (no int8 type parser is installed).
+	credits_balance: number | string;
 	subscription_status: string | null;
 	trial_started_at: string | null;
 	stripe_customer_id: string | null;
 }
+
+// `credits_balance` is a Postgres bigint, which `pg` hands back as a string.
+// Coerce before it leaks into arithmetic (string concatenation) or JSON.
+const toBalance = (value: number | string): number => Number(value);
 
 function entitled(
 	row: Pick<LedgerRow, "subscription_status" | "trial_started_at">,
@@ -97,6 +102,12 @@ export async function spendCredits(
 	opts: SpendOptions,
 ): Promise<SpendResult> {
 	const activeStatuses = opts.activeStatuses ?? ACTIVE_SUBSCRIPTION_STATUSES;
+	if (!Number.isSafeInteger(opts.cost) || opts.cost < 0) {
+		// A negative cost would silently credit the tenant; NaN passes `<` checks.
+		throw new RangeError(
+			`spendCredits cost must be a non-negative integer, got ${opts.cost}`,
+		);
+	}
 
 	// First touch: seed the row (with trial credits + clock when trials are on).
 	// ON CONFLICT DO NOTHING makes the trial a one-time grant.
@@ -117,18 +128,18 @@ export async function spendCredits(
 	if (!entitled(row, Date.now(), opts.trial?.windowMs, activeStatuses)) {
 		return { ok: false, reason: "not_entitled" };
 	}
-	if (row.credits_balance < opts.cost) {
+	if (toBalance(row.credits_balance) < opts.cost) {
 		return { ok: false, reason: "insufficient_credits" };
 	}
 
-	const { rows: updated } = await db.query<{ credits_balance: number }>(
+	const { rows: updated } = await db.query<{ credits_balance: number | string }>(
 		`update billing_credits
 		 set credits_balance = credits_balance - $2, updated_at = now()
 		 where tenant_id = $1
 		 returning credits_balance`,
 		[opts.tenantId, opts.cost],
 	);
-	return { ok: true, balance: updated[0]?.credits_balance ?? 0 };
+	return { ok: true, balance: toBalance(updated[0]?.credits_balance ?? 0) };
 }
 
 /** Like {@link spendCredits} but throws {@link BillingError} on a denial — use in
@@ -140,12 +151,20 @@ export async function requireCredits(db: Queryable, opts: SpendOptions): Promise
 
 /** Return previously-spent credits — call when the work a spend paid for did not
  *  run (a dedup hit, a hard failure, an aborted enqueue). No-op for non-positive
- *  amounts. */
+ *  amounts. Pass `eventId` (any stable id for the failure being compensated) to
+ *  make the refund idempotent — a retried failure handler then can't
+ *  double-refund. Without it, retries are the caller's problem. */
 export async function refundCredits(
 	db: Queryable,
-	opts: { tenantId: string; amount: number },
+	opts: { tenantId: string; amount: number; eventId?: string },
 ): Promise<void> {
-	if (opts.amount <= 0) return;
+	if (!Number.isSafeInteger(opts.amount) || opts.amount <= 0) return;
+	if (
+		opts.eventId != null &&
+		!(await claimStripeEvent(db, opts.eventId, "credits.refund"))
+	) {
+		return;
+	}
 	await db.query(
 		`update billing_credits
 		 set credits_balance = credits_balance + $2, updated_at = now()
@@ -202,7 +221,14 @@ export async function grantCredits(
 }
 
 /** Cache a tenant's subscription status from a webhook, idempotently per event.
- *  Returns false if the event was already processed. */
+ *  Returns false if the event was already processed.
+ *
+ *  Stripe does not guarantee delivery order, so pass the event's `created`
+ *  timestamp (Unix seconds — `event.created`): a delayed older event (e.g. an
+ *  `updated: active` arriving after `deleted: canceled`) is then ignored
+ *  instead of resurrecting a dead subscription indefinitely. Requires migration
+ *  `0002_billing_status_order.sql`; without `eventCreated` the last-write-wins
+ *  legacy behavior is kept. */
 export async function recordSubscriptionStatus(
 	db: Queryable,
 	opts: {
@@ -210,18 +236,35 @@ export async function recordSubscriptionStatus(
 		eventId: string;
 		eventType: string;
 		status: string;
+		/** The Stripe event's `created` (Unix seconds), for out-of-order defense. */
+		eventCreated?: number;
 		stripeCustomerId?: string | null;
 	},
 ): Promise<boolean> {
 	if (!(await claimStripeEvent(db, opts.eventId, opts.eventType))) return false;
+	if (opts.eventCreated == null) {
+		await db.query(
+			`insert into billing_credits (tenant_id, subscription_status, stripe_customer_id)
+			 values ($1, $2, $3)
+			 on conflict (tenant_id) do update set
+			   subscription_status = excluded.subscription_status,
+			   stripe_customer_id = coalesce(excluded.stripe_customer_id, billing_credits.stripe_customer_id),
+			   updated_at = now()`,
+			[opts.tenantId, opts.status, opts.stripeCustomerId ?? null],
+		);
+		return true;
+	}
 	await db.query(
-		`insert into billing_credits (tenant_id, subscription_status, stripe_customer_id)
-		 values ($1, $2, $3)
+		`insert into billing_credits (tenant_id, subscription_status, subscription_status_at, stripe_customer_id)
+		 values ($1, $2, to_timestamp($3), $4)
 		 on conflict (tenant_id) do update set
 		   subscription_status = excluded.subscription_status,
+		   subscription_status_at = excluded.subscription_status_at,
 		   stripe_customer_id = coalesce(excluded.stripe_customer_id, billing_credits.stripe_customer_id),
-		   updated_at = now()`,
-		[opts.tenantId, opts.status, opts.stripeCustomerId ?? null],
+		   updated_at = now()
+		 where billing_credits.subscription_status_at is null
+		   or excluded.subscription_status_at >= billing_credits.subscription_status_at`,
+		[opts.tenantId, opts.status, opts.eventCreated, opts.stripeCustomerId ?? null],
 	);
 	return true;
 }
@@ -268,7 +311,7 @@ export async function getBillingSummary(
 			? new Date(row.trial_started_at).getTime() + opts.trialWindowMs
 			: null;
 	return {
-		creditsBalance: row.credits_balance,
+		creditsBalance: toBalance(row.credits_balance),
 		subscriptionStatus: row.subscription_status,
 		stripeCustomerId: row.stripe_customer_id,
 		entitled: entitled(row, Date.now(), opts.trialWindowMs, activeStatuses),

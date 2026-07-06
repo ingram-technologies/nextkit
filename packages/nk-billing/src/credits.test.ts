@@ -19,6 +19,7 @@ import {
 interface Row {
 	credits_balance: number;
 	subscription_status: string | null;
+	subscription_status_at: number | null;
 	trial_started_at: string | null;
 	stripe_customer_id: string | null;
 }
@@ -27,12 +28,15 @@ class FakeDb implements Queryable {
 	rows = new Map<string, Row>();
 	events = new Set<string>();
 
-	// eslint-disable-next-line @typescript-eslint/require-await
+	// oxlint-disable-next-line require-await -- Queryable's contract is async; the fake answers synchronously
 	async query<R = Record<string, unknown>>(
 		sql: string,
 		params: unknown[] = [],
 	): Promise<{ rows: R[] }> {
 		const s = sql.replace(/\s+/g, " ").trim();
+		// `credits_balance` is bigint: real pg returns it as a STRING. The fake
+		// must be faithful to that, or the suite can't catch coercion bugs.
+		const bigint = (n: number) => String(n);
 
 		if (
 			s.startsWith(
@@ -44,6 +48,7 @@ class FakeDb implements Queryable {
 				this.rows.set(tenant, {
 					credits_balance: balance,
 					subscription_status: null,
+					subscription_status_at: null,
 					trial_started_at: s.includes("values ($1, $2, now())")
 						? new Date().toISOString()
 						: null,
@@ -56,7 +61,16 @@ class FakeDb implements Queryable {
 		if (s.startsWith("select credits_balance")) {
 			const [tenant] = params as [string];
 			const row = this.rows.get(tenant);
-			return { rows: row ? [{ ...row } as unknown as R] : [] };
+			return {
+				rows: row
+					? [
+							{
+								...row,
+								credits_balance: bigint(row.credits_balance),
+							} as unknown as R,
+						]
+					: [],
+			};
 		}
 
 		if (
@@ -68,7 +82,11 @@ class FakeDb implements Queryable {
 			const row = this.rows.get(tenant);
 			if (row) row.credits_balance -= cost;
 			return {
-				rows: [{ credits_balance: row?.credits_balance ?? 0 } as unknown as R],
+				rows: [
+					{
+						credits_balance: bigint(row?.credits_balance ?? 0),
+					} as unknown as R,
+				],
 			};
 		}
 
@@ -108,6 +126,7 @@ class FakeDb implements Queryable {
 				this.rows.set(tenant, {
 					credits_balance: amount,
 					subscription_status: null,
+					subscription_status_at: null,
 					trial_started_at: null,
 					stripe_customer_id: customer,
 				});
@@ -133,6 +152,41 @@ class FakeDb implements Queryable {
 				this.rows.set(tenant, {
 					credits_balance: 0,
 					subscription_status: status,
+					subscription_status_at: null,
+					trial_started_at: null,
+					stripe_customer_id: customer,
+				});
+			}
+			return { rows: [] };
+		}
+
+		if (
+			s.startsWith(
+				"insert into billing_credits (tenant_id, subscription_status, subscription_status_at, stripe_customer_id)",
+			)
+		) {
+			const [tenant, status, createdSec, customer] = params as [
+				string,
+				string,
+				number,
+				string | null,
+			];
+			const row = this.rows.get(tenant);
+			if (row) {
+				// Mirrors the ON CONFLICT ... WHERE guard: older events don't apply.
+				if (
+					row.subscription_status_at === null ||
+					createdSec >= row.subscription_status_at
+				) {
+					row.subscription_status = status;
+					row.subscription_status_at = createdSec;
+					row.stripe_customer_id = customer ?? row.stripe_customer_id;
+				}
+			} else {
+				this.rows.set(tenant, {
+					credits_balance: 0,
+					subscription_status: status,
+					subscription_status_at: createdSec,
 					trial_started_at: null,
 					stripe_customer_id: customer,
 				});
@@ -197,6 +251,55 @@ describe("spendCredits", () => {
 		await spendCredits(db, { tenantId: TENANT, cost: 30, trial: TRIAL }); // → 70
 		await refundCredits(db, { tenantId: TENANT, amount: 30 }); // → 100
 		expect(db.rows.get(TENANT)?.credits_balance).toBe(100);
+	});
+
+	it("refundCredits with an eventId is idempotent", async () => {
+		await spendCredits(db, { tenantId: TENANT, cost: 30, trial: TRIAL }); // → 70
+		const refund = { tenantId: TENANT, amount: 30, eventId: "fail:job_1" };
+		await refundCredits(db, refund);
+		await refundCredits(db, refund); // retried failure handler
+		expect(db.rows.get(TENANT)?.credits_balance).toBe(100);
+	});
+
+	it("returns a numeric balance even though pg delivers bigint as a string", async () => {
+		const r = await spendCredits(db, { tenantId: TENANT, cost: 10, trial: TRIAL });
+		expect(r).toEqual({ ok: true, balance: 90 });
+		if (r.ok) expect(typeof r.balance).toBe("number");
+		const summary = await getBillingSummary(db, { tenantId: TENANT });
+		expect(summary.creditsBalance).toBe(90);
+		expect(typeof summary.creditsBalance).toBe("number");
+	});
+
+	it("rejects a negative or non-finite cost instead of crediting the tenant", async () => {
+		await expect(
+			spendCredits(db, { tenantId: TENANT, cost: -5, trial: TRIAL }),
+		).rejects.toThrow(RangeError);
+		await expect(
+			spendCredits(db, { tenantId: TENANT, cost: Number.NaN, trial: TRIAL }),
+		).rejects.toThrow(RangeError);
+	});
+});
+
+describe("recordSubscriptionStatus ordering", () => {
+	it("ignores a delayed older event when eventCreated is passed", async () => {
+		const db = new FakeDb();
+		await recordSubscriptionStatus(db, {
+			tenantId: TENANT,
+			eventId: "evt_deleted",
+			eventType: "customer.subscription.deleted",
+			status: "canceled",
+			eventCreated: 2000,
+		});
+		// A delayed `updated: active` from before the deletion arrives late, with
+		// a fresh event id — it must not resurrect the subscription.
+		await recordSubscriptionStatus(db, {
+			tenantId: TENANT,
+			eventId: "evt_stale_update",
+			eventType: "customer.subscription.updated",
+			status: "active",
+			eventCreated: 1000,
+		});
+		expect(db.rows.get(TENANT)?.subscription_status).toBe("canceled");
 	});
 });
 

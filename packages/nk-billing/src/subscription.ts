@@ -58,7 +58,9 @@ export async function fetchSubscriptionForCustomer(
 	const subs = await stripe.subscriptions.list({
 		customer: customerId,
 		status: "all",
-		limit: 10,
+		// Stripe's max: an active subscription older than the N most recent ones
+		// must still be found ahead of the canceled ones.
+		limit: 100,
 		expand: ["data.items.data.price"],
 	});
 	return subs.data.find((s) => isActiveStatus(s.status)) ?? subs.data[0] ?? null;

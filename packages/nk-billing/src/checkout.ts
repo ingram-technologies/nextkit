@@ -62,9 +62,11 @@ export async function createCheckoutSession(
 			? opts.currency
 			: undefined;
 
+	// The ref tag is spread last: the webhook side resolves the tenant from it,
+	// so caller metadata must never be able to overwrite it.
 	const metadata = {
-		[opts.customer.metadataKey]: opts.customer.id,
 		...opts.metadata,
+		[opts.customer.metadataKey]: opts.customer.id,
 	};
 
 	const session = await stripe.checkout.sessions.create({

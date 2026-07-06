@@ -79,14 +79,27 @@ export async function POST(request: Request) {
 
 The ledger takes the DB connection by **injection** and leaves isolation to you —
 wrap each call in `withTenant(orgId, db => spendCredits(db, …))` under RLS, or a
-plain transaction under app-layer filtering. It owns two tables; apply
-`migrations/0001_billing.sql` (a Drizzle-composable fragment) and add your own
-RLS policy if your stack uses one. See [`src/credits.ts`](./src/credits.ts).
+plain transaction under app-layer filtering. It owns two tables; apply the
+`migrations/*.sql` files in order (Drizzle-composable fragments) and add your
+own RLS policy if your stack uses one. See [`src/credits.ts`](./src/credits.ts).
+
+Two semantics to know before wiring it up:
+
+- **Entitlement gates the balance.** `spendCredits` requires an active
+  subscription or a live trial *before* it looks at credits: a one-time credit
+  pack bought by a tenant with no subscription and an expired trial is not
+  spendable. If your site sells packs standalone, gate pack checkout on
+  entitlement — or pass `activeStatuses` semantics that match your model.
+- **Webhook ordering.** Pass `event.created` as `eventCreated` to
+  `recordSubscriptionStatus` (and apply `0002_billing_status_order.sql`) so a
+  delayed, older `customer.subscription.updated` can't overwrite the status a
+  later `deleted` event already recorded.
 
 ## Full surface
 
-See the [nk-billing guide](../../../nk-billing.md) for the exhaustive,
-per-export reference and migration recipes for each consuming app.
+The per-export reference is the JSDoc on each export — every entry point in
+[`src/index.ts`](./src/index.ts) and [`src/credits.ts`](./src/credits.ts) is
+documented at the definition.
 
 ## License
 
