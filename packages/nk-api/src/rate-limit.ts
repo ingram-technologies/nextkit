@@ -20,6 +20,11 @@ interface Bucket {
 
 const buckets = new Map<string, Bucket>();
 
+// Each rateLimit() middleware gets its own key namespace so two limiters with
+// different limits/windows never share (and double-drain) a bucket for the same
+// client. checkRateLimit stays un-namespaced: direct callers own their keys.
+let nextNamespace = 0;
+
 const pruneIfStale = (now: number) => {
 	// Cheap O(n) prune: only bother once the map is large enough to matter.
 	if (buckets.size < 5000) return;
@@ -52,6 +57,11 @@ export const checkRateLimit = (params: {
 	const now = Date.now();
 	pruneIfStale(now);
 
+	if (limit <= 0) {
+		// A zero/negative limit is a kill switch: admit nothing, not one per window.
+		return { success: false, remaining: 0, resetInMs: windowMs };
+	}
+
 	const bucket = buckets.get(key);
 	if (!bucket || bucket.resetAt <= now) {
 		buckets.set(key, { count: 1, resetAt: now + windowMs });
@@ -78,13 +88,16 @@ export const checkRateLimit = (params: {
  * `req.headers` in a Next route handler) so it stays framework-agnostic.
  */
 export const getClientKey = (headers: Headers): string => {
+	// Cap the key length: these headers are client-controlled off-Vercel, and
+	// unbounded values would bloat the bucket map. 64 covers any real IP (IPv6
+	// maxes at 45 chars).
 	const forwardedFor = headers.get("x-forwarded-for");
 	if (forwardedFor) {
 		const first = forwardedFor.split(",")[0]?.trim();
-		if (first) return first;
+		if (first) return first.slice(0, 64);
 	}
 	const realIp = headers.get("x-real-ip");
-	if (realIp) return realIp.trim();
+	if (realIp) return realIp.trim().slice(0, 64);
 	return "unknown";
 };
 
@@ -117,9 +130,10 @@ export interface RateLimitOptions {
  */
 export const rateLimit = (options: RateLimitOptions): MiddlewareHandler => {
 	const keyOf = options.key ?? ((c) => getClientKey(c.req.raw.headers));
+	const namespace = `${nextNamespace++}:`;
 	return async (c, next) => {
 		const result = checkRateLimit({
-			key: keyOf(c),
+			key: namespace + keyOf(c),
 			limit: options.limit,
 			windowMs: options.windowMs,
 		});

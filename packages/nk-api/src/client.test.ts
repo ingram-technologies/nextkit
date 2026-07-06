@@ -82,6 +82,18 @@ describe("unwrap", () => {
 			"Fallback message",
 		);
 	});
+
+	it("falls back on non-object and non-string-error JSON bodies", async () => {
+		// Some gateways emit a literal `null` body; that must not TypeError.
+		const nullBody = { ok: false, json: () => Promise.resolve(null) };
+		await expect(unwrap(nullBody, "Fallback message")).rejects.toThrow(
+			"Fallback message",
+		);
+		const numericError = { ok: false, json: () => Promise.resolve({ error: 42 }) };
+		await expect(unwrap(numericError, "Fallback message")).rejects.toThrow(
+			"Fallback message",
+		);
+	});
 });
 
 describe("assertResponseOk", () => {

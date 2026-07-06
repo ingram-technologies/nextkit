@@ -78,8 +78,20 @@ export function createResourceScope<User, Role extends string, Key extends strin
 	const { param, resolveRole, hierarchy } = options;
 	const isValid = options.validate ?? ((value: string) => value.length > 0);
 
-	return (minRole?: Role) =>
-		createMiddleware<ResourceScopeEnv<User, Role, Key>>(async (c, next) => {
+	return (minRole?: Role) => {
+		// Fail closed at build time: a minRole that can't be ranked would otherwise
+		// silently skip enforcement and let any resolved role through.
+		if (minRole !== undefined) {
+			if (!hierarchy) {
+				throw new Error(
+					`scope("${minRole}") requires a \`hierarchy\` in createResourceScope options`,
+				);
+			}
+			if (!hierarchy.includes(minRole)) {
+				throw new Error(`scope("${minRole}"): role is not in the hierarchy`);
+			}
+		}
+		return createMiddleware<ResourceScopeEnv<User, Role, Key>>(async (c, next) => {
 			const user = c.get("user") as User | undefined;
 			if (!user) {
 				return c.json({ error: "Unauthorized" }, 401);
@@ -96,7 +108,10 @@ export function createResourceScope<User, Role extends string, Key extends strin
 			}
 
 			if (minRole && hierarchy) {
-				if (hierarchy.indexOf(role) < hierarchy.indexOf(minRole)) {
+				// A role missing from the hierarchy ranks as -1 and must deny, not
+				// slip past the comparison.
+				const roleRank = hierarchy.indexOf(role);
+				if (roleRank === -1 || roleRank < hierarchy.indexOf(minRole)) {
 					return c.json({ error: "Insufficient permissions" }, 403);
 				}
 			}
@@ -109,4 +124,5 @@ export function createResourceScope<User, Role extends string, Key extends strin
 			await next();
 			return undefined;
 		});
+	};
 }

@@ -17,13 +17,24 @@ type JsonReadable = { json(): Promise<unknown> };
 
 /**
  * Parse the JSON body of a failed response into the standard `{ error }` shape.
- * Falls back to `{}` for non-JSON / empty bodies (gateway pages, network errors).
+ * Falls back to `{}` for non-JSON / empty bodies (gateway pages, network
+ * errors), for JSON that isn't an object (e.g. a literal `null`), and for a
+ * non-string `error` field — so callers can always read `.error` safely.
  */
 export const parseErrorBody = async (
 	response: JsonReadable,
 ): Promise<{ error?: string }> => {
 	try {
-		return (await response.json()) as { error?: string };
+		const body: unknown = await response.json();
+		if (
+			typeof body === "object" &&
+			body !== null &&
+			"error" in body &&
+			typeof body.error === "string"
+		) {
+			return { error: body.error };
+		}
+		return {};
 	} catch {
 		return {};
 	}

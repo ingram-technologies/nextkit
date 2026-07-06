@@ -107,6 +107,35 @@ describe("createResourceScope", () => {
 		expect(res.status).toBe(401);
 	});
 
+	it("throws at build time when scope(minRole) is used without a hierarchy", () => {
+		const scope = createResourceScope<User, Role, "orgId">({
+			param: "orgId",
+			resolveRole: () => Promise.resolve("owner"),
+		});
+		// Without the throw this silently skips role enforcement — fail open.
+		expect(() => scope("admin")).toThrow(/hierarchy/);
+		expect(() => scope()).not.toThrow();
+	});
+
+	it("throws at build time when minRole is not in the hierarchy", () => {
+		const scope = orgScopeFor(() => Promise.resolve("owner"));
+		// @ts-expect-error -- deliberately out-of-hierarchy role
+		expect(() => scope("superadmin")).toThrow(/not in the hierarchy/);
+	});
+
+	it("403s when the resolved role is not in the hierarchy", async () => {
+		// resolveRole returning a role outside the hierarchy must deny, not rank
+		// as -1 and pass the comparison.
+		const app = buildApp({
+			user: { id: "u1" },
+			// @ts-expect-error -- deliberately out-of-hierarchy role
+			resolveRole: () => Promise.resolve("mystery"),
+			minRole: "read_only",
+		});
+		const res = await app.request(`/api/v1/orgs/${VALID}/thing`);
+		expect(res.status).toBe(403);
+	});
+
 	it("401s instead of crashing when the scope runs without requireAuth first", async () => {
 		// The footgun: a scope chained without requireAuth would otherwise call
 		// resolveRole with an undefined user and 500. It must 401 instead.

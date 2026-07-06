@@ -36,6 +36,12 @@ describe("checkRateLimit", () => {
 		vi.advanceTimersByTime(1001);
 		expect(checkRateLimit({ key, limit: 1, windowMs: 1000 }).success).toBe(true);
 	});
+
+	it("admits nothing when the limit is zero or negative", () => {
+		const key = freshKey();
+		expect(checkRateLimit({ key, limit: 0, windowMs: 1000 }).success).toBe(false);
+		expect(checkRateLimit({ key, limit: -1, windowMs: 1000 }).success).toBe(false);
+	});
 });
 
 describe("getClientKey", () => {
@@ -68,5 +74,28 @@ describe("rateLimit middleware", () => {
 		expect(second.status).toBe(429);
 		expect(second.headers.get("retry-after")).toBeTruthy();
 		expect(await second.json()).toEqual({ error: "Too many requests" });
+	});
+
+	it("gives each middleware instance its own buckets for the same key", async () => {
+		// Two limiters sharing a client key must not drain (or read) one bucket:
+		// a strict limiter on one route must not be tripped by traffic that only
+		// hit a lax limiter, and one request must not burn two tokens.
+		const key = freshKey();
+		const app = new Hono();
+		app.use("/lax/*", rateLimit({ limit: 100, windowMs: 60_000, key: () => key }));
+		app.use("/strict/*", rateLimit({ limit: 2, windowMs: 60_000, key: () => key }));
+		app.get("/lax/a", (c) => c.text("ok"));
+		app.get("/strict/a", (c) => c.text("ok"));
+
+		for (let i = 0; i < 5; i++) {
+			expect((await app.request("/lax/a")).status).toBe(200);
+		}
+		// The strict limiter has seen nothing yet; its own window starts fresh.
+		expect((await app.request("/strict/a")).status).toBe(200);
+		expect((await app.request("/strict/a")).status).toBe(200);
+		expect((await app.request("/strict/a")).status).toBe(429);
+		// And the strict 429 did not consume lax tokens.
+		const lax = await app.request("/lax/a");
+		expect(lax.headers.get("x-ratelimit-remaining")).toBe("94");
 	});
 });

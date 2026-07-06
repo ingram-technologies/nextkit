@@ -174,14 +174,22 @@ its own counter, so the effective limit is `limit * replica_count`; swap for a
 shared store if blast radius matters more than simplicity.
 
 ```ts
-import { rateLimit } from "@ingram-tech/nk-api";
+import { getClientKey, rateLimit } from "@ingram-tech/nk-api";
 
 // Per client IP. Exhausting the window short-circuits with the standard 429
 // envelope plus Retry-After / X-RateLimit-* headers.
 app.use("/api/v1/support", rateLimit({ limit: 5, windowMs: 60_000 }));
 
-// Scope by user/tenant instead of IP:
-app.use("/api/v1/*", rateLimit({ limit: 100, windowMs: 60_000, key: (c) => c.get("userId") }));
+// Scope by user/tenant instead of IP. Always fall back to the client IP:
+// without it, every unauthenticated request shares one bucket.
+app.use(
+  "/api/v1/*",
+  rateLimit({
+    limit: 100,
+    windowMs: 60_000,
+    key: (c) => c.get("userId") ?? getClientKey(c.req.raw.headers),
+  }),
+);
 ```
 
 The primitives `checkRateLimit({ key, limit, windowMs })` and
