@@ -16,12 +16,6 @@ bunx nk init
 bun install   # the prepare script wires the git hook
 ```
 
-> Already on the old split packages (`@ingram-tech/oxlint-config`,
-> `typescript-config`, `test-config`, `git-hooks`, `agent-guide`) or
-> `@ingram-tech/biome-config`? Run the codemod instead — see
-> [`oxlint-migration.md`](./oxlint-migration.md). The steps here are for a fresh
-> adoption.
-
 `nk init` scaffolds the config files (lint, format, TypeScript, knip, the
 format-on-commit hook, the agent-guide import) and never clobbers existing
 files — it skips and warns. The full list of what it writes, and the

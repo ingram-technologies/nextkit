@@ -29,9 +29,6 @@ conventions and the design/decision records.
 
 - **[adopting-nextkit.md](./adopting-nextkit.md)** — migrating a site onto
   nextkit.
-- **[oxlint-migration.md](./oxlint-migration.md)** — legacy-site migration onto
-  `@ingram-tech/nk-dev` (from the split oxc config packages or from Biome), with
-  a codemod.
 - **[db-package.md](./db-package.md)** — `@ingram-tech/nk-db` design & decision
   record: the shared Postgres pool, RLS, migrations, and the PGlite dev/test
   harness.
@@ -40,4 +37,3 @@ conventions and the design/decision records.
 - **[blog.md](./blog.md)** — `@ingram-tech/nk-blog`: frontmatter-indexed posts,
   limited-MDX rendering, the component vocabulary, GitHub publish, migration
   recipe.
-- **[ingram-cloud.md](./ingram-cloud.md)** — placeholder for a planned backend.

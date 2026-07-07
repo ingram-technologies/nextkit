@@ -46,10 +46,6 @@ Everything is `extends`-based, so the house config is enforced by default but
 overridable — layer your own rules on top, or replace a stub entirely (e.g. drop
 in a `biome.json` instead of the oxlint/oxfmt stubs).
 
-Already on the old split packages or `@ingram-tech/biome-config`? Run the
-codemod — see
-[`oxlint-migration.md`](https://github.com/ingram-technologies/nextkit/blob/main/docs/oxlint-migration.md).
-
 ## The `nk` command
 
 Point your package.json scripts at it:
