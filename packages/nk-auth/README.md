@@ -29,10 +29,6 @@ exactly one Better Auth copy in the app.
 > `nkOrganizationDefaults`, and `lastActiveOrganizationHooks(pool)` in your
 > `betterAuth()`; verify backend tokens with `verifyBackendJwt`. Keep
 > app-specific bits (SSO restrictions, permissions/roles, connectors) in the app.
->
-> **Note:** pin `kysely@0.28.x` in the consuming app (0.29 moved
-> `DEFAULT_MIGRATION_TABLE` out of its barrel, breaking the adapter + the
-> Turbopack build).
 
 ## Install
 
