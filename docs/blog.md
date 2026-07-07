@@ -46,6 +46,26 @@ drift between a site and the admin publisher.
 Entry points and wiring examples live in the
 [package README](../packages/nk-blog/README.md).
 
+## Versioning the vocabulary
+
+The package's semver **is** the vocabulary version — there is no per-post
+`needs-vocab` frontmatter, which would only duplicate the lockfile.
+
+- **Adding a component is a minor.** It ships with its unstyled default, so a
+  `{ ...unstyled }` site satisfies the widened `BlogComponents` record on an
+  ordinary dependency bump with zero edits — backward-compatible by
+  construction (see [philosophy.md](./philosophy.md)).
+- **Prop changes follow the repo rule:** optional-field additions are minor;
+  anything else is a major shipped with a codemod.
+- **The admin publisher validates against the target's pinned version.** Before
+  emitting a component it resolves the target repo's pinned nk-blog version and
+  checks the post against *that* version's manifest — which is why the root
+  export stays dependency-light (schema, types, and the manifest only; no `fs`,
+  no components).
+- **A missing or miscased component never fails silently.** The renderer's
+  component map has no permissive fallback, so an unknown capitalized JSX name
+  is a build error; the publisher's manifest lint is the earlier gate.
+
 ## Adopting in a site (the migration recipe)
 
 1. `bun add @ingram-tech/nk-blog` (and remove any Babel/AST post-generator
