@@ -13,7 +13,7 @@ exactly one Better Auth copy in the app.
 | --- | --- |
 | `backendJwtOptions` / `verifyBackendJwt` (`./jwt`) | a JWT for the site's own backend API (custom `audience`) |
 | `nkOrganizationDefaults`, `lastActiveOrganizationHooks`, `lastActiveOrganizationUserField` (`./organization`) | org-plugin defaults + active-org restore/persist |
-| `createAuthPool` (`./pool`) | `pg` Pool with optional SSL CA verification |
+| `createAuthPool` (`./pool`) | **deprecated** — alias of `createPool` from [`@ingram-tech/nk-db`](../nk-db); inject the site's shared pool instead |
 | `makeEmailSenders`, `makePasskeyOptions`, `passkeyOptionsForBaseUrl`, `uuidGenerateId` (`./`) | email hooks, passkeys (`passkeyOptionsForBaseUrl` derives `rpID`/`origin` from a single base URL), UUID ids |
 | `bcryptPassword` (`./`) | **legacy only** — bcrypt verifier for sites with pre-existing bcrypt hashes. New sites omit it (Better Auth defaults to scrypt). See [Migrating bcrypt passwords to scrypt](#migrating-bcrypt-passwords-to-scrypt) |
 | `createAuthHelpers`, `safeNext` (`./server`) | validated App Router session helpers (`getSession` / `getUser` / `requireSession` / `requireUser` / `redirectIfAuthenticated`) with automatic `next` + stale-cookie signalling; `safeNext` validates a `?next=` param |
@@ -24,11 +24,11 @@ exactly one Better Auth copy in the app.
 > `withRls` / `withRlsTransaction` (claims taken from the Better Auth session — no
 > JWT minting, no REST proxy).
 >
-> **Backend-JWT + org sites** (a backend API plus the org plugin): compose `createAuthPool`,
-> `backendJwtOptions({ audience })`, `nkOrganizationDefaults`, and
-> `lastActiveOrganizationHooks(pool)` in your `betterAuth()`; verify backend
-> tokens with `verifyBackendJwt`. Keep app-specific bits (SSO restrictions,
-> permissions/roles, connectors) in the app.
+> **Backend-JWT + org sites** (a backend API plus the org plugin): compose the
+> site's shared nk-db pool, `backendJwtOptions({ audience })`,
+> `nkOrganizationDefaults`, and `lastActiveOrganizationHooks(pool)` in your
+> `betterAuth()`; verify backend tokens with `verifyBackendJwt`. Keep
+> app-specific bits (SSO restrictions, permissions/roles, connectors) in the app.
 >
 > **Note:** pin `kysely@0.28.x` in the consuming app (0.29 moved
 > `DEFAULT_MIGRATION_TABLE` out of its barrel, breaking the adapter + the
@@ -84,7 +84,7 @@ import {
 	uuidGenerateId,
 } from "@ingram-tech/nk-auth";
 import { betterAuth } from "better-auth";
-import { Pool } from "pg";
+import { pool } from "@/lib/db"; // the ONE shared createPool() from @ingram-tech/nk-db
 
 const env = authEnv();
 const email = makeEmailSenders(({ to, subject, url }) =>
@@ -92,7 +92,7 @@ const email = makeEmailSenders(({ to, subject, url }) =>
 );
 
 export const auth = betterAuth({
-	database: new Pool({ connectionString: env.databaseUrl }),
+	database: pool, // inject the shared pool — exactly one pool per process
 	secret: env.secret,
 	baseURL: env.baseURL,
 	basePath: authBasePath, // mount at /auth, not the framework default /api/auth
@@ -332,45 +332,14 @@ async redirects() {
 ## Migrating bcrypt passwords to scrypt
 
 `bcryptPassword` is **legacy support only** (see its `@deprecated` note). It
-exists so sites whose `account.password` hashes are bcrypt keep verifying. Better
-Auth's default hasher is **scrypt** (`<salt-hex>:<key-hex>`), and bcrypt hashes
-are trivially distinguishable (they start with `$2a$` / `$2b$` / `$2y$`), so a
-clean migration is possible without a schema change.
-
-**What Better Auth gives you natively (v1.6):**
-
-- A custom `emailAndPassword.password.verify` / `.hash` — but `verify` only
-  receives `{ hash, password }`; it gets **no** `userId`/adapter, so it can't
-  persist an upgraded hash by itself.
-- The full **password-reset flow** — `requestPasswordReset` → email →
-  `resetPassword`, which re-hashes with the configured (scrypt) hasher. We
-  already wire `sendResetPassword` via `makeEmailSenders`.
-- Admin `setUserPassword` (admin plugin) for out-of-band overrides.
-
-**What it does NOT have (we'd build it):**
-
-- **Rehash-on-login.** Better Auth never re-hashes a password on successful
-  sign-in. There is no `needsRehash`.
-- **A "must reset password" gate.** No native flag blocks sign-in until a user
-  resets; that's an extra `user` field + a `before` sign-in hook if you want it.
-
-**The plan.** Replace `bcryptPassword` with a **dual-format verifier** (override
-only `verify`, leaving `hash` as the scrypt default): branch on
-`hash.startsWith("$2")` → bcrypt compare, else fall through to Better Auth's
-scrypt verify. Old hashes keep working; every new signup, password change, and
-reset is written as scrypt. Then upgrade existing hashes by one of:
-
-1. **Lazy (preferred):** wrap the sign-in route (an nk-auth plugin endpoint or a
-   thin site route) so that, after a successful bcrypt verify, it re-hashes the
-   submitted plaintext with scrypt and persists it via
-   `internalAdapter.updatePassword(userId, newHash)`. This reconstructs the
-   rehash-on-login that core lacks, using only supported adapter calls — the
-   plaintext is only available here, at the sign-in request.
-2. **Eager:** run a `requestPasswordReset` campaign for all bcrypt users; their
-   next reset writes scrypt. Pair with the dual-format verifier as the bridge
-   (there's no native "must reset" gate, so un-migrated users still log in via
-   bcrypt until they reset).
-
-Either way the dual-format verifier is the one piece nk-auth should standardize;
-the forced-reset gate is only worth building if a site needs a hard cutover.
+exists so sites whose `account.password` hashes are bcrypt keep verifying.
+Better Auth's default hasher is **scrypt** (`<salt-hex>:<key-hex>`), and bcrypt
+hashes are trivially distinguishable (they start with `$2a$`/`$2b$`/`$2y$`), so
+the migration path is a **dual-format verifier**: override only
+`emailAndPassword.password.verify` to branch on `hash.startsWith("$2")` →
+bcrypt compare, else Better Auth's scrypt verify. Old hashes keep working;
+every new signup, password change, and reset writes scrypt. (Better Auth has no
+rehash-on-login and no "must reset" gate, so bcrypt hashes only upgrade when
+the user resets — or via a sign-in wrapper that persists a re-hash with
+`internalAdapter.updatePassword`.)
 **Status: proposed** — not yet shipped; `bcryptPassword` remains the stopgap.

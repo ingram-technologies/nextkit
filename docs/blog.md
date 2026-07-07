@@ -43,13 +43,8 @@ drift between a site and the admin publisher.
   split it and pass previews down as props. The only runtime reader is
   `githubSource` (the admin publisher listing a target's real posts).
 
-## Entry points
-
-`.` (contract + pure helpers, importable anywhere) · `./server` (`createBlog`,
-`fsSource`, `githubSource`, `publishPost`, `serializePost`, `generateRss`,
-`keys`) · `./render` (`PostBody`, `MarkdownBody`, `MdxBody`,
-`validateLimitedMdx`) · `./unstyled` (default vocabulary). See the package
-README for wiring examples.
+Entry points and wiring examples live in the
+[package README](../packages/nk-blog/README.md).
 
 ## Adopting in a site (the migration recipe)
 
@@ -70,12 +65,12 @@ README for wiring examples.
    delete the generator script and the committed `posts.json`.
 6. Add `rss.xml/route.ts` (`generateRss`, `dynamic = "force-static"`).
 7. Fold site-specific image fallbacks into `resolveImage` config, never a fork.
-8. Fix the extraction-era bugs while there: real `readTime` comes from the
+8. While migrating, fix two common bugs: real `readTime` comes from the
    reader (never author it), and `author` must hold the author, not the
    category.
 
-Divergences that were folded into config, not code: per-site default author,
-image fallback order (`resolveImage`), words-per-minute.
+Per-site variation belongs in config, never a fork: default author, image
+fallback order (`resolveImage`), words-per-minute.
 
 ## Publishing (admin)
 

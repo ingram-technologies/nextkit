@@ -6,8 +6,7 @@ first.
 
 ## Why this package exists
 
-Two needs kept getting hand-rolled per site, and they share most of their
-plumbing:
+Two needs share most of their plumbing:
 
 1. **Newsletters** — an audience opts in, you broadcast issues, each carries a
    one-click unsubscribe.
@@ -54,51 +53,17 @@ by a trigger, to keep the migration plpgsql-free and identical on PGlite.
 
 ## The two flows
 
-```ts
-import { createMarketing } from "@ingram-tech/nk-marketing";
-import { pool } from "@/lib/db";
-
-const marketing = createMarketing({ db: pool, baseUrl: "https://example.com" });
-```
-
-**Broadcast** (`src/client.ts` → `sendBroadcast`): enumerates active subscribers
-not globally opted out, sends each a per-subscription unsubscribe link. Pass
-`campaignKey` (the issue id) to make a re-run idempotent.
+**Broadcast** (`sendBroadcast`): enumerates active subscribers not globally
+opted out, sends each a per-subscription unsubscribe link. Pass `campaignKey`
+(the issue id) to make a re-run idempotent.
 
 **Lifecycle** (`sendLifecycle`): upsert contact → suppressed? → claim
 `(campaignKey, contact)` → duplicate? → send with a global unsubscribe link →
 `sent`. The claim is released if the send throws, so the next cron run retries.
 Returns `{ status: "sent" | "duplicate" | "suppressed" }`.
 
-### Wiring a lifecycle nudge in a site (the canonical example)
-
-```ts
-// app/internal/cron/onboarding-followup/route.ts  (gated by CRON_SECRET)
-// 1. SITE-OWNED eligibility query — depends on the site's own tables:
-const due = await query<{ email: string; user_id: string }>(
-  `select c.email, c.user_id
-     from stripe_accounts a
-     join contacts c on c.user_id = a.id
-    where a.created_at < now() - interval '30 days'
-      and not exists (select 1 from sends s where s.account_id = a.id and s.status <> 'error')`,
-);
-// 2. PACKAGE-OWNED send — suppression, once-only, unsubscribe, rendering:
-for (const row of due) {
-  await marketing.sendLifecycle({
-    campaignKey: "first-invoice-nudge",
-    email: row.email,
-    userId: row.user_id,
-    from: { name: "Acme" },
-    subject: "Send your first Stripe e-invoice",
-    content: "You're all set up — here's how to send your first invoice…",
-    cta: { label: "Open dashboard", href: "https://example.com/dashboard" },
-    footerReason: "you have an account with us",
-  }).catch((e) => logger.error("nudge failed", { email: row.email, error: e }));
-}
-```
-
-Route `/api/marketing/unsubscribe?token=…` straight at `marketing.unsubscribe(token)`
-— it resolves either token kind and is idempotent.
+Wiring, the canonical lifecycle-cron example, and the unsubscribe route live in
+the [package README](../packages/nk-marketing/README.md).
 
 ## Transactional vs marketing — keep them separate
 

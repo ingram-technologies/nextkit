@@ -1,8 +1,7 @@
 # @ingram-tech/nk-email
 
 Zero-dependency [Cloudflare Email Sending](https://developers.cloudflare.com/email-routing/email-workers/send-email-workers/)
-client. The canonical version of a helper that had drifted into separate copies
-across Ingram sites — now one package, with every feature those copies grew.
+client — the one shared email client for Ingram sites.
 
 ## Install
 

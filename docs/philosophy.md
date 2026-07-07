@@ -164,24 +164,6 @@ We deliberately avoid the next-forge default stack of US paid SaaS (Clerk,
 Prisma+Neon, Resend, etc.). We borrow next-forge's *package boundaries* as a
 reference architecture, not its vendors.
 
-### The re-baseline: off the all-in-one backend (our previous default)
-
-The previous default was a **hosted all-in-one backend** — managed Postgres plus
-a bundle of services in front of it (an auto-generated REST API over the tables,
-a hosted auth service, object storage, realtime). The re-baseline keeps Postgres
-— self-hosted on our own cluster — and drops the bundle:
-
-- The auto-generated REST client → a direct `pg` + Drizzle layer
-  (`@ingram-tech/nk-db`).
-- The hosted auth service → Better Auth (`@ingram-tech/nk-auth`).
-- The local Docker stack → PGlite.
-
-Most products have already moved. A couple that lean hardest on the bundled
-services — one for `pgvector`, one for object storage + heavy RLS — are scheduled
-as their **own migration projects**, not part of this re-baseline. The mechanics,
-gotchas, and the safe per-app runbook are captured in the Postgres-migration
-playbook (ops notes; should graduate into this `docs/` directory).
-
 ## Two distribution channels
 
 nextkit ships through two channels, both versioned, both propagated the same way:

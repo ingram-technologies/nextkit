@@ -60,8 +60,8 @@ judgment-level conventions that humans and agents must follow.
 
 ## Don't duplicate utilities
 
-Before writing a helper, check the shared modules (`lib/utils.ts`,
-`lib/number-input.ts`, etc.) and the nextkit packages. If a helper would be
+Before writing a helper, check the site's shared modules (e.g. `lib/utils.ts`)
+and the nextkit packages. If a helper would be
 useful to more than one site, it belongs in nextkit, not copied locally — see
 the positive feedback loop in [`philosophy.md`](./philosophy.md).
 

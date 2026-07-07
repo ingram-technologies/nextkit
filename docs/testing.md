@@ -39,5 +39,5 @@ The shared Vitest preset is provided by
 - **Mock only the boundary.** The shared setup mocks `next/navigation` so
   components render in isolation; that's the kind of thing worth mocking. Don't
   mock your own business logic.
-- **Tests are part of CI.** `bun run ci` runs `check` + `type-check` + `test`.
+- **Tests are part of CI.** `bun run ci` runs `check` + `build` + `type-check` + `test`.
   A change isn't done until CI is green.

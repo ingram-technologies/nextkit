@@ -18,6 +18,24 @@ publishing with provenance.
 5. Merge the "Version Packages" PR. The workflow then **publishes** the bumped
    packages to npm via OIDC — no token, with provenance attestations.
 
+## How publishing works (`scripts/publish.ts`)
+
+`bun run release` builds, publishes every `packages/*` whose current version is
+not yet on npm, then tags (`changeset tag`). Publishing does **not** use
+`changeset publish`:
+
+- `changeset publish` shells out to `npm publish`, which can't resolve bun's
+  `workspace:` protocol — a package with a *runtime* workspace dep (e.g.
+  nk-marketing → nk-email) would ship an uninstallable `workspace:^` range.
+- `bun publish` / `bun pm pack` do resolve `workspace:`, but they read versions
+  from `bun.lock`, which silently goes stale — they can emit a *wrong* range.
+
+So [`scripts/publish.ts`](../scripts/publish.ts) resolves `workspace:` ranges
+from each package's `package.json` version — the source of truth — publishes
+with `npm`, and refuses to publish anything still carrying a `workspace:`
+range. It treats npm's "cannot publish over previously published versions" 403
+as already-published, so re-running a release is safe.
+
 ## One-time setup (Trusted Publishing)
 
 For each `@ingram-tech/*` package, on npmjs.com → the package → **Settings →
@@ -27,17 +45,12 @@ Trusted Publisher**, add:
 - Repository: `ingram-technologies/nextkit`
 - Workflow filename: `release.yml`
 
-(A package must already exist to attach a trusted publisher. The initial `0.1.0`
-versions were bootstrapped with a one-time local `npm publish`, so all five are
-ready to wire up now.)
-
-**New packages:** the OIDC release CAN first-publish a brand-new package (seen
-with `nk-blog@0.1.0`, 2026-07) — no local bootstrap needed. Expect npm's
-new-package quarantine afterwards: for ~15 minutes the registry GETs 404 and a
-republish attempt 403s with "cannot publish over previously published
-versions". That state means it worked — wait for it to become visible, don't
-bump the version or publish locally. Then attach the trusted publisher (above)
-for subsequent releases.
+**New packages:** the OIDC release CAN first-publish a brand-new package — no
+local bootstrap needed. Expect npm's new-package quarantine afterwards: for
+~15 minutes the registry GETs 404 and a republish attempt 403s with "cannot
+publish over previously published versions". That state means it worked — wait
+for it to become visible, don't bump the version or publish locally. Then
+attach the trusted publisher (above) for subsequent releases.
 
 ## Troubleshooting: `E404 ... PUT /@ingram-tech%2f<pkg>` on publish
 
@@ -59,24 +72,22 @@ the **workflow filename is `release.yml`** and any **environment** matches (the
 workflow uses none). Then re-run the release. Until every published package has
 its trusted publisher, releases that touch those packages will E404.
 
-**Fallback:** if you'd rather not manage per-package trust, add an npm
-**granular access token** as an `NPM_TOKEN` repo secret and set
-`NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}` on the release step — `changeset
-publish` will use it instead of OIDC. Less secure (long-lived secret), but one
-config for all packages.
+**Fallback:** the workflow also injects the `NPM_TOKEN` repo secret (a granular
+access token) as `NODE_AUTH_TOKEN`; npm uses it for any package whose OIDC
+trust is missing. Less secure (long-lived secret), but one config for all
+packages.
 
 - **Provenance**: `NPM_CONFIG_PROVENANCE=true` + `id-token: write` attaches
   provenance once trusted publishing succeeds — verify the green badge on npm.
 
-## Manual bootstrap (reference)
+## Manual local publish (reference)
 
-The initial publish was done locally because trusted publishers need an existing
-package. The reproducible local publish (converts `workspace:*`, then publishes
-the tarball with an authenticated npm):
+When CI can't be used, publish locally with an authenticated npm (`npm login`)
+through the same script the workflow runs — never `bun pm pack` (stale
+`bun.lock` versions) or raw `npm publish` (unresolved `workspace:` ranges):
 
 ```bash
 bun run build
-cd packages/<name>
-bun pm pack            # rewrites workspace:* → real versions in the manifest
-npm publish *.tgz --access public
+bun scripts/publish.ts --dry-run   # inspect resolved ranges
+bun scripts/publish.ts
 ```

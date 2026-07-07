@@ -57,9 +57,12 @@ the UI/page tree, and never expose internal plumbing under `/api/`.
   nanoids. UUIDv7 is time-ordered, so it keeps index locality instead of
   fragmenting the B-tree on random inserts, and one uniform id format spans every
   table. On Postgres ≥18 the column default is native `uuidv7()`
-  (`uuid("id").primaryKey().default(sql\`uuidv7()\`)`); set Better Auth
-  `advanced.database.generateId: false` so the DB — not Better Auth's JS nanoid —
-  mints ids. Ids that cross a **public contract** are skinned to `prefix_base58`
+  (`uuid("id").primaryKey().default(sql\`uuidv7()\`)`) and Better Auth gets
+  `advanced.database.generateId: false` so the DB mints ids; below 18 — and in
+  the nk-auth README's canonical example — pass
+  `advanced.database.generateId: uuidGenerateId` (JS-minted UUIDv7 from
+  `@ingram-tech/nk-auth`) instead. Either way, never Better Auth's default JS
+  nanoid. Ids that cross a **public contract** are skinned to `prefix_base58`
   via `@ingram-tech/nk-db/id` (`createIdRegistry`) — never expose a raw UUID.
   External ids you don't mint (Stripe `cus_`, OAuth) stay `text`.
 - **Migrations don't auto-apply on deploy.** Code ships ahead of the prod schema

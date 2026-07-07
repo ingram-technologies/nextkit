@@ -52,7 +52,7 @@ own the UI/schema. Don't force a one-size component.
 - Write a README and, for non-trivial subsystems, a `docs/` entry.
 - Push any rule the package implies down the
   [enforcement ladder](./philosophy.md#enforce-what-you-can-document-what-you-cant):
-  a Biome rule or GritQL plugin beats a sentence in a doc.
+  an oxlint rule or local oxlint plugin beats a sentence in a doc.
 
 ## 7. Release
 

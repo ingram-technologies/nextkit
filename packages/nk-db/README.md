@@ -1,9 +1,8 @@
 # @ingram-tech/nk-db
 
 The Ingram **Postgres data layer**: one TLS-aware `pg` pool, raw-SQL helpers,
-Drizzle wiring, and a **PGlite** (no-Docker) dev/test harness. It consolidates
-the `src/lib/db/` layer that several products each hand-rolled when they moved
-to self-hosted Postgres. Design + rationale:
+Drizzle wiring, a drift-aware migration runner, and a **PGlite** (no-Docker)
+dev/test harness. Design + rationale:
 [`docs/db-package.md`](https://github.com/ingram-technologies/nextkit/blob/main/docs/db-package.md).
 
 `pg` and `drizzle-orm` are **peer dependencies** (one copy in the app).
@@ -22,9 +21,17 @@ Env contract (validated by `keys.ts`):
 ```dotenv
 DATABASE_URL=…            # direct Postgres (session pooler / :5432), not a REST proxy
 DATABASE_CA_CERT=…        # optional PEM CA → verify-full
-DATABASE_SSL=true         # optional
+DATABASE_SSL=true         # accepted for compatibility but inert — TLS is decided
+                          # by the URL host and DATABASE_CA_CERT (see below)
 DATABASE_POOL_MAX=5       # optional; keep small on serverless
 ```
+
+TLS is determined by the connection string and the CA cert, never by a flag: a
+local host (`127.0.0.1`/`localhost`) gets no TLS and a `max: 1` pool (the
+PGlite socket is single-connection — local detection also wins over a pulled
+`DATABASE_POOL_MAX`/`DATABASE_CA_CERT`); with `DATABASE_CA_CERT` set the server
+cert + hostname are verified; otherwise TLS runs without chain verification
+(managed-provider certs aren't in Node's trust store).
 
 ## The one barrel (`src/lib/db.ts`)
 
@@ -53,8 +60,9 @@ same pool: `betterAuth({ database: pool, … })`.
   coercions for strict schemas. `pg`/Drizzle return `numeric` as a string and
   `timestamp(..., { mode: "string" })` as Postgres' text form; these convert to
   the `z.number()` / strict `z.iso.datetime()` shapes such schemas expect.
-  Presentation only — keep money math on the decimal value. For string timestamps
-  prefer Drizzle's `timestamp(..., { mode: "string" })` per column.
+  Offset-less timestamps (a `timestamp` *without* time zone column) are treated
+  as UTC. Presentation only — keep money math on the decimal value. For string
+  timestamps prefer Drizzle's `timestamp(..., { mode: "string" })` per column.
 
 ## Keeping RLS on a direct connection (`withRls` / `withRlsTransaction`)
 
@@ -104,12 +112,37 @@ commit/rollback and never leak across pooled connections. See
 [`docs/db-package.md` §RLS](https://github.com/ingram-technologies/nextkit/blob/main/docs/db-package.md)
 and the [`@ingram-tech/nk-auth`](https://github.com/ingram-technologies/nextkit/blob/main/packages/nk-auth) README.
 
+## Migrations (`@ingram-tech/nk-db/migrate`, `nk-pg-migrate`)
+
+A drop-in replacement for `drizzle-kit migrate` in the site's `db:migrate`
+script (you still *generate* migrations with `drizzle-kit generate`):
+
+```bash
+nk-pg-migrate              # apply pending migrations
+nk-pg-migrate --status     # journal status, apply nothing
+nk-pg-migrate --baseline   # record the current file chain as applied, no DDL
+```
+
+Unlike `drizzle-kit migrate` it surfaces the real Postgres error on failure,
+pre-flights journal drift (`MigrationDriftError` with a fix-it message instead
+of a confusing `relation already exists`), and serializes concurrent deploys
+with `pg_advisory_lock`. The same surface is available programmatically:
+`runMigrations` / `inspectMigrations` / `baselineMigrations` from
+`@ingram-tech/nk-db/migrate`.
+
+## Prefixed ids (`@ingram-tech/nk-db/id`)
+
+UUIDv7 minting (`uuidGenerateId`) plus a base58 "skin" for wire ids
+(`team_3nX…` ↔ stored UUID): `toPrefixedId` / `fromPrefixedId` / `base58Id`,
+and `createIdRegistry` for typed per-entity helpers.
+
 ## PGlite dev & test (`@ingram-tech/nk-db/pglite`)
 
 `nk dev` runs the `nk-pglite-dev` bin automatically when this package is
 installed: it boots Postgres-in-WASM persisted to `.pglite/`, applies the
-`drizzle/` migrations, sets `DATABASE_URL`, then runs `next dev`. `--fresh` wipes
-and rebuilds. No Docker, no daemon.
+`drizzle/` migrations (journal-tracked, so every boot picks up new ones), sets
+`DATABASE_URL`, then runs `next dev`. `--fresh` wipes and rebuilds. No Docker,
+no daemon.
 
 Tests use an in-memory instance:
 

@@ -30,8 +30,10 @@ Read **[docs/philosophy.md](./docs/philosophy.md)** for the full reasoning.
 | [`@ingram-tech/nk-api`](./packages/nk-api) | Typed API toolkit: Hono + zod-openapi router, auth/scope guards, cursor pagination, and a typed client — mounts into a Next.js route |
 | [`@ingram-tech/nk-i18n`](./packages/nk-i18n) | Lightweight i18n: `intl-messageformat` formatting, Accept-Language negotiation, and React client helpers |
 | [`@ingram-tech/nk-marketing`](./packages/nk-marketing) | Postgres-backed marketing & lifecycle email: contacts + consent, newsletter audiences (broadcast), and idempotent triggered campaigns, with RFC 8058 one-click unsubscribe |
+| [`@ingram-tech/nk-seo`](./packages/nk-seo) | SEO toolkit: metadata factory, JSON-LD builders, sitemap/robots routes, hreflang + canonical links, OG image template |
+| [`@ingram-tech/nk-blog`](./packages/nk-blog) | File-indexed blog engine: frontmatter contract, limited-MDX rendering with a component vocabulary, RSS, blog SEO, GitHub publishing |
 
-More to come (blog). See [docs/](./docs/README.md).
+See [docs/](./docs/README.md).
 
 ## Stack & stance
 
@@ -46,7 +48,7 @@ self-hostable, no per-seat US SaaS. Payments, when needed, go through Stripe
 
 ```bash
 bun install
-bun run ci      # check + type-check + test
+bun run ci      # check + build + type-check + test
 bun run build   # build all publishable packages
 ```
 

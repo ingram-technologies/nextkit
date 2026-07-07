@@ -22,29 +22,13 @@ bun install   # the prepare script wires the git hook
 > [`oxlint-migration.md`](./oxlint-migration.md). The steps here are for a fresh
 > adoption.
 
-`nk init` writes (and never clobbers existing files — it skips and warns):
-
-- **`.oxlintrc.json`** — extends the shared rules. oxlint's `extends` resolves a
-  **relative path**, not a package specifier, so it points into `node_modules`.
-- **`.oxfmtrc.json`** — a copy of the house format config. oxfmt has no
-  `extends`; the config is tiny and stable, and editors auto-discover it.
-- **`tsconfig.json`** — extends `@ingram-tech/nk-dev/tsconfig/nextjs.json`
-  (TypeScript *does* resolve package specifiers) with the site's own
-  `include`/`exclude`/`paths`.
-- **Vitest** — `nk init` prints a `vitest.config.ts` snippet
-  (`mergeConfig(nextkitTestConfig, {})` from `@ingram-tech/nk-dev/vitest`) rather
-  than writing the file, since many sites test with `bun:test`. Add it only if
-  you use Vitest.
-- **`knip.json`** — a seed knip config (ignores `@ingram-tech/nk-dev` and the
-  `nk` binary; knip has no shareable config). `nk check` runs knip whenever a
-  knip config is present.
-- **`.githooks/pre-commit`** + a `prepare` script — the oxfmt format-on-commit
-  hook (logic lives in nk-dev's `nextkit-format-staged` bin).
-- **`CLAUDE.md`** — the `@import` of the shared agent guide.
-
-Everything is `extends`-based, so it's enforced-by-default but overridable: layer
-your own rules on top, or swap a tool out by replacing the stub (e.g. delete the
-oxlint stub and drop in a `biome.json`).
+`nk init` scaffolds the config files (lint, format, TypeScript, knip, the
+format-on-commit hook, the agent-guide import) and never clobbers existing
+files — it skips and warns. The full list of what it writes, and the
+per-tool `extends` quirks, are in the
+[nk-dev README](../packages/nk-dev/README.md). Everything is `extends`-based,
+so it's enforced-by-default but overridable: layer your own rules on top, or
+swap a tool out by replacing the stub.
 
 Sites still on ESLint: delete the ESLint config and deps — oxlint covers the
 common rule set out of the box. On Prettier or Biome? Seed `.oxfmtrc.json` with

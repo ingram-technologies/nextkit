@@ -17,7 +17,10 @@ bun add @ingram-tech/bot-protection
 bun add botid
 ```
 
-Set `BOT_PROTECTION_SECRET` (e.g. `openssl rand -hex 32`).
+Set `BOT_PROTECTION_SECRET` (e.g. `openssl rand -hex 32`). To rotate it, set a
+comma-separated list (`new,old`): tokens sign with the first secret and verify
+against all of them, so in-flight forms keep working; drop the old one after
+the token window (1h) has passed.
 
 ## Use
 
@@ -80,7 +83,9 @@ token; its `POST` verifies:
 import { HoneypotInput, useBotProtection } from "@ingram-tech/bot-protection/react";
 
 export function ContactForm() {
-	const { honeypotRef, botFields } = useBotProtection("/api/contact");
+	// `ready` flips true once the token fetch resolves — gate the submit button
+	// on it if you don't want early submissions treated as bot-ish.
+	const { honeypotRef, botFields, ready } = useBotProtection("/api/contact");
 
 	async function onSubmit(values: FormValues) {
 		await fetch("/api/contact", {

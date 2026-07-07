@@ -22,9 +22,8 @@ nextkit/
   .githooks/pre-commit    # dogfoods @ingram-tech/nk-dev (format hook)
   .changeset/             # release config
   docs/                   # this directory — AI-facing docs
-  packages/
-    nk-dev/               # @ingram-tech/nk-dev              (dev toolchain)
-    nk-email/             # @ingram-tech/nk-email            (runtime)
+  packages/               # one directory per @ingram-tech/* package
+                          # (see the README table for the current list)
 ```
 
 ## Package categories
@@ -70,15 +69,7 @@ feel it first.
 
 - Every change that affects a published package needs a Changeset
   (`bun run changeset`).
-- `bun run version-packages` consumes changesets into version bumps +
-  changelogs; `bun run release` builds, publishes (`scripts/publish.ts`), then
-  tags (`changeset tag`).
-- **Publishing does not use `changeset publish`.** It shells out to `npm
-  publish`, which can't resolve bun's `workspace:` protocol, so a package with a
-  *runtime* workspace dep (e.g. nk-marketing → nk-email) would ship an
-  uninstallable `workspace:^` range. `scripts/publish.ts` resolves those ranges
-  from each package's `package.json` version — the source of truth, immune to a
-  stale `bun.lock` — and refuses to publish anything still carrying a
-  `workspace:` range.
+- The full flow — Version Packages PR, OIDC publishing, `scripts/publish.ts`
+  mechanics, troubleshooting — is in [`releasing.md`](./releasing.md).
 - Consumers receive updates via Renovate PRs. Keep changes additive; ship a
   codemod with any breaking major.
