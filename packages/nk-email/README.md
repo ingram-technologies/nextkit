@@ -26,7 +26,7 @@ import { sendEmail, fromAddress } from "@ingram-tech/nk-email";
 
 await sendEmail({
 	to: "customer@example.com",
-	from: fromAddress("Malina More Studio", "hello"),
+	from: fromAddress("Acme Studio", "hello"),
 	replyTo: "studio@example.com",
 	subject: "Your booking is confirmed",
 	html: "<p>See you Saturday!</p>",

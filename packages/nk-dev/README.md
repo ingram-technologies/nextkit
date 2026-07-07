@@ -3,7 +3,7 @@
 The nextkit **dev toolchain in one package**. Everything a site needs at
 development time — and nothing that ships to production — lives here:
 
-- the **`nk` CLI** (`nk dev` / `format` / `lint` / `knip` / `check` / `type-check` / `build`);
+- the **`nk` CLI** (`nk dev` / `format` / `lint` / `knip` / `check` / `type-check` / `test` / `build`, plus `nk doctor`);
 - the shared **oxlint + oxfmt**, **TypeScript**, and **Vitest** config;
 - **knip** (unused dependency / export / file detection), bundled and run by `nk check`;
 - the **oxfmt format-on-commit** git hook (`nextkit-format-staged`);
@@ -62,6 +62,7 @@ Point your package.json scripts at it:
 		"lint": "nk lint",
 		"check": "nk check",
 		"type-check": "nk type-check",
+		"test": "nk test",
 		"build": "nk build"
 	}
 }
@@ -81,6 +82,9 @@ tsc), so versions stay under each site's control — nk just orchestrates.
 
 - **`nk init`** — scaffold this project to use nextkit (see above). Idempotent:
   skips files that already exist.
+- **`nk doctor [--fix]`** — report drift from the canonical nk-dev toolchain
+  (superseded deps, config `extends`, package.json scripts, the agent-guide
+  import, a stale `.prettierignore`); `--fix` applies the auto-fixable findings.
 - **`nk dev`** — start the Next dev server on the golden-path local database
   (see [`db-package.md`](https://github.com/ingram-technologies/nextkit/blob/main/docs/db-package.md)):
   - **PGlite** — if `@ingram-tech/nk-db`'s `nk-pglite-dev` bin resolves, hand off
@@ -96,6 +100,7 @@ tsc), so versions stay under each site's control — nk just orchestrates.
   knip config) + the agent-guide import gate. The CI gate; runs every checker and
   reports them all before failing.
 - **`nk type-check`** — `next typegen && tsc --noEmit`.
+- **`nk test [...]`** — `vitest run`, extra args passed through.
 - **`nk build [...]`** — `next build`, extra args passed through.
 
 ## Exports

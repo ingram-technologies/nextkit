@@ -348,14 +348,16 @@ async redirects() {
 ## Migrating bcrypt passwords to scrypt
 
 `bcryptPassword` is **legacy support only** (see its `@deprecated` note). It
-exists so sites whose `account.password` hashes are bcrypt keep verifying.
-Better Auth's default hasher is **scrypt** (`<salt-hex>:<key-hex>`), and bcrypt
-hashes are trivially distinguishable (they start with `$2a$`/`$2b$`/`$2y$`), so
-the migration path is a **dual-format verifier**: override only
+exists so sites whose `account.password` hashes are bcrypt keep verifying —
+that is all nk-auth ships for the bcrypt case.
+
+The path to move a site fully onto scrypt is a **dual-format verifier**, wired
+in the site (nk-auth does not ship it). Better Auth's default hasher is scrypt
+(`<salt-hex>:<key-hex>`) and bcrypt hashes are trivially distinguishable (they
+start with `$2a$`/`$2b$`/`$2y$`), so override only
 `emailAndPassword.password.verify` to branch on `hash.startsWith("$2")` →
-bcrypt compare, else Better Auth's scrypt verify. Old hashes keep working;
-every new signup, password change, and reset writes scrypt. (Better Auth has no
-rehash-on-login and no "must reset" gate, so bcrypt hashes only upgrade when
-the user resets — or via a sign-in wrapper that persists a re-hash with
-`internalAdapter.updatePassword`.)
-**Status: proposed** — not yet shipped; `bcryptPassword` remains the stopgap.
+bcrypt compare, else Better Auth's scrypt verify. Old hashes keep working; every
+new signup, password change, and reset writes scrypt. Better Auth has no
+rehash-on-login and no "must reset" gate, so bcrypt hashes only upgrade when the
+user resets — or via a sign-in wrapper that persists a re-hash with
+`internalAdapter.updatePassword`.

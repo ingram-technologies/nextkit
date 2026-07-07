@@ -18,9 +18,8 @@ the TypeScript presets, the Vitest preset, the format-on-commit hook, the agent
 guide, and the `nk` CLI. It's all devDependencies — none of it ships to the app —
 and the fleet wants the same toolchain everywhere, so bundling removes the
 "install six packages and wire each one" friction. The house style and rule
-intent are unchanged (oxc: tabs / width 4 / line 88; SQL still formats through
-Prettier inside `nk`). See the dev-toolchain carve-out in
-[`philosophy.md`](./philosophy.md).
+intent are unchanged (oxc: tabs / width 4 / line 88). See the dev-toolchain
+carve-out in [`philosophy.md`](./philosophy.md).
 
 ## Run the codemod
 

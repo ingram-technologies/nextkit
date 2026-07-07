@@ -1,6 +1,6 @@
 # Marketing & lifecycle email: `@ingram-tech/nk-marketing`
 
-**Status:** shipped. Postgres/nk-db-native marketing & lifecycle email. Read
+Postgres/nk-db-native marketing & lifecycle email. Read
 [`philosophy.md`](./philosophy.md) (Django-app model, EU-first vendor stance)
 first.
 

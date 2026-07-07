@@ -2,6 +2,8 @@
 
 The shared Vitest preset is provided by
 [`@ingram-tech/nk-dev`](../packages/nk-dev) (`@ingram-tech/nk-dev/vitest`).
+`nk test` runs the suite (`vitest run`); `nk check` runs the non-test gates
+(lint, format, knip). Both are optional wrappers — plain `vitest` works too.
 
 ## Stack
 

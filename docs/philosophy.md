@@ -42,8 +42,8 @@ boundary to keep it honest:
   dev database (PGlite, via `@ingram-tech/nk-db`) and then runs `next dev`.
 - **It is never required.** Every nextkit site must remain fully buildable and
   runnable with plain `next build` / `next dev` if `nk` is removed. `nk` is
-  convenience (one place for the local-database wiring and SQL formatting oxfmt
-  can't do), not a dependency the build hides behind.
+  convenience (one place for the local-database wiring), not a dependency the
+  build hides behind.
 - **It carries no app logic.** If a command in `nk` ever did more than
   orchestrate standard tools, it would violate the prime directive and belong
   somewhere else.
