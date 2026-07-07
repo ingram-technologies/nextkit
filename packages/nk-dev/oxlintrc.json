@@ -1,9 +1,11 @@
 {
 	"plugins": ["typescript", "unicorn", "oxc", "react", "jsx-a11y", "import"],
+	"jsPlugins": ["@ingram-tech/nk-dev/oxlint-plugin"],
 	"categories": {
 		"correctness": "error"
 	},
 	"rules": {
+		"nextkit/no-radix-props-on-base-ui": "error",
 		"no-unused-vars": "warn",
 		"typescript/no-non-null-assertion": "error",
 		"typescript/no-explicit-any": "error",
