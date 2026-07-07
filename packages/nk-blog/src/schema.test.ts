@@ -51,3 +51,31 @@ describe("blogFrontmatterSchema", () => {
 		expect(parsed.tags).toEqual([]);
 	});
 });
+
+describe("slug validation", () => {
+	const base = { title: "T", description: "D", date: "2026-04-30" };
+
+	it("accepts conventional slugs", () => {
+		for (const slug of ["hello-world", "a", "v1.2", "snake_case-mix.ok"]) {
+			expect(blogFrontmatterSchema.safeParse({ ...base, slug }).success).toBe(
+				true,
+			);
+		}
+	});
+
+	it("rejects slugs that would break routes or traverse paths", () => {
+		for (const slug of [
+			"../evil",
+			"a/b",
+			"a b",
+			"UPPER",
+			"trailing-",
+			".hidden",
+			"a..b",
+		]) {
+			expect(blogFrontmatterSchema.safeParse({ ...base, slug }).success).toBe(
+				false,
+			);
+		}
+	});
+});

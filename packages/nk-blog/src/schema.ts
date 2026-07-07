@@ -17,6 +17,21 @@ const isoDate = z.union([z.string(), z.date()]).transform((value, ctx) => {
 const nonEmpty = z.string().trim().min(1);
 
 /**
+ * Slug shape shared by the frontmatter contract and the publisher: alnum runs
+ * separated by single `-`/`_`/`.`. Rules out everything that breaks routes,
+ * RSS/JSON-LD URLs, or — via the publisher's `${dir}/${slug}.md` commit path —
+ * traverses into arbitrary repo locations (`../.github/workflows/x`).
+ */
+export const slugPattern = /^[a-z0-9]+(?:[-._][a-z0-9]+)*$/;
+
+const slugSchema = z
+	.string()
+	.regex(
+		slugPattern,
+		"Slug must be lowercase alphanumerics separated by single '-', '_' or '.'",
+	);
+
+/**
  * The shared frontmatter contract. Every post on every site validates against
  * this; unknown keys are preserved-ignored (sites may carry extras locally).
  *
@@ -36,7 +51,7 @@ export const blogFrontmatterSchema = z
 		tags: z.array(nonEmpty).default([]),
 		image: nonEmpty.optional(),
 		coverImage: nonEmpty.optional(),
-		slug: nonEmpty.optional(),
+		slug: slugSchema.optional(),
 		draft: z.boolean().default(false),
 		featured: z.boolean().default(false),
 		// Reserved fields — validated now so adding behavior later isn't breaking.

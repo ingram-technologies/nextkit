@@ -131,22 +131,28 @@ export function createBlog(config: BlogConfig): Blog {
 		const files = await config.source.load();
 		const parsed = files
 			.map((file) => parsePost(file, config))
-			.filter((post): post is BlogPost => post !== null)
-			.filter((post) => config.drafts === true || !post.draft);
+			.filter((post): post is BlogPost => post !== null);
 
+		// Collision check BEFORE the draft filter: a draft colliding with a live
+		// post must fail the production build too, not only draft-enabled
+		// previews. Two files resolving to one slug is a routing conflict —
+		// always a loud build failure, never a quiet last-one-wins.
 		const seen = new Map<string, BlogPost>();
 		for (const post of parsed) {
 			if (seen.has(post.slug)) {
-				// Two files resolving to one slug is a routing conflict — always
-				// a loud build failure, never a quiet last-one-wins.
 				throw new Error(`nk-blog: duplicate slug "${post.slug}"`);
 			}
 			seen.set(post.slug, post);
 		}
 
-		return [...seen.values()].sort(
-			(a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-		);
+		return [...seen.values()]
+			.filter((post) => config.drafts === true || !post.draft)
+			.sort(
+				(a, b) =>
+					new Date(b.date).getTime() - new Date(a.date).getTime() ||
+					// Same-day posts: deterministic order between builds.
+					a.slug.localeCompare(b.slug),
+			);
 	};
 
 	return {

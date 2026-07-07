@@ -78,22 +78,35 @@ export function githubSource(config: GitHubRepoConfig): BlogSource {
 					/\.mdx?$/.test(entry.path),
 			);
 
-			return Promise.all(
-				files.map(async (entry) => {
-					const blobResponse = await fetch(`${base}/git/blobs/${entry.sha}`, {
-						headers,
-					});
-					await assertResponseOk(
-						blobResponse,
-						`nk-blog: reading ${entry.path}`,
-					);
-					const blob = blobSchema.parse(await blobResponse.json());
-					return {
-						name: entry.path.slice(prefix.length),
-						content: Buffer.from(blob.content, "base64").toString("utf8"),
-					};
-				}),
-			);
+			// Bounded concurrency: an unbounded Promise.all over every post blob
+			// hammers the API and trips secondary rate limits on large blogs.
+			const CONCURRENCY = 8;
+			const results: { name: string; content: string }[] = [];
+			for (let i = 0; i < files.length; i += CONCURRENCY) {
+				const chunk = await Promise.all(
+					files.slice(i, i + CONCURRENCY).map(async (entry) => {
+						const blobResponse = await fetch(
+							`${base}/git/blobs/${entry.sha}`,
+							{
+								headers,
+							},
+						);
+						await assertResponseOk(
+							blobResponse,
+							`nk-blog: reading ${entry.path}`,
+						);
+						const blob = blobSchema.parse(await blobResponse.json());
+						return {
+							name: entry.path.slice(prefix.length),
+							content: Buffer.from(blob.content, "base64").toString(
+								"utf8",
+							),
+						};
+					}),
+				);
+				results.push(...chunk);
+			}
+			return results;
 		},
 	};
 }

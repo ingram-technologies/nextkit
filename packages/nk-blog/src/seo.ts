@@ -24,8 +24,12 @@ export function postUrl(post: BlogPostPreview, config: BlogSeoConfig): string {
 	return `${config.baseUrl}${config.basePath}/${post.slug}`;
 }
 
+// JSON-LD consumers don't resolve relative URLs, so anything without a scheme
+// (leading-`/` or bare `img/x.png`) is absolutized against the site.
 const absoluteImage = (image: string, baseUrl: string): string =>
-	image.startsWith("/") ? `${baseUrl}${image}` : image;
+	/^https?:\/\//.test(image)
+		? image
+		: `${baseUrl}${image.startsWith("/") ? "" : "/"}${image}`;
 
 /** BlogPosting JSON-LD for a post — the nk-seo bridge. */
 export function blogPostArticle(

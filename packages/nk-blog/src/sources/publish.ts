@@ -1,6 +1,10 @@
 import matter from "gray-matter";
 import { z } from "zod";
-import { blogFrontmatterSchema, type BlogFrontmatterInput } from "../schema.js";
+import {
+	blogFrontmatterSchema,
+	type BlogFrontmatterInput,
+	slugPattern,
+} from "../schema.js";
 import type { PostFormat } from "../types.js";
 import { assertResponseOk } from "../http.js";
 import { githubHeaders, type GitHubRepoConfig } from "./github.js";
@@ -43,6 +47,20 @@ export async function publishPost(
 	target: GitHubRepoConfig,
 	input: PublishPostInput,
 ): Promise<PublishedPost> {
+	if (!slugPattern.test(input.slug)) {
+		// The slug lands in a repo file path — anything looser is a traversal
+		// vector (`../.github/workflows/x`) and breaks routes/RSS URLs anyway.
+		throw new Error(`nk-blog: invalid slug "${input.slug}"`);
+	}
+	const frontmatterSlug = input.frontmatter.slug;
+	if (frontmatterSlug !== undefined && frontmatterSlug !== input.slug) {
+		// The reader routes by the frontmatter override, so a mismatch defeats
+		// the filename-based collision check below and can break the target
+		// site's build with a duplicate-slug error.
+		throw new Error(
+			`nk-blog: frontmatter slug "${frontmatterSlug}" does not match publish slug "${input.slug}"`,
+		);
+	}
 	const headers = githubHeaders(target.token);
 	const base = `${API}/repos/${target.owner}/${target.repo}`;
 	const filePath = `${target.dir.replace(/\/$/, "")}/${input.slug}.${

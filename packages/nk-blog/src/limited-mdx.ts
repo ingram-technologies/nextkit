@@ -85,6 +85,32 @@ const HTML_TAGS = new Set([
 
 type JsxElement = MdxJsxFlowElement | MdxJsxTextElement;
 
+// Attributes that carry a URL the browser will navigate/load — the XSS surface
+// of otherwise-inert HTML (`<a href="javascript:…">`).
+const URL_ATTRIBUTES = new Set([
+	"href",
+	"src",
+	"poster",
+	"cite",
+	"action",
+	"formaction",
+	"data",
+]);
+
+/**
+ * Accept relative paths/anchors and http(s)/mailto/tel absolute URLs; reject
+ * every other scheme (`javascript:`, `data:`, `vbscript:`, …). Control chars
+ * and whitespace are stripped before scheme detection because browsers strip
+ * them when parsing, so `java\tscript:` would otherwise sneak through.
+ */
+function isSafeUrl(raw: string): boolean {
+	// oxlint-disable-next-line no-control-regex -- stripping what browsers strip is the point
+	const cleaned = raw.replace(/[\u0000-\u0020]/g, "");
+	const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(cleaned);
+	if (!scheme) return true;
+	return /^(?:https?|mailto|tel)$/i.test(scheme[1] ?? "");
+}
+
 function checkElement(node: JsxElement, allow: readonly string[], file: VFile): void {
 	const name = node.name;
 	// Nameless = fragment (<>…</>), which is inert prose grouping.
@@ -117,6 +143,16 @@ function checkElement(node: JsxElement, allow: readonly string[], file: VFile): 
 		// an attribute-value expression — executable, so allow only simple
 		// literals.
 		if (value === null || value === undefined || typeof value === "string") {
+			if (
+				typeof value === "string" &&
+				URL_ATTRIBUTES.has(attribute.name.toLowerCase()) &&
+				!isSafeUrl(value)
+			) {
+				file.fail(
+					`<${name} ${attribute.name}="…"> uses a URL scheme that is not allowed in limited MDX (http/https/mailto/tel or a relative path).`,
+					node,
+				);
+			}
 			continue;
 		}
 		const statement = value.data?.estree?.body[0];
@@ -151,6 +187,19 @@ export function remarkLimitedMdx(options: LimitedMdxOptions) {
 				case "mdxJsxFlowElement":
 				case "mdxJsxTextElement":
 					checkElement(node, options.allow, file);
+					break;
+				// Plain markdown links/images compile to real anchors too — unlike
+				// react-markdown (which sanitizes by default), the MDX pipeline
+				// applies no urlTransform, so `[x](javascript:…)` must die here.
+				case "link":
+				case "image":
+				case "definition":
+					if (!isSafeUrl(node.url)) {
+						file.fail(
+							`Link/image URL "${node.url}" uses a scheme that is not allowed in limited MDX.`,
+							node,
+						);
+					}
 					break;
 				default:
 					break;

@@ -14,6 +14,10 @@ export interface RssConfig {
 
 const escapeXml = (value: string): string =>
 	value
+		// XML 1.0 forbids most C0 controls even escaped — a stray \x08 pasted
+		// into a title would make strict parsers reject the whole feed.
+		// oxlint-disable-next-line no-control-regex -- stripping XML-invalid chars is the point
+		.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "")
 		.replaceAll("&", "&amp;")
 		.replaceAll("<", "&lt;")
 		.replaceAll(">", "&gt;")

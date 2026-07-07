@@ -47,7 +47,10 @@ export async function MdxBody(props: {
 	bespoke?: BespokeComponents;
 	limited?: boolean;
 }): Promise<ReactElement> {
-	const limited = props.limited ?? props.bespoke === undefined;
+	// An *empty* bespoke map (a site conditionally spreading a possibly-empty
+	// registry) must not silently switch off the trust boundary — only actual
+	// human-reviewed components do.
+	const limited = props.limited ?? Object.keys(props.bespoke ?? {}).length === 0;
 	const scope = { ...props.components, ...props.bespoke };
 	const remarkPlugins: PluggableList = limited
 		? [remarkGfm, [remarkLimitedMdx, { allow: Object.keys(scope) }]]

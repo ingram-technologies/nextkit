@@ -62,4 +62,35 @@ describe("validateLimitedMdx", () => {
 		expect(result.ok).toBe(false);
 		expect(result.errors.length).toBeGreaterThan(0);
 	});
+
+	it("rejects javascript:/data: URLs in HTML attributes", async () => {
+		expect((await check('<a href="javascript:alert(1)">x</a>')).ok).toBe(false);
+		expect(
+			(await check('<img src="data:text/html,<script>1</script>" />')).ok,
+		).toBe(false);
+		// Browsers strip control chars when parsing, so this is javascript: too.
+		expect((await check('<a href="java\tscript:alert(1)">x</a>')).ok).toBe(false);
+	});
+
+	it("rejects javascript: URLs in plain markdown links and images", async () => {
+		// The MDX pipeline has no urlTransform (unlike react-markdown), so a
+		// markdown link compiles to a live anchor.
+		expect((await check("[x](javascript:alert(1))")).ok).toBe(false);
+		expect((await check("![x](javascript:alert(1))")).ok).toBe(false);
+		expect((await check("[x]: javascript:alert(1)")).ok).toBe(false);
+	});
+
+	it("accepts http(s)/mailto/relative URLs everywhere", async () => {
+		const result = await check(
+			[
+				'<a href="https://example.com">x</a>',
+				'<a href="/local#anchor">y</a>',
+				'<a href="mailto:hi@example.com">z</a>',
+				"",
+				"[ok](https://example.com) and [rel](../up) and [anchor](#top)",
+			].join("\n"),
+		);
+		expect(result.errors).toEqual([]);
+		expect(result.ok).toBe(true);
+	});
 });
