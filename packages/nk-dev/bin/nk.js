@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 import { dev } from "../lib/dev.js";
+import { doctor } from "../lib/doctor.js";
 import { format } from "../lib/format.js";
 import { init } from "../lib/init.js";
 import { knip } from "../lib/knip.js";
-import { build, check, lint, typeCheck } from "../lib/passthrough.js";
+import { build, check, lint, test, typeCheck } from "../lib/passthrough.js";
 
 const USAGE = `nk — the nextkit CLI
 
@@ -13,18 +14,21 @@ Commands:
   init                Scaffold this project to use nextkit: writes the oxlint /
                       oxfmt / TypeScript / Vitest config, the format-on-commit
                       hook, and the agent-guide import. Skips files that exist.
+  doctor [--fix]      Report drift from the canonical nk-dev toolchain (scripts,
+                      superseded deps, config extends, guide import); --fix applies.
   dev                 Start the Next dev server (Turbopack). Boots local PGlite
                       first when @ingram-tech/nk-db is installed (no Docker).
-  format [--check]    Format code with oxfmt and SQL with Prettier. --check
-                      verifies without writing (for CI).
+  format [--check]    Format code with oxfmt. --check verifies without writing.
   lint                Lint with oxlint.
   knip                Find unused dependencies / exports / files with knip.
-  check               The CI gate: lint + format verify + SQL + knip (when
-                      configured) + the agent-guide import gate.
+  check               The CI gate: lint + format verify + knip (when configured)
+                      + the agent-guide import gate.
   type-check          next typegen && tsc --noEmit.
+  test [...]          vitest run (extra args passed through).
   build [...]         next build (extra args passed through).
 
-Code formats with oxfmt and lints with oxlint; SQL formats with Prettier.`;
+Code formats with oxfmt and lints with oxlint. SQL is not formatted (it's
+generated); nk-dev carries no Prettier.`;
 
 const [cmd, ...rest] = process.argv.slice(2);
 
@@ -32,11 +36,14 @@ switch (cmd) {
 	case "init":
 		init();
 		break;
+	case "doctor":
+		doctor(rest);
+		break;
 	case "dev":
 		dev(rest);
 		break;
 	case "format":
-		await format({ check: rest.includes("--check") });
+		format({ check: rest.includes("--check") });
 		break;
 	case "lint":
 		lint();
@@ -45,10 +52,13 @@ switch (cmd) {
 		knip(rest);
 		break;
 	case "check":
-		await check();
+		check();
 		break;
 	case "type-check":
 		typeCheck();
+		break;
+	case "test":
+		test(rest);
 		break;
 	case "build":
 		build(rest);

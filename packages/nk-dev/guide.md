@@ -14,9 +14,11 @@ package. Stay a thin, standard Next.js app (bun · oxlint + oxfmt · strict TS).
   `as`-cast it.** Every `/api` route and webhook handler takes untrusted input;
   an `as` cast is a lie the type-checker can't catch at runtime.
 - Format/lint with **oxlint + oxfmt** via `nk` (`@ingram-tech/nk-dev`); don't
-  reintroduce ESLint, nor Prettier for code (`nk` uses Prettier only for SQL,
-  which oxfmt can't format). `nk` is optional convenience that only orchestrates
-  the standard tools — the site must stay buildable with plain `next build` / `next dev`.
+  reintroduce ESLint or Prettier (SQL isn't formatted — it's generated). nk-dev
+  owns the toolchain: don't re-declare `oxfmt`/`oxlint`/`typescript` or the
+  retired `@ingram-tech/{oxlint,typescript}-config` — `nk doctor` flags the drift.
+  `nk` is optional convenience that only orchestrates the standard tools — the
+  site must stay buildable with plain `next build` / `next dev`.
 
 ## Route & URL conventions
 
@@ -81,6 +83,6 @@ the UI/page tree, and never expose internal plumbing under `/api/`.
 - `@ingram-tech/nk-billing` — Stripe primitives: subscriptions, a Stripe-side wallet, and an optional Postgres credit ledger behind the `/credits` subpath. Prices resolve at runtime by Stripe `lookup_key` — **never hardcode a price id**, so test and live share one code path
 - `@ingram-tech/bot-protection` — invisible form protection (honeypot + timing + Vercel BotID)
 - `@ingram-tech/nk-i18n` — type-safe, English-as-key i18n: the English source text *is* the key (no `en.json`), ICU MessageFormat, colocated JSON catalogs; routing is left to the site
-- `@ingram-tech/nk-dev` — the whole dev toolchain in one devDependency: the `nk` command (`nk dev` boots local PGlite via `@ingram-tech/nk-db` if installed, then Next; plus `nk format` / `lint` / `knip` / `check` / `type-check` / `build`), the shared oxlint + oxfmt / TypeScript / Vitest config, knip, the oxfmt format-on-commit hook, and this guide. `nk check` runs every fast checker (oxlint, oxfmt, SQL, knip) in one gate. `nk init` scaffolds a site to use it all.
+- `@ingram-tech/nk-dev` — the whole dev toolchain in one devDependency: the `nk` command (`nk dev` boots local PGlite via `@ingram-tech/nk-db` if installed, then Next; plus `nk format` / `lint` / `knip` / `check` / `type-check` / `test` / `build`), the shared oxlint + oxfmt / TypeScript / Vitest config, knip, the oxfmt format-on-commit hook, and this guide. `nk check` runs every fast checker (oxlint, oxfmt, knip) in one gate; `nk doctor --fix` reconciles a site back to the canonical toolchain. `nk init` scaffolds a site to use it all.
 
 For detail on any package, read its README in `node_modules/@ingram-tech/<pkg>/`.
