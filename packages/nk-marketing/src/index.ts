@@ -6,6 +6,11 @@ export {
 	renderMarketingHtml,
 	renderMarketingText,
 } from "./render.js";
+export {
+	subscribeToWire,
+	type WireSubscribeOptions,
+	type WireSubscribeStatus,
+} from "./wire.js";
 export type {
 	Audience,
 	BroadcastOptions,

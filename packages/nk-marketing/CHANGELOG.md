@@ -1,5 +1,11 @@
 # @ingram-tech/nk-marketing
 
+## 0.3.0
+
+### Minor Changes
+
+- Add `subscribeToWire` — a zero-dependency client for the Wire newsletter service (wire.ingram.tech). Consumer sites forward a signup with one import (`await subscribeToWire({ email, source })`) using their server-side `WIRE_API_KEY`, instead of hand-rolling the fetch in every repo.
+
 ## 0.2.4
 
 ### Patch Changes
