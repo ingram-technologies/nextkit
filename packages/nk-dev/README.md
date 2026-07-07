@@ -88,12 +88,13 @@ tsc), so versions stay under each site's control — nk just orchestrates.
     `DATABASE_URL`, then `next dev --turbopack`. No Docker, no daemon.
   - **Plain** — otherwise just `next dev` (static/marketing sites with no DB).
 - **`nk format` / `nk format --check`** — formats code (JS/TS/JSON/CSS) with
-  oxfmt and SQL with Prettier. `--check` verifies without writing (CI).
+  oxfmt. `--check` verifies without writing (CI). SQL isn't formatted — it's
+  generated (drizzle migrations, `pg_dump` baselines, pglite fixtures).
 - **`nk lint`** — `oxlint`.
 - **`nk knip`** — `knip` (unused dependencies / exports / files).
-- **`nk check`** — `oxlint` + `oxfmt --check` + SQL format verification + `knip`
-  (only when the repo has a knip config) + the agent-guide import gate. The CI
-  gate; runs every checker and reports them all before failing.
+- **`nk check`** — `oxlint` + `oxfmt --check` + `knip` (only when the repo has a
+  knip config) + the agent-guide import gate. The CI gate; runs every checker and
+  reports them all before failing.
 - **`nk type-check`** — `next typegen && tsc --noEmit`.
 - **`nk build [...]`** — `next build`, extra args passed through.
 
@@ -110,11 +111,11 @@ tsc), so versions stay under each site's control — nk just orchestrates.
 "@ingram-tech/nk-dev/guide.md"               // the AI agent guide
 ```
 
-## Why Prettier for SQL?
+## Why no SQL formatting?
 
-oxfmt is the formatter for code and stays that way — Prettier is never used for
-JS/TS. But oxfmt can't format SQL, so nk-dev bundles `prettier` +
-`prettier-plugin-sql` **as its own dependencies** and uses them only for `.sql`
-files. Prettier therefore never lands in any app's `package.json`. A site's own
-`.prettierrc` / package.json `"prettier"` settings are honored if present;
-otherwise nk defaults to tabs + the Postgres dialect.
+oxfmt is the formatter for code, and it can't format SQL — but nk-dev doesn't
+format SQL at all. The SQL in our repos is ~entirely generated (drizzle
+migrations, `pg_dump` baselines, pglite fixtures), so formatting it only churned
+generated files and crashed on psql directives (`\restrict`) for no gain. nk-dev
+therefore carries no `prettier` dependency; if a site has a leftover
+`.prettierignore`, `nk doctor --fix` removes it.
