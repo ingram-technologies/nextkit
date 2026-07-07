@@ -16,6 +16,10 @@
  * plain `next dev` alike). In production it stays strictly required — a missing
  * secret throws at startup rather than silently signing sessions with a value
  * anyone could guess.
+ *
+ * Sites that derive their own `baseURL` / database connection can take just the
+ * secret's prod/dev rule via `authSecret()` instead of the whole `authEnv()`
+ * bundle — so that security-sensitive default is never re-implemented app-side.
  */
 
 import { z } from "zod";
@@ -45,6 +49,43 @@ const buildSchema = () =>
 
 let warnedPlaceholder = false;
 
+/**
+ * Warn once when the insecure dev placeholder is in use, so a missing secret is
+ * visible in local logs without nagging on every call. Never fires in
+ * production, where `secretField()` makes the secret required.
+ */
+const warnIfPlaceholder = (secret: string): void => {
+	if (secret === DEV_SECRET_PLACEHOLDER && !warnedPlaceholder) {
+		warnedPlaceholder = true;
+		console.warn(
+			"@ingram-tech/nk-auth: BETTER_AUTH_SECRET is unset — using an insecure dev placeholder. Set it before deploying.",
+		);
+	}
+};
+
+/**
+ * Resolve just the session-signing secret, applying the same rule `authEnv()`
+ * does: strictly required in production, an insecure dev placeholder otherwise.
+ *
+ * For sites that derive their own `baseURL` and open their own database
+ * connection (so they don't want `authEnv()`'s all-or-nothing bundle) but still
+ * want nk-auth to own the secret's prod/dev fallback. Reaching for this keeps
+ * the security-sensitive default in one place instead of hand-copied into the
+ * app. Backed by the same `secretField()` schema as `authEnv()`.
+ */
+export const authSecret = (): string => {
+	const result = secretField().safeParse(process.env.BETTER_AUTH_SECRET);
+	if (!result.success) {
+		// secretField() only rejects a missing/empty secret in production (dev
+		// supplies the placeholder default), so that is the sole failure here.
+		throw new Error(
+			"@ingram-tech/nk-auth: BETTER_AUTH_SECRET is required (an unset secret is only allowed outside production)",
+		);
+	}
+	warnIfPlaceholder(result.data);
+	return result.data;
+};
+
 export interface AuthEnv {
 	secret: string;
 	baseURL: string;
@@ -65,12 +106,7 @@ export const authEnv = (): AuthEnv => {
 		throw new Error(`@ingram-tech/nk-auth: invalid environment — ${issues}`);
 	}
 	const env = result.data;
-	if (env.BETTER_AUTH_SECRET === DEV_SECRET_PLACEHOLDER && !warnedPlaceholder) {
-		warnedPlaceholder = true;
-		console.warn(
-			"@ingram-tech/nk-auth: BETTER_AUTH_SECRET is unset — using an insecure dev placeholder. Set it before deploying.",
-		);
-	}
+	warnIfPlaceholder(env.BETTER_AUTH_SECRET);
 	return {
 		secret: env.BETTER_AUTH_SECRET,
 		baseURL: env.BETTER_AUTH_URL,

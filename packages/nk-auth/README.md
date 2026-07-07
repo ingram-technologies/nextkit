@@ -11,6 +11,7 @@ exactly one Better Auth copy in the app.
 
 | Export (subpath) | For |
 | --- | --- |
+| `authEnv`, `authSecret`, `isConfigured` (`./`) | env validation — `authEnv()` returns the full `{ secret, baseURL, databaseUrl }` bundle; `authSecret()` resolves just the secret (with the prod/dev rule) for sites that derive their own `baseURL` / DB connection |
 | `backendJwtOptions` / `verifyBackendJwt` (`./jwt`) | a JWT for the site's own backend API (custom `audience`) |
 | `nkOrganizationDefaults`, `lastActiveOrganizationHooks`, `lastActiveOrganizationUserField` (`./organization`) | org-plugin defaults + active-org restore/persist |
 | `createAuthPool` (`./pool`) | **deprecated** — alias of `createPool` from [`@ingram-tech/nk-db`](../nk-db); inject the site's shared pool instead |
@@ -47,6 +48,25 @@ DATABASE_URL=…                  # direct Postgres connection (:5432)
 Outside production, `BETTER_AUTH_SECRET` falls back to a well-known insecure
 placeholder, so local dev and tests run without setting it (a warning is logged).
 In production it stays required — a missing secret throws at startup.
+
+If your site derives its own `baseURL` and opens its own database connection, it
+may not want `authEnv()`'s all-or-nothing bundle (which also requires
+`BETTER_AUTH_URL` and `DATABASE_URL`). Take just the secret — same prod/dev rule —
+with `authSecret()`:
+
+```ts
+import { authSecret } from "@ingram-tech/nk-auth";
+
+export const auth = betterAuth({
+	database: myOwnDirectPool,
+	secret: authSecret(), // required in prod, dev placeholder otherwise — owned here
+	baseURL: myOwnBaseUrl,
+	// ...
+});
+```
+
+Do this instead of re-implementing the prod-required / dev-placeholder rule in
+the app: the security-sensitive default then lives in exactly one place.
 
 ## 1. Apply the schema
 

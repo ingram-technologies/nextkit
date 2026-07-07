@@ -5,7 +5,7 @@
 
 export { type BackendJwtConfig, backendJwtOptions, verifyBackendJwt } from "./jwt.js";
 export { base58Id, fromPrefixedId, toPrefixedId, uuidGenerateId } from "./id.js";
-export { type AuthEnv, authEnv, isConfigured } from "./keys.js";
+export { type AuthEnv, authEnv, authSecret, isConfigured } from "./keys.js";
 export {
 	bcryptPassword,
 	makeEmailSenders,
