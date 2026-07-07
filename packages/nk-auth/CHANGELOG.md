@@ -1,5 +1,19 @@
 # @ingram-tech/nk-auth
 
+## 0.12.0
+
+### Minor Changes
+
+- 0aef304: Drop the `kysely@0.28.x` pin guidance. Better Auth's kysely adapter no longer imports `DEFAULT_MIGRATION_TABLE` from kysely's main entry (it mirrors the constant locally as of the v1.6.15 adapter, better-auth#9811), so kysely 0.29 no longer breaks the adapter or the Turbopack build. The `better-auth`/`@better-auth/passkey` peer floor is raised to `^1.6.15` to enforce that guarantee in the dependency range instead of in prose, and the README note is removed.
+- c38b099: Add `authSecret()`, a standalone accessor for the session-signing secret that
+  applies the same rule as `authEnv()` (strictly required in production, an
+  insecure dev placeholder otherwise) without requiring `BETTER_AUTH_URL` or
+  `DATABASE_URL`. Sites that derive their own `baseURL` and open their own
+  database connection can now consume just the secret's prod/dev fallback instead
+  of re-implementing that security-sensitive default in the app. `authEnv()` is
+  unchanged and now composes the same underlying secret schema, so there is a
+  single source of truth for the placeholder-vs-required behaviour.
+
 ## 0.11.1
 
 ### Patch Changes
