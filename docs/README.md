@@ -18,6 +18,9 @@ conventions and the design/decision records.
 
 - **[code-style.md](./code-style.md)** — house code-quality rules.
 - **[testing.md](./testing.md)** — testing stack and conventions.
+- **[transactional-email.md](./transactional-email.md)** — fleet conventions for
+  transactional email: registry templates, from-address local parts, the
+  dev/unconfigured fallback, and imports.
 - **[creating-a-package.md](./creating-a-package.md)** — checklist for new
   packages.
 - **[releasing.md](./releasing.md)** — versioning + npm Trusted Publishing flow.

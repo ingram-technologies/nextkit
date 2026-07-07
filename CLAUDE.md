@@ -39,6 +39,9 @@ bun run changeset   # required for any change to a published package
   [`docs/creating-a-package.md`](./docs/creating-a-package.md).
 - **Enforce > document:** prefer an oxlint rule or local oxlint plugin over a prose rule.
 - **peerDependencies for `next`/`react`**, never `dependencies`.
+- **Transactional email:** render from the registry, send via `nk-email`;
+  from-address, dev-fallback, and import conventions in
+  [`docs/transactional-email.md`](./docs/transactional-email.md).
 - **Changeset every published change.** Keep changes backward-compatible; ship a
   codemod with any breaking major.
 
