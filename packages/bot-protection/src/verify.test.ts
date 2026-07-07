@@ -45,6 +45,37 @@ describe("verifyFormToken", () => {
 			reason: "malformed-token",
 		});
 	});
+
+	it("rejects a wrong-length signature", () => {
+		const token = createFormToken();
+		const dot = token.indexOf(".");
+		expect(
+			verifyFormToken(`${token.slice(0, dot)}.abc123`, { minMs: 0 }),
+		).toMatchObject({ ok: false, reason: "bad-signature" });
+	});
+
+	it("still verifies tokens signed with a rotated-out secret", () => {
+		// Sign under the old secret…
+		const token = createFormToken();
+		// …then rotate: new secret first, old kept for verification.
+		process.env.BOT_PROTECTION_SECRET =
+			"brand-new-secret,test-secret-please-ignore";
+		try {
+			expect(verifyFormToken(token, { minMs: 0 })).toEqual({ ok: true });
+			// A token signed post-rotation verifies too (first secret signs).
+			expect(verifyFormToken(createFormToken(), { minMs: 0 })).toEqual({
+				ok: true,
+			});
+			// Dropping the old secret invalidates its tokens.
+			process.env.BOT_PROTECTION_SECRET = "brand-new-secret";
+			expect(verifyFormToken(token, { minMs: 0 })).toMatchObject({
+				ok: false,
+				reason: "bad-signature",
+			});
+		} finally {
+			process.env.BOT_PROTECTION_SECRET = "test-secret-please-ignore";
+		}
+	});
 });
 
 describe("verifyHuman", () => {

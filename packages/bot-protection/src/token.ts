@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { getSecret, isConfigured } from "./keys.js";
+import { getSecret, getSecrets, isConfigured } from "./keys.js";
 
 /**
  * Signed timing token: `<timestamp>.<hmac>`. The timestamp records when the
@@ -57,10 +57,15 @@ export const verifyFormToken = (
 	const ts = token.slice(0, dot);
 	const sig = token.slice(dot + 1);
 
-	const expected = sign(ts, getSecret());
+	// Verify against every configured secret (signing uses the first) so a
+	// rotation doesn't invalidate in-flight forms. Every candidate is compared
+	// timing-safely; the count of secrets is not attacker-relevant.
 	const a = Buffer.from(sig);
-	const b = Buffer.from(expected);
-	if (a.length !== b.length || !timingSafeEqual(a, b)) {
+	const valid = getSecrets().some((secret) => {
+		const b = Buffer.from(sign(ts, secret));
+		return a.length === b.length && timingSafeEqual(a, b);
+	});
+	if (!valid) {
 		return { ok: false, reason: "bad-signature" };
 	}
 

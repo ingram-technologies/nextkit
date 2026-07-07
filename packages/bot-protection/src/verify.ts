@@ -43,6 +43,9 @@ const getField = (formData: VerifyOptions["formData"], name: string): string => 
  */
 export const verifyHuman = async (options: VerifyOptions): Promise<VerifyResult> => {
 	const honeypotField = options.honeypotField ?? HONEYPOT_FIELD;
+	// trim(): whitespace-only values pass the trap on purpose — some browser
+	// autofill/extension quirks insert stray spaces, and per the "never punish
+	// real users" ethos that's a weaker trap, not a false positive.
 	if (getField(options.formData, honeypotField).trim() !== "") {
 		return { ok: false, reason: "honeypot" };
 	}

@@ -27,6 +27,12 @@ Set `BOT_PROTECTION_SECRET` (e.g. `openssl rand -hex 32`).
 import { createFormToken } from "@ingram-tech/bot-protection";
 import { HoneypotField } from "@ingram-tech/bot-protection/honeypot";
 
+// The page that mints the token MUST render per-request. On a statically
+// prerendered (or ISR/cached) page the timestamp is the BUILD time: once the
+// deploy is older than the token window (default 1h), every real submission
+// verifies as "expired" and is silently dropped.
+export const dynamic = "force-dynamic";
+
 export default function ContactPage() {
 	const token = createFormToken(); // server component / server-side
 	return (
@@ -38,6 +44,9 @@ export default function ContactPage() {
 	);
 }
 ```
+
+Prefer keeping the page static? Mint the token from a route handler instead
+and fetch it client-side — that's exactly what the `/react` hook does (below).
 
 **Verify on submit** (API route or server action):
 
@@ -92,6 +101,10 @@ export function ContactForm() {
 ```ts
 // app/api/contact/route.ts
 import { createFormToken, verifyHuman } from "@ingram-tech/bot-protection";
+
+// Same freshness rule as above: the GET must not be cached, or the token
+// ages with the cache entry and eventually expires every submission.
+export const dynamic = "force-dynamic";
 
 export const GET = () => Response.json({ token: createFormToken() });
 
