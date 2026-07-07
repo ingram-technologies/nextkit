@@ -13,8 +13,8 @@ Commands:
   init                Scaffold this project to use nextkit: writes the oxlint /
                       oxfmt / TypeScript / Vitest config, the format-on-commit
                       hook, and the agent-guide import. Skips files that exist.
-  dev                 Start the Next dev server. Boots local PGlite first when
-                      @ingram-tech/nk-db is installed (no Docker); else plain dev.
+  dev                 Start the Next dev server (Turbopack). Boots local PGlite
+                      first when @ingram-tech/nk-db is installed (no Docker).
   format [--check]    Format code with oxfmt and SQL with Prettier. --check
                       verifies without writing (for CI).
   lint                Lint with oxlint.

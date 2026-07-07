@@ -12,29 +12,9 @@ export function run(tool, args = [], opts = {}) {
 		}
 		throw res.error;
 	}
-	return res.status ?? 0;
-}
-
-/**
- * Run a tool capturing its stdout (stderr still streams to the terminal).
- * Exits the process if the tool fails — callers depend on the captured output.
- */
-export function capture(tool, args = [], opts = {}) {
-	const res = spawnSync("bunx", [tool, ...args], {
-		encoding: "utf8",
-		stdio: ["inherit", "pipe", "inherit"],
-		...opts,
-	});
-	if (res.error) {
-		if (res.error.code === "ENOENT") {
-			fail("could not run `bunx` — is bun installed and on PATH?");
-		}
-		throw res.error;
-	}
-	if (res.status !== 0) {
-		fail(`\`${tool} ${args.join(" ")}\` exited with ${res.status}`);
-	}
-	return res.stdout ?? "";
+	// A signal-killed child (OOM, SIGSEGV) has status null — that's a failure,
+	// not a pass; `?? 0` would let a crashed linter through the CI gate.
+	return res.status ?? (res.signal ? 1 : 0);
 }
 
 /** Print an `nk:`-prefixed error and exit non-zero. */

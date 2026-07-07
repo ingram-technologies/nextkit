@@ -19,8 +19,7 @@ export async function check() {
 	// hide another. oxc splits lint (oxlint) and format (oxfmt), so we run both.
 	const lintFailed = run(FORMATTER.lint[0], FORMATTER.lint[1]) !== 0;
 	const fmtFailed = run(FORMATTER.checkFormat[0], FORMATTER.checkFormat[1]) !== 0;
-	await formatSql({ check: true });
-	const sqlFailed = Boolean(process.exitCode);
+	const sqlFailed = await formatSql({ check: true });
 	// knip (unused deps/exports/files). Opt-in: only when the repo has a knip
 	// config — knip has no shareable config, so absence means "not adopted".
 	const knipFailed = hasKnipConfig() ? runKnip() !== 0 : false;

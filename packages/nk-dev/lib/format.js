@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join, relative } from "node:path";
 import { FORMATTER } from "./formatter.js";
@@ -8,8 +8,14 @@ import { run } from "./run.js";
 const require = createRequire(import.meta.url);
 
 // House SQL defaults, used only when the site has no Prettier config of its own
-// (matches the house tab style + the PostgreSQL dialect).
-const SQL_DEFAULTS = { useTabs: true, language: "postgresql" };
+// (matches the house tabs/4/88 style + the PostgreSQL dialect; without the
+// explicit widths Prettier falls back to 80/2).
+const SQL_DEFAULTS = {
+	useTabs: true,
+	tabWidth: 4,
+	printWidth: 88,
+	language: "postgresql",
+};
 
 /**
  * `nk format` / `nk format --check`.
@@ -24,13 +30,18 @@ export async function format({ check }) {
 	const code = run(op[0], op[1]);
 	if (code !== 0) process.exitCode = code;
 
-	await formatSql({ check });
+	if (await formatSql({ check })) process.exitCode = 1;
 }
 
-/** Format (or, with `check`, verify) every tracked `.sql` file via Prettier. */
+/**
+ * Format (or, with `check`, verify) every tracked `.sql` file via Prettier.
+ * Returns true when a check found unformatted files — the caller owns the exit
+ * code (inferring failure from the `process.exitCode` global misattributes any
+ * earlier failure to SQL).
+ */
 export async function formatSql({ check }) {
 	const files = sqlFiles();
-	if (files.length === 0) return;
+	if (files.length === 0) return false;
 
 	const prettier = require("prettier");
 	const pluginPath = require.resolve("prettier-plugin-sql");
@@ -38,6 +49,9 @@ export async function formatSql({ check }) {
 	let unformatted = 0;
 	let written = 0;
 	for (const file of files) {
+		// git ls-files lists tracked files deleted from the worktree without
+		// `git rm`; reading one would throw an unhandled ENOENT.
+		if (!existsSync(file)) continue;
 		const source = readFileSync(file, "utf8");
 		// The site's own .prettierrc / package.json "prettier" wins over our
 		// defaults; we always inject the bundled SQL plugin + parser.
@@ -72,24 +86,25 @@ export async function formatSql({ check }) {
 		console.error(
 			`nk: ${unformatted} SQL file(s) need formatting — run \`nk format\`.`,
 		);
-		process.exitCode = 1;
-	} else if (!check && written > 0) {
+		return true;
+	}
+	if (!check && written > 0) {
 		console.log(`nk: formatted ${written} SQL file(s).`);
 	}
+	return false;
 }
 
 /** Tracked + untracked-not-ignored `.sql` files; falls back to an fs walk. */
 function sqlFiles() {
+	// -z: NUL-separated, unquoted — the default output octal-escapes non-ASCII
+	// filenames, which then match no real path.
 	const res = spawnSync(
 		"git",
-		["ls-files", "--cached", "--others", "--exclude-standard", "*.sql"],
+		["ls-files", "-z", "--cached", "--others", "--exclude-standard", "*.sql"],
 		{ encoding: "utf8" },
 	);
 	if (res.status === 0) {
-		return res.stdout
-			.split("\n")
-			.map((s) => s.trim())
-			.filter(Boolean);
+		return res.stdout.split("\0").filter(Boolean);
 	}
 	return walkSql(process.cwd());
 }

@@ -3,9 +3,11 @@ import { createRequire } from "node:module";
 import { resolve } from "node:path";
 
 /**
- * Whether the site has `@ingram-tech/nk-db` installed — i.e. its `nk-pglite-dev`
- * bin is available. Resolved from the site's own `node_modules`, so `nk` only
- * orchestrates a tool the site already provides (the carve-out).
+ * Whether `@ingram-tech/nk-db` is resolvable from the site — the signal that
+ * its `nk-pglite-dev` bin is available. Note this is package *resolvability*,
+ * not a direct-dependency check: a transitively hoisted nk-db also flips PGlite
+ * mode on (harmless — the bin still runs `next dev`; it just also boots a local
+ * Postgres the site may not use).
  */
 function hasPgliteDev() {
 	try {
@@ -38,5 +40,6 @@ export function dev(extraArgs = []) {
 	}
 	// spawnSync inherits stdio and blocks until exit, so Ctrl-C reaches the child.
 	const res = spawnSync("bunx", command, { stdio: "inherit" });
-	process.exit(res.status ?? 0);
+	// Signal-killed (status null) is a failure, not a clean exit.
+	process.exit(res.status ?? (res.signal ? 1 : 0));
 }
