@@ -14,9 +14,10 @@
  *
  * So we resolve `workspace:` ranges ourselves from each package's package.json
  * version — the one source of truth — write them into a temporary manifest,
- * publish with `npm` (token auth via ~/.npmrc is the most portable), then
- * restore the original manifest. A guard refuses to publish anything that still
- * carries an unresolved `workspace:` range.
+ * publish with `npm` (which speaks both OIDC Trusted Publishing in CI and
+ * token auth via ~/.npmrc locally — see docs/releasing.md), then restore the
+ * original manifest. A guard refuses to publish anything that still carries an
+ * unresolved `workspace:` range.
  *
  *   bun run scripts/publish.ts            # publish whatever is new
  *   bun run scripts/publish.ts --dry-run  # print resolved ranges, publish nothing
@@ -127,10 +128,25 @@ for (const pkg of workspace) {
 	try {
 		const res = spawnSync("npm", ["publish", "--access", "public"], {
 			cwd: join(pkgsDir, pkg.dir),
-			stdio: "inherit",
+			encoding: "utf8",
+			stdio: ["inherit", "pipe", "pipe"],
 		});
-		if (res.status !== 0) throw new Error(`npm publish failed for ${name}`);
-		published += 1;
+		if (res.stdout) process.stdout.write(res.stdout);
+		if (res.stderr) process.stderr.write(res.stderr);
+		if (res.status !== 0) {
+			// npm's ~15-min quarantine on a brand-new package makes `npm view`
+			// 404 (so isPublished said "not published") while a re-publish 403s
+			// with "cannot publish over". That's "already published", not a
+			// failure — treat it as such so a release re-run inside the window
+			// doesn't abort the remaining packages (see docs/releasing.md).
+			if (/cannot publish over/i.test(res.stderr ?? "")) {
+				log(`= ${name}@${version} already on npm (registry said 403-over)`);
+			} else {
+				throw new Error(`npm publish failed for ${name}`);
+			}
+		} else {
+			published += 1;
+		}
 	} finally {
 		writeFileSync(pkg.path, pkg.raw); // restore the source manifest (workspace: ranges)
 	}

@@ -11,7 +11,7 @@
 		},
 		{
 			"description": "Keep workspace cross-links managed by Changesets, not Renovate.",
-			"matchPackagePatterns": ["^@ingram-tech/"],
+			"matchPackageNames": ["/^@ingram-tech\\//"],
 			"enabled": false
 		},
 		{

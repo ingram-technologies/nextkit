@@ -4,11 +4,11 @@ on:
   push:
     branches: [main]
 
-# Publishes to npm using the NPM_TOKEN secret (a granular access token).
-# `id-token: write` is kept so npm still attaches build provenance.
-# (Trusted Publishing via OIDC is the nicer long-term option, but it requires a
-# per-package trusted-publisher config on npmjs.com — without it the publish
-# E404s. The token works for all packages with no per-package setup.)
+# Publishes to npm via OIDC Trusted Publishing (`id-token: write` + a
+# per-package trusted-publisher config on npmjs.com — see docs/releasing.md;
+# a publish E404 means that config is missing for the package). NPM_TOKEN is
+# injected only as the fallback credential for packages without a trusted
+# publisher yet.
 permissions:
   contents: write
   pull-requests: write
@@ -24,9 +24,10 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+      # Matches the root package.json engines field (>=24).
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
           registry-url: https://registry.npmjs.org
       # Trusted Publishing requires a recent npm (>= 11.5.1) for OIDC + provenance.
       - run: npm install -g npm@latest

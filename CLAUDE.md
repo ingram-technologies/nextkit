@@ -23,7 +23,7 @@ fully buildable with plain `next build` / `next dev`. See the `nk` carve-out in
 
 ```bash
 bun install
-bun run ci          # check + type-check + test (run before pushing)
+bun run ci          # check + build + type-check + test (run before pushing)
 bun run build       # build publishable packages (tsc)
 bun run check       # oxlint + oxfmt --check
 bun run changeset   # required for any change to a published package

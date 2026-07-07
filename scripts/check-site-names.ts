@@ -1,16 +1,21 @@
 #!/usr/bin/env bun
 /**
- * Fails when a tracked file names one of Ingram's consumer websites. nextkit is
- * a public repo and must only ever describe itself — consumers are referred to
- * generically ("a consuming site"). The banned names are stored as SHA-256
- * hashes so this checker doesn't itself leak them; on a hit it reports the
- * file:line but not the word (CI logs are public too).
+ * Fails when a tracked file — its content OR its path — or an unpushed commit
+ * message names one of Ingram's consumer websites. nextkit is a public repo
+ * and must only ever describe itself — consumers are referred to generically
+ * ("a consuming site"). The banned names are stored as SHA-256 hashes so this
+ * checker doesn't itself leak them; on a hit it reports the file:line but not
+ * the word (CI logs are public too).
+ *
+ * Scope: current tracked state plus commits not yet on origin/main. Names
+ * already in pushed history are out of reach here (history is public the
+ * moment it lands).
  *
  *   bun run scripts/check-site-names.ts
  */
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 const BANNED_TOKEN_HASHES = new Set([
 	"8f6ce7348d64d26df26a97e1e29f083c6330c434967e6cf9af7bb87ed560fc8b",
@@ -33,18 +38,41 @@ if (ls.status !== 0) {
 }
 
 let failed = false;
-for (const file of ls.stdout.split("\n").filter((f) => f && !SKIP.test(f))) {
-	const lines = readFileSync(file, "utf8").split("\n");
-	lines.forEach((line, i) => {
+const scanText = (text: string, where: (line: number) => string): void => {
+	text.split("\n").forEach((line, i) => {
 		for (const token of line.toLowerCase().match(/[a-z]+/g) ?? []) {
 			if (BANNED_TOKEN_HASHES.has(sha256(token))) {
 				failed = true;
 				console.error(
-					`${file}:${i + 1}: names a consumer site (hash ${sha256(token).slice(0, 12)}…) — refer to consumers generically`,
+					`${where(i + 1)}: names a consumer site (hash ${sha256(token).slice(0, 12)}…) — refer to consumers generically`,
 				);
 			}
 		}
 	});
+};
+
+for (const file of ls.stdout.split("\n").filter((f) => f && !SKIP.test(f))) {
+	// A banned name in the *path* leaks just as much as one in the content.
+	scanText(file, () => file);
+	// ls-files lists tracked files even when deleted from the worktree
+	// without `git rm` — skip those rather than crash.
+	if (!existsSync(file)) continue;
+	scanText(readFileSync(file, "utf8"), (line) => `${file}:${line}`);
+}
+
+// Commit messages ship to the public repo too. Scan what hasn't been pushed
+// yet (origin/main..HEAD); already-pushed history is public regardless.
+const range = spawnSync("git", ["log", "--format=%H%x00%B%x00", "origin/main..HEAD"], {
+	encoding: "utf8",
+});
+if (range.status === 0) {
+	const parts = range.stdout.split("\0");
+	for (let i = 0; i + 1 < parts.length; i += 2) {
+		const hash = parts[i]?.trim();
+		const body = parts[i + 1];
+		if (!hash || body === undefined) continue;
+		scanText(body, () => `commit ${hash.slice(0, 12)} (message)`);
+	}
 }
 
 if (failed) {

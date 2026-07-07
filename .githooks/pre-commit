@@ -1,7 +1,7 @@
 #!/bin/sh
 # nextkit pre-commit hook.
-# Dogfoods @ingram-tech/git-hooks: formats staged files with oxfmt, then
-# re-stages them. The exact same logic ships to consumer sites via the
-# `nextkit-format-staged` bin — see packages/git-hooks.
+# Dogfoods @ingram-tech/nk-dev's format-staged: formats staged files with
+# oxfmt, then re-stages them. The exact same logic ships to consumer sites via
+# the `nextkit-format-staged` bin — see packages/nk-dev/bin/format-staged.mjs.
 set -eu
 exec bun packages/nk-dev/bin/format-staged.mjs

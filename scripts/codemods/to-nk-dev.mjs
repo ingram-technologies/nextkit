@@ -117,7 +117,9 @@ for (const field of ["dependencies", "devDependencies"]) {
 }
 pkg.devDependencies = {
 	...pkg.devDependencies,
-	"@ingram-tech/nk-dev": "^0.1.0",
+	// Under 0.x semver, a ^0.1.0 pin would never match 0.2.x — keep this on
+	// nk-dev's current minor when bumping.
+	"@ingram-tech/nk-dev": "^0.2.0",
 };
 pkg.devDependencies = Object.fromEntries(
 	Object.entries(pkg.devDependencies).sort(([a], [b]) => a.localeCompare(b)),
