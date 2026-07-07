@@ -42,14 +42,14 @@ describe("createMetadata", () => {
 		});
 	});
 
-	it("sets robots noindex/nofollow when noIndex is true", () => {
+	it("sets robots noindex (but follow, preserving link equity) when noIndex is true", () => {
 		const meta = pageMetadata({
 			title: "T",
 			description: "D",
 			path: "/p",
 			noIndex: true,
 		});
-		expect(meta.robots).toEqual({ index: false, follow: false });
+		expect(meta.robots).toEqual({ index: false, follow: true });
 	});
 
 	it("omits robots when noIndex is not set", () => {

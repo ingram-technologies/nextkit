@@ -27,7 +27,9 @@ components live at `@ingram-tech/nk-seo/components`.
 bun add @ingram-tech/nk-seo
 ```
 
-`next` and `react` are optional peers (only the components need them).
+`next` and `react` are optional peers — the package root is runtime-free of
+both; the `/components` and `/og` entries need them (`/og` uses `next/og` and
+the React JSX runtime).
 
 ## Structured data
 
@@ -184,13 +186,21 @@ each `opengraph-image.tsx` and asserts a valid PNG comes out.
 ## Hreflang & canonical
 
 Render in `<head>` from the root layout. By default it reads the `x-pathname`
-request header — set it in middleware:
+request header — set it on the **forwarded request** in middleware (setting it
+on the response does nothing: `headers()` in a server component reads incoming
+request headers):
 
 ```ts
 // middleware.ts
-const res = NextResponse.next();
-res.headers.set("x-pathname", req.nextUrl.pathname);
+const requestHeaders = new Headers(req.headers);
+requestHeaders.set("x-pathname", req.nextUrl.pathname);
+return NextResponse.next({ request: { headers: requestHeaders } });
 ```
+
+Copying `req.headers` first also overwrites any client-spoofed `x-pathname`.
+Note that reading the header (`headers()`) opts the page into dynamic
+rendering — pass `pathname` explicitly (e.g. from route params) on pages that
+must stay static.
 
 ```tsx
 import { HreflangLinks } from "@ingram-tech/nk-seo/components";
@@ -218,6 +228,11 @@ Two rules of the road:
 
 - **One canonical per page.** If your pages already set `alternates.canonical`
   (e.g. via `createMetadata`), render `<HreflangLinks canonical={false} />`.
+- **The canonical must self-reference.** A localized variant that
+  canonicalizes to a different URL makes Google discard the whole hreflang
+  cluster. The prefix strategy auto-detects the current locale from the
+  (possibly `/fr/…`-prefixed) pathname; the query strategy can't see the query
+  string server-side, so pass `currentLocale` from your locale negotiation.
 - Building metadata instead of rendering links? The pure `hreflangAlternates`
   (package root) returns the same `{ canonical, links }` for use in
   `generateMetadata`.

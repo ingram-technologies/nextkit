@@ -21,6 +21,14 @@ export interface HreflangConfig {
 	param?: string;
 	/** Default (unprefixed) locale for the `"prefix"` strategy. */
 	defaultLocale?: string;
+	/**
+	 * Locale of the page being rendered. Determines the self-referencing
+	 * canonical: a localized variant that canonicalizes to another URL makes
+	 * Google discard the entire hreflang cluster. For the `"prefix"` strategy it
+	 * is auto-detected from the pathname; for `"query"` the server can't see the
+	 * query string, so pass it (e.g. from your locale negotiation).
+	 */
+	currentLocale?: string;
 	/** Optional locale → hreflang tag map, e.g. `{ en: "en-BE", fr: "fr-BE" }`. */
 	hrefLangTags?: Record<string, string>;
 }
@@ -47,18 +55,52 @@ export function hreflangAlternates(
 	pathname: string,
 ): HreflangAlternates {
 	const { strategy = "query", param = "hl", defaultLocale, hrefLangTags } = config;
-	const canonical = absoluteUrl(pathname, config.baseUrl);
+	if (strategy === "prefix" && !defaultLocale) {
+		// Without it every locale gets a prefix while canonical/x-default point
+		// at a bare path that is no locale's URL — a silent SEO bug.
+		throw new Error(
+			"hreflangAlternates: `defaultLocale` is required for the prefix strategy.",
+		);
+	}
+
+	// Prefix strategy: accept both the bare and the locale-prefixed form of the
+	// path (middleware's `x-pathname` carries the latter on a real localized
+	// route — blindly prepending would emit /fr/fr/about) and detect the
+	// current locale from it.
+	let basePath = pathname;
+	let currentLocale = config.currentLocale;
+	if (strategy === "prefix") {
+		for (const locale of config.locales) {
+			if (pathname === `/${locale}` || pathname.startsWith(`/${locale}/`)) {
+				basePath = pathname.slice(locale.length + 1) || "/";
+				currentLocale ??= locale;
+				break;
+			}
+		}
+		currentLocale ??= defaultLocale;
+	}
+
+	/** The default-locale URL — the bare path; also serves as x-default. */
+	const defaultUrl = absoluteUrl(basePath, config.baseUrl);
 
 	const hrefFor = (locale: string): string => {
 		if (strategy === "prefix") {
-			if (defaultLocale && locale === defaultLocale) {
-				return canonical;
-			}
-			const clean = pathname === "/" ? "" : pathname;
+			if (locale === defaultLocale) return defaultUrl;
+			const clean = basePath === "/" ? "" : basePath;
 			return absoluteUrl(`/${locale}${clean}`, config.baseUrl);
 		}
-		return `${canonical}?${param}=${locale}`;
+		return `${defaultUrl}${defaultUrl.includes("?") ? "&" : "?"}${param}=${locale}`;
 	};
+
+	// Self-referencing canonical: the current variant's own URL. Canonicalizing
+	// a localized variant to the bare path makes Google treat the variants as
+	// duplicates and ignore the hreflang annotations entirely.
+	const canonical =
+		currentLocale &&
+		currentLocale !== defaultLocale &&
+		config.locales.includes(currentLocale)
+			? hrefFor(currentLocale)
+			: defaultUrl;
 
 	return {
 		canonical,
@@ -67,7 +109,7 @@ export function hreflangAlternates(
 				hrefLang: hrefLangTags?.[locale] ?? locale,
 				href: hrefFor(locale),
 			})),
-			{ hrefLang: "x-default", href: canonical },
+			{ hrefLang: "x-default", href: defaultUrl },
 		],
 	};
 }

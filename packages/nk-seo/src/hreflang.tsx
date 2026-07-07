@@ -3,9 +3,19 @@ import { hreflangAlternates, type HreflangConfig } from "./alternates.js";
 
 export interface HreflangLinksProps extends HreflangConfig {
 	/**
-	 * Path being rendered. Defaults to the `x-pathname` request header (set it in
-	 * middleware: `headers.set("x-pathname", req.nextUrl.pathname)`). Pass
-	 * explicitly if you don't use that header (e.g. from route params).
+	 * Path being rendered. Defaults to the `x-pathname` REQUEST header — it must
+	 * be set on the forwarded request in middleware (a response header is
+	 * invisible to `headers()`):
+	 *
+	 * ```ts
+	 * const requestHeaders = new Headers(req.headers);
+	 * requestHeaders.set("x-pathname", req.nextUrl.pathname);
+	 * return NextResponse.next({ request: { headers: requestHeaders } });
+	 * ```
+	 *
+	 * Pass explicitly if you don't use that header (e.g. from route params) —
+	 * also the only way to keep the page statically renderable, since reading
+	 * `headers()` opts the page into dynamic rendering.
 	 */
 	pathname?: string;
 	/**
@@ -34,8 +44,10 @@ export async function HreflangLinks({
 	if (!path) {
 		throw new Error(
 			"HreflangLinks: no `pathname` prop and no `x-pathname` request header. " +
-				'Set the header in middleware (`res.headers.set("x-pathname", req.nextUrl.pathname)`) ' +
-				"or pass `pathname` explicitly.",
+				"Set it on the forwarded REQUEST in middleware — " +
+				'`const h = new Headers(req.headers); h.set("x-pathname", req.nextUrl.pathname); ' +
+				"return NextResponse.next({ request: { headers: h } });` — " +
+				"(a response header is invisible to `headers()`), or pass `pathname` explicitly.",
 		);
 	}
 	const { canonical: canonicalUrl, links } = hreflangAlternates(config, path);
@@ -45,7 +57,9 @@ export async function HreflangLinks({
 			{canonical ? <link rel="canonical" href={canonicalUrl} /> : null}
 			{links.map((link) => (
 				<link
-					key={link.hrefLang}
+					// hrefLang alone can collide (two locales mapped to one tag via
+					// hrefLangTags), and colliding keys silently drop links.
+					key={`${link.hrefLang} ${link.href}`}
 					rel="alternate"
 					hrefLang={link.hrefLang}
 					href={link.href}

@@ -88,7 +88,9 @@ export function createMetadata(site: MetadataSiteConfig) {
 			description: input.description,
 			...(input.keywords ? { keywords: input.keywords } : {}),
 			alternates: { canonical: url },
-			...(input.noIndex ? { robots: { index: false, follow: false } } : {}),
+			// noindex but follow: keep link equity flowing through the page. Use a
+			// full robots override in the page's own metadata for nofollow too.
+			...(input.noIndex ? { robots: { index: false, follow: true } } : {}),
 			openGraph: {
 				title: input.title,
 				description: input.description,
