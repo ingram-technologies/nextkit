@@ -64,3 +64,22 @@ describe("createT", () => {
 		expect(t("Hello")).toBe("Salut");
 	});
 });
+
+describe("format resilience", () => {
+	it("degrades to the raw message on a malformed catalog entry instead of throwing", () => {
+		// One bad fr entry must not 500 every French page rendering this key.
+		const t = createT("fr", { fr: { "Hi {name}": "Salut {name" } });
+		expect(t("Hi {name}", { name: "Ada" })).toBe("Salut {name");
+	});
+
+	it("degrades when a placeholder value is missing", () => {
+		const t = createT("fr", { fr: { "Hi {name}": "Salut {name}" } });
+		expect(t("Hi {name}", {})).toBe("Salut {name}");
+	});
+
+	it("degrades on an invalid locale tag", () => {
+		const t = createT("not a locale!", undefined);
+		// The raw source string, uninterpolated — degraded but rendered.
+		expect(t("Hi {name}", { name: "Ada" })).toBe("Hi {name}");
+	});
+});

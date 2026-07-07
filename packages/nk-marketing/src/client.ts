@@ -14,7 +14,7 @@
  */
 
 import { fromAddress, sendEmail } from "@ingram-tech/nk-email";
-import { generateToken, normalizeEmail, type Queryable } from "./db.js";
+import { generateToken, normalizeEmail, requireEmail, type Queryable } from "./db.js";
 import {
 	derivePreviewText,
 	type MarketingRenderInput,
@@ -67,7 +67,9 @@ export const createMarketing = (config: MarketingConfig) => {
 	 * the token. The unit every other call resolves to.
 	 */
 	const identify = async (options: IdentifyOptions): Promise<Contact> => {
-		const email = normalizeEmail(options.email);
+		// Validate up front: identify/subscribe emails come straight from user
+		// forms, and a raw check-constraint violation is unactionable upstream.
+		const email = requireEmail(options.email);
 		const { rows } = await db.query<Contact>(
 			`insert into marketing_contacts (email, user_id, locale, unsubscribe_token)
 			 values ($1, $2, $3, $4)
@@ -114,6 +116,18 @@ export const createMarketing = (config: MarketingConfig) => {
 			email: options.email,
 			userId: options.userId,
 		});
+		if (contact.unsubscribed_all_at) {
+			// An explicit re-subscribe is fresh consent. Without clearing the
+			// global opt-out the new subscription looks successful but every
+			// broadcast silently excludes the contact forever — undetectable by
+			// caller and user alike.
+			await db.query(
+				`update marketing_contacts
+				 set unsubscribed_all_at = null, updated_at = now()
+				 where id = $1`,
+				[contact.id],
+			);
+		}
 		const { rows } = await db.query<Subscription>(
 			`insert into marketing_subscriptions (audience_id, contact_id, unsubscribe_token, source)
 			 values ($1, $2, $3, $4)
@@ -290,7 +304,13 @@ export const createMarketing = (config: MarketingConfig) => {
 				result.sentCount += 1;
 			} catch (err) {
 				if (options.campaignKey) {
-					await releaseDelivery(options.campaignKey, r.contact_id);
+					// Best-effort: a throwing release (DB blip) must not escape the
+					// per-recipient catch and abort the rest of the batch. If it does
+					// fail, the claim wrongly persists and later re-runs will skip
+					// this contact — surfaced via the failures list either way.
+					await releaseDelivery(options.campaignKey, r.contact_id).catch(
+						() => {},
+					);
 				}
 				result.failedCount += 1;
 				result.failures.push({
@@ -348,7 +368,9 @@ export const createMarketing = (config: MarketingConfig) => {
 				},
 			});
 		} catch (err) {
-			await releaseDelivery(options.campaignKey, contact.id);
+			// Best-effort: if the release itself throws, the send error (the one
+			// the caller can act on) must still propagate, not be masked.
+			await releaseDelivery(options.campaignKey, contact.id).catch(() => {});
 			throw err;
 		}
 		return { status: "sent" };

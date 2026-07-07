@@ -36,6 +36,16 @@ export interface ListUnsubscribe {
 export const buildListUnsubscribeHeaders = (
 	unsubscribe: ListUnsubscribe,
 ): Record<string, string> => {
+	// The values are wrapped in <…> and comma-joined into one header: an
+	// angle bracket, comma, or control char inside them silently corrupts the
+	// header (or injects another one). URL-encode tokens upstream.
+	// oxlint-disable-next-line no-control-regex -- header-injection guard
+	const invalid = /[\x00-\x1f\x7f<>,]/;
+	if (invalid.test(unsubscribe.url) || invalid.test(unsubscribe.mailto ?? "")) {
+		throw new Error(
+			"@ingram-tech/nk-email: List-Unsubscribe values must not contain control characters, angle brackets, or commas",
+		);
+	}
 	const entries = [`<${unsubscribe.url}>`];
 	if (unsubscribe.mailto) {
 		const mailto = unsubscribe.mailto.startsWith("mailto:")

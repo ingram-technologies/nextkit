@@ -65,5 +65,8 @@ export const derivePreviewText = (content: string): string => {
 		.map((line) => line.trim())
 		.find((line) => line.length > 0);
 	if (!first) return "";
-	return first.length > 140 ? `${first.slice(0, 137)}…` : first;
+	// Slice by code points, not UTF-16 units — a cut inside an emoji's
+	// surrogate pair would put U+FFFD in the inbox preview.
+	const points = [...first];
+	return points.length > 140 ? `${points.slice(0, 137).join("")}…` : first;
 };

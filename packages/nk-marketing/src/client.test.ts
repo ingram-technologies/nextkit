@@ -166,7 +166,8 @@ class FakeDb implements Queryable {
 		if (s.startsWith("update marketing_contacts set unsubscribed_all_at")) {
 			const [id] = params as [string];
 			const c = this.contacts.find((x) => x.id === id);
-			if (c) c.unsubscribed_all_at = TS;
+			// The same column is set (global opt-out) and cleared (re-subscribe).
+			if (c) c.unsubscribed_all_at = s.includes("= null") ? null : TS;
 			return [];
 		}
 
@@ -335,5 +336,32 @@ describe("sendLifecycle", () => {
 		// Claim released → a retry now goes through.
 		sendMock.mockResolvedValueOnce(undefined);
 		expect(await marketing.sendLifecycle(opts)).toEqual({ status: "sent" });
+	});
+});
+
+describe("re-subscribe after global opt-out", () => {
+	it("clears the global suppression so broadcasts reach the contact again", async () => {
+		db.seedAudience();
+		const contact = await marketing.identify({ email: "a@acme.test" });
+		await marketing.unsubscribe(contact.unsubscribe_token); // global opt-out
+		// An explicit signup afterwards is fresh consent…
+		await marketing.subscribe({ audienceSlug: "weekly", email: "a@acme.test" });
+		// …so the next broadcast must include them (previously: silently
+		// excluded forever while subscribe() reported success).
+		const result = await marketing.sendBroadcast({
+			audienceSlug: "weekly",
+			subject: "Issue 1",
+			content: "Hello",
+		});
+		expect(result.sentCount).toBe(1);
+		expect(sendMock).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("input validation", () => {
+	it("rejects junk emails with a descriptive error, not a pg constraint", async () => {
+		await expect(marketing.identify({ email: "not-an-email" })).rejects.toThrow(
+			/invalid email/,
+		);
 	});
 });

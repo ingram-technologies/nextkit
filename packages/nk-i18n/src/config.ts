@@ -1,3 +1,8 @@
+/**
+ * Reserved: declared for forward compatibility but not yet consumed by
+ * `createT`/`useT` — a missing key currently always falls back to the English
+ * source silently, regardless of this setting.
+ */
 export type MissingKeysPolicy = "error" | "warn" | "ignore";
 
 /**

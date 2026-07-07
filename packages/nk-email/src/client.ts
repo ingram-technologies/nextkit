@@ -80,6 +80,16 @@ export const fromAddress = (name: string, localPart = "notifications"): string =
 			"@ingram-tech/nk-email: sender name must not contain control characters or newlines",
 		);
 	}
+	// The local part is interpolated raw into the address — the same
+	// header-injection guard applies, plus the RFC 5322 specials that would
+	// malform `local@domain` (dot-atom characters only; use quoting upstream if
+	// you genuinely need specials).
+	// oxlint-disable-next-line no-control-regex -- reject control chars/newlines in the local part.
+	if (/[\x00-\x1f\x7f]/.test(localPart) || /[()<>[\]:;@\\," ]/.test(localPart)) {
+		throw new Error(
+			"@ingram-tech/nk-email: sender local part contains characters that would malform the address",
+		);
+	}
 	// RFC 5322: a display name with specials must be a quoted-string (escaping
 	// `\` and `"`); a plain name is left bare.
 	const display = /[()<>[\]:;@\\,."]/.test(name)

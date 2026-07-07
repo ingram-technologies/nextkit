@@ -73,19 +73,43 @@ export type Translator<TSource extends MessageSource | undefined = undefined> = 
 ) => string;
 
 const cache = new Map<string, IntlMessageFormat>();
+// Bound the formatter cache: keys embed the locale, and an unvalidated
+// user-controlled locale (cookie/path segment) would otherwise grow server
+// memory without limit.
+const CACHE_MAX = 5000;
+
+const warnedFormatErrors = new Set<string>();
 
 function format(
 	message: string,
 	locale: string,
 	values: Record<string, unknown>,
 ): string {
-	const key = `${locale}:${message}`;
-	let fmt = cache.get(key);
-	if (!fmt) {
-		fmt = new IntlMessageFormat(message, locale);
-		cache.set(key, fmt);
+	try {
+		const key = `${locale}:${message}`;
+		let fmt = cache.get(key);
+		if (!fmt) {
+			if (cache.size >= CACHE_MAX) cache.clear();
+			fmt = new IntlMessageFormat(message, locale);
+			cache.set(key, fmt);
+		}
+		const result = fmt.format(values);
+		return typeof result === "string" ? result : String(result);
+	} catch (error) {
+		// A malformed catalog entry, a missing placeholder value, or a bad
+		// locale tag must degrade to the raw message — not 500 every page that
+		// renders this key in this locale (which base-locale testing never hits,
+		// since values-less lookups return early).
+		if (!warnedFormatErrors.has(message)) {
+			warnedFormatErrors.add(message);
+			console.warn(
+				`@ingram-tech/nk-i18n: failed to format "${message}" (${locale}): ${
+					error instanceof Error ? error.message : String(error)
+				}`,
+			);
+		}
+		return message;
 	}
-	return fmt.format(values) as string;
 }
 
 function isI18nScope(source: MessageSource): source is I18nScope {

@@ -23,3 +23,22 @@ describe("negotiateAcceptLanguage", () => {
 		expect(negotiateAcceptLanguage("es-ES,it;q=0.9", supported)).toBeUndefined();
 	});
 });
+
+describe("q-value handling (RFC 9110)", () => {
+	it("prefers the highest quality, not header order", () => {
+		expect(negotiateAcceptLanguage("en;q=0.5, fr;q=0.9", ["en", "fr"])).toBe("fr");
+	});
+
+	it("never matches an explicitly rejected q=0 language", () => {
+		expect(negotiateAcceptLanguage("fr, en;q=0", ["en"])).toBeUndefined();
+		expect(negotiateAcceptLanguage("fr, en;q=0", ["en", "fr"])).toBe("fr");
+	});
+
+	it("breaks quality ties in header order", () => {
+		expect(negotiateAcceptLanguage("nl;q=0.8, fr;q=0.8", ["fr", "nl"])).toBe("nl");
+	});
+
+	it("treats a missing q as 1", () => {
+		expect(negotiateAcceptLanguage("fr;q=0.9, en", ["en", "fr"])).toBe("en");
+	});
+});

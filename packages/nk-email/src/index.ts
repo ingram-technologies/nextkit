@@ -1,4 +1,5 @@
 export {
+	DEFAULT_TIMEOUT_MS,
 	type EmailAttachment,
 	type EmailOptions,
 	fromAddress,

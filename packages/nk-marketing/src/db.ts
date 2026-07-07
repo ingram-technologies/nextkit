@@ -19,6 +19,19 @@ export interface Queryable {
 /** Normalise an email for storage and lookup — trimmed + lowercased. */
 export const normalizeEmail = (email: string): string => email.trim().toLowerCase();
 
+// Mirrors the migration's marketing_contacts_email_format check, so form input
+// fails with a clear error here instead of a raw Postgres constraint violation.
+const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+/** Normalise + validate an email; throws a descriptive error on junk input. */
+export const requireEmail = (email: string): string => {
+	const normalized = normalizeEmail(email);
+	if (!EMAIL_PATTERN.test(normalized)) {
+		throw new Error(`nk-marketing: invalid email address "${email}"`);
+	}
+	return normalized;
+};
+
 /**
  * A 256-bit random token, hex-encoded, for an unsubscribe link. Generated in
  * app code (not via a pgcrypto column default) so the migration stays
