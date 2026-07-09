@@ -92,17 +92,17 @@
 		}
 	},
 	"devDependencies": {
-		"@better-auth/passkey": "^1.6.22",
+		"@better-auth/passkey": "^1.6.23",
 		"@ingram-tech/nk-dev": "workspace:*",
 		"@types/bcrypt": "^6.0.0",
-		"@types/node": "^26.0.1",
+		"@types/node": "^26.1.1",
 		"@types/pg": "^8.20.0",
 		"@types/react": "^19.2.17",
-		"better-auth": "^1.6.22",
-		"next": "^16.2.9",
+		"better-auth": "^1.6.23",
+		"next": "^16.2.10",
 		"pg": "^8.22.0",
 		"react": "^19.2.7",
-		"typescript": "^6.0.3",
-		"vitest": "^4.1.9"
+		"typescript": "^7.0.2",
+		"vitest": "^4.1.10"
 	}
 }
