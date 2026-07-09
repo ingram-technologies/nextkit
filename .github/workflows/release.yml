@@ -30,7 +30,10 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
       # Trusted Publishing requires a recent npm (>= 11.5.1) for OIDC + provenance.
-      - run: npm install -g npm@latest
+      # Pinned to the 11.x line: npm@12.0.0 dropped the bundled `sigstore` module
+      # its own provenance path still requires, so `npm publish` with
+      # NPM_CONFIG_PROVENANCE=true crashes (MODULE_NOT_FOUND). Re-check on npm 12.x.
+      - run: npm install -g npm@11
       - run: bun install --frozen-lockfile
       - name: Create Release PR or publish
         uses: changesets/action@v1
