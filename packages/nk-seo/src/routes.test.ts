@@ -88,6 +88,18 @@ describe("createRobots", () => {
 		});
 	});
 
+	it("refuses to disallow /_next (blocking build assets breaks rendering)", () => {
+		for (const path of ["/_next/", "/_next", "_next/static", " /_next/data"]) {
+			expect(() =>
+				createRobots({ baseUrl, isProduction: true, disallow: [path] }),
+			).toThrow(/_next/);
+		}
+		// A legit prefix that merely starts with "/_" is fine.
+		expect(() =>
+			createRobots({ baseUrl, isProduction: true, disallow: ["/_preview"] }),
+		).not.toThrow();
+	});
+
 	it("omits the sitemap when sitemapPath is null and drops an empty disallow", () => {
 		const robots = createRobots({
 			baseUrl,

@@ -115,7 +115,11 @@ export interface RobotsConfig {
 	 * from `VERCEL_ENV === "production"` (and/or a host check).
 	 */
 	isProduction: boolean;
-	/** Prod-only disallow list (private routes, APIs, auth flows). */
+	/**
+	 * Prod-only disallow list (private routes, APIs, auth flows). Entries that
+	 * would block `/_next` are rejected: crawlers must reach the JS/CSS under it
+	 * to render pages, so disallowing it silently harms indexing.
+	 */
 	disallow?: string[];
 	/** Prod allow rule. Default "/". */
 	allow?: string | string[];
@@ -142,6 +146,16 @@ export interface RobotsConfig {
 export function createRobots(config: RobotsConfig): MetadataRoute.Robots {
 	if (!config.isProduction) {
 		return { rules: { userAgent: "*", disallow: "/" } };
+	}
+	const nextAsset = config.disallow?.find((path) =>
+		path.trim().replace(/^\//, "").startsWith("_next"),
+	);
+	if (nextAsset !== undefined) {
+		throw new Error(
+			`createRobots: refusing to disallow "${nextAsset}". Blocking /_next stops ` +
+				"crawlers from fetching the JS/CSS they need to render your pages, which " +
+				"hurts indexing. Next.js does not block it by default and neither should you.",
+		);
 	}
 	const sitemapPath =
 		config.sitemapPath === undefined ? "/sitemap.xml" : config.sitemapPath;
