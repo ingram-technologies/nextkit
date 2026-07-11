@@ -2,6 +2,19 @@ import IntlMessageFormat from "intl-messageformat";
 
 type MessageCatalog = Record<string, string>;
 declare const I18N_KEY_BRAND: unique symbol;
+declare const LOCALIZED_STRING_BRAND: unique symbol;
+
+/**
+ * A string that has passed through a {@link Translator} — display-ready text in
+ * the active locale. It is a plain `string` at runtime (the brand is erased), so
+ * it flows anywhere a `string` is wanted; the brand only matters where a prop is
+ * tightened to require `LocalizedString`, which turns hardcoded English at that
+ * boundary into a compile error. Sites that need to pass deliberately
+ * untranslated text (a name, an id, a number) opt out with `x as LocalizedString`.
+ */
+export type LocalizedString = string & {
+	readonly [LOCALIZED_STRING_BRAND]: "LocalizedString";
+};
 
 /**
  * A set of per-locale message catalogs, keyed by locale code. The English
@@ -64,13 +77,17 @@ type DeepMessageKeys<TValue> = TValue extends string
  * source the key is checked against the catalogs at compile time; without one,
  * any literal string is allowed. The optional `values` are interpolated with
  * ICU MessageFormat (`{name}`, `{count, number}`, plurals, …).
+ *
+ * The return is branded {@link LocalizedString} so a prop can require translated
+ * text; interpolation done here stays branded, but composing with `+` or a
+ * template literal collapses back to a plain `string`.
  */
 export type Translator<TSource extends MessageSource | undefined = undefined> = <
 	const TValue extends string,
 >(
 	english: AllowedMessageKey<TSource, TValue>,
 	values?: Record<string, unknown>,
-) => string;
+) => LocalizedString;
 
 const cache = new Map<string, IntlMessageFormat>();
 // Bound the formatter cache: keys embed the locale, and an unvalidated
@@ -157,10 +174,14 @@ export function createT<const TSource extends MessageSource | undefined>(
 	const resolvedMessages =
 		resolveMessages(runtimeMessages) ?? resolveMessages(messagesOrScope);
 
-	const translate = (english: string, values?: Record<string, unknown>): string => {
+	// The brand is erased at runtime; this function is the sole mint site.
+	const translate = (
+		english: string,
+		values?: Record<string, unknown>,
+	): LocalizedString => {
 		const translated = resolvedMessages?.[locale]?.[english] ?? english;
-		if (!values) return translated;
-		return format(translated, locale, values);
+		if (!values) return translated as LocalizedString;
+		return format(translated, locale, values) as LocalizedString;
 	};
 
 	return translate as Translator<TSource>;

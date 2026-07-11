@@ -112,42 +112,61 @@ export function base58Id(prefix: string): string {
 	return toPrefixedId(uuidGenerateId(), prefix);
 }
 
+declare const ID_BRAND: unique symbol;
+declare const UUID_BRAND: unique symbol;
+
+/**
+ * A prefixed base58 public id for entity `E` (e.g. `org_…`), branded by entity
+ * so ids of different entities — and plain strings — can't be mixed silently. A
+ * plain `string` at runtime; the brand is minted by a {@link createIdRegistry}
+ * helper and erased on the wire.
+ */
+export type Id<E extends string> = string & { readonly [ID_BRAND]: E };
+
+/**
+ * A hyphenated UUIDv7 at rest, branded distinct from a public {@link Id} so a
+ * skinned id can't be fed into a uuid slot (or a uuid into an id slot) by
+ * accident. Recovered from an {@link Id} by a registry helper's `decode`.
+ */
+export type Uuid = string & { readonly [UUID_BRAND]: "Uuid" };
+
 /** Typed helpers for one entity's prefixed ids — built by {@link createIdRegistry}. */
-export interface IdHelper {
+export interface IdHelper<E extends string = string> {
 	/** This entity's prefix, e.g. `"agt"` (no trailing underscore). */
 	readonly prefix: string;
 	/** Mint a fresh prefixed id (new UUIDv7 core). */
-	mint(): string;
+	mint(): Id<E>;
 	/** Skin a stored hyphenated UUIDv7 as this entity's prefixed id. */
-	encode(uuid: string): string;
+	encode(uuid: string): Id<E>;
 	/** Recover the hyphenated UUIDv7; throws if the prefix / shape doesn't match. */
-	decode(id: string): string;
+	decode(id: string): Uuid;
 	/**
 	 * Recover the hyphenated UUIDv7, or `null` if `id` isn't a well-formed
 	 * prefixed id for this entity. The throw-free {@link decode}, for validating
 	 * untrusted input (a path param, a query string) without a try/catch.
 	 */
-	decodeOrNull(id: string): string | null;
-	/** Whether `id` is a well-formed prefixed id for this entity. */
-	is(id: string): boolean;
+	decodeOrNull(id: string): Uuid | null;
+	/** Whether `id` is a well-formed prefixed id for this entity (narrows to {@link Id}). */
+	is(id: string): id is Id<E>;
 }
 
 /** The map returned by {@link createIdRegistry}: one {@link IdHelper} per key. */
-export type IdRegistry<K extends string> = Record<K, IdHelper>;
+export type IdRegistry<K extends string> = { [E in K]: IdHelper<E> };
 
-function makeHelper(prefix: string): IdHelper {
+function makeHelper<E extends string>(prefix: string): IdHelper<E> {
 	// Prefixes are developer-controlled identifier constants, never user input.
 	const matcher = new RegExp(`^${prefix}_${BODY}$`);
+	// The brands are erased at runtime; these casts are the sole mint sites.
 	return {
 		prefix,
-		mint: () => base58Id(prefix),
-		encode: (uuid) => toPrefixedId(uuid, prefix),
+		mint: () => base58Id(prefix) as Id<E>,
+		encode: (uuid) => toPrefixedId(uuid, prefix) as Id<E>,
 		decode: (id) => {
 			if (!matcher.test(id)) throw new Error(`not a ${prefix}_ id: ${id}`);
-			return fromPrefixedId(id);
+			return fromPrefixedId(id) as Uuid;
 		},
-		decodeOrNull: (id) => (matcher.test(id) ? fromPrefixedId(id) : null),
-		is: (id) => matcher.test(id),
+		decodeOrNull: (id) => (matcher.test(id) ? (fromPrefixedId(id) as Uuid) : null),
+		is: (id): id is Id<E> => matcher.test(id),
 	};
 }
 

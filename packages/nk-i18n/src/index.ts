@@ -4,6 +4,7 @@ export {
 	defineI18nScope,
 	defineMessages,
 	type I18nScope,
+	type LocalizedString,
 	type Messages,
 	type MessageSource,
 	type TranslationKey,
