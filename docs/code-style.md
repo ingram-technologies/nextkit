@@ -51,6 +51,25 @@ judgment-level conventions that humans and agents must follow.
   ```
 - For `react/exhaustive-deps`, wrap functions in `useCallback` rather than
   suppressing the rule.
+- **Never read the clock or randomness at render in a Client Component.**
+  `new Date()` / `Date.now()` / `Math.random()` during a Client Component's
+  render breaks static prerender (`next-prerender-current-time-client`) and
+  crashes the build. If the value only needs to change per deploy — a copyright
+  year is the canonical case — **inline it at build time via `next.config`**,
+  which runs once in Node and is the correct place to read the clock (Vercel
+  exposes no build-timestamp env var, so compute it yourself):
+  ```ts
+  // next.config.ts
+  env: { NEXT_PUBLIC_BUILD_YEAR: String(new Date().getFullYear()) }
+  ```
+  ```tsx
+  // any component — Next inlines the literal into both bundles, so server and
+  // client agree and no clock is read at render.
+  <span>© {process.env.NEXT_PUBLIC_BUILD_YEAR} Acme</span>
+  ```
+  When you genuinely need the *viewer's* current time, read it in a `useEffect`
+  after hydration (or a Server Component that passes it down as a prop) — never
+  at a Client Component's render.
 
 ## Suppressions
 

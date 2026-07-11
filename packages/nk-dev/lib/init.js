@@ -50,6 +50,25 @@ const TSCONFIG = {
 
 const VITEST_HINT = `import { mergeConfig } from "vitest/config";\\nimport { nextkitTestConfig } from "@ingram-tech/nk-dev/vitest";\\nexport default mergeConfig(nextkitTestConfig, {});`;
 
+// The build-year env is the house fix for "current-year copyright" (and any
+// once-per-deploy value): compute it once here in Node, and Next inlines the
+// literal into both bundles — so nothing reads the clock at render. See
+// docs/code-style.md ("Never read the clock ... at render in a Client
+// Component"). The line to add to an existing next.config's top-level object:
+const BUILD_YEAR_ENV =
+	"env: { NEXT_PUBLIC_BUILD_YEAR: String(new Date().getFullYear()) },";
+const NEXT_CONFIG = `import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+	// Inlined at build so once-per-deploy values (e.g. the copyright year) are a
+	// literal in both bundles — never read the clock at a Client Component's
+	// render. See docs/code-style.md.
+	${BUILD_YEAR_ENV}
+};
+
+export default nextConfig;
+`;
+
 // knip has no shareable config, so each site carries its own seed. The house
 // policy: gate on dependency/file hygiene (unused files/deps, unlisted,
 // unresolved) — its low-false-positive checks — and turn OFF unused
@@ -102,20 +121,24 @@ export function init() {
 	// 3. TypeScript config.
 	writeIfAbsent(resolve(cwd, "tsconfig.json"), (f) => writeJson(f, TSCONFIG));
 
-	// 4. Vitest config — only hint, never auto-write. Many sites test with
+	// 4. next.config with the build-year env. Written only when absent; an
+	//    existing config is never edited — we hint instead (see the function).
+	ensureNextConfig(cwd);
+
+	// 5. Vitest config — only hint, never auto-write. Many sites test with
 	//    `bun:test` rather than Vitest, and an unused vitest.config.ts is noise.
 	hintVitestConfig(cwd);
 
-	// 5. knip config (unused deps/exports/files; run by `nk check`).
+	// 6. knip config (unused deps/exports/files; run by `nk check`).
 	writeIfAbsent(resolve(cwd, "knip.json"), (f) => writeJson(f, KNIP));
 
-	// 6. Format-on-commit hook + git wiring.
+	// 7. Format-on-commit hook + git wiring.
 	setupGitHook(cwd);
 
-	// 7. Make sure the agent guide is imported into CLAUDE.md.
+	// 8. Make sure the agent guide is imported into CLAUDE.md.
 	ensureGuideImport(cwd);
 
-	// 8. A `prepare` script so the hook re-wires itself on every `bun install`.
+	// 9. A `prepare` script so the hook re-wires itself on every `bun install`.
 	ensurePrepareScript(cwd);
 
 	log("done. Next: `bun install`, then `nk check`.");
@@ -163,6 +186,26 @@ function hintVitestConfig(cwd) {
 	}
 	log("no vitest.config.ts — if you test with Vitest, create one:");
 	console.log(`      ${VITEST_HINT.replace(/\\n/g, "\n      ")}`);
+}
+
+// next.config is a Next.js file init doesn't own the contents of, so we never
+// rewrite an existing one (that's the site's config). Write a minimal typed
+// config when none exists; otherwise hint the one env line to add.
+function ensureNextConfig(cwd) {
+	const existing = ["next.config.ts", "next.config.mjs", "next.config.js"]
+		.map((name) => resolve(cwd, name))
+		.find((p) => existsSync(p));
+	if (!existing) {
+		writeFileSync(resolve(cwd, "next.config.ts"), NEXT_CONFIG);
+		log("wrote next.config.ts (with the NEXT_PUBLIC_BUILD_YEAR build env)");
+		return;
+	}
+	if (readFileSync(existing, "utf8").includes("NEXT_PUBLIC_BUILD_YEAR")) {
+		log("next.config already sets NEXT_PUBLIC_BUILD_YEAR.");
+		return;
+	}
+	log("next.config exists — add the build-year env to its config object:");
+	console.log(`      ${BUILD_YEAR_ENV}`);
 }
 
 function ensurePrepareScript(cwd) {
