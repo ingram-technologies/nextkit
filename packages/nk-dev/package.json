@@ -30,7 +30,7 @@
 		"./oxlintrc.json": "./oxlintrc.json",
 		"./oxfmtrc.json": "./oxfmtrc.json",
 		"./tier-b.json": "./tier-b.json",
-		"./oxlint-plugin": "./lib/oxlint-plugins/base-ui.js",
+		"./oxlint-plugin": "./lib/oxlint-plugins/index.js",
 		"./tsconfig": "./tsconfig/nextjs.json",
 		"./tsconfig/base.json": "./tsconfig/base.json",
 		"./tsconfig/nextjs.json": "./tsconfig/nextjs.json",

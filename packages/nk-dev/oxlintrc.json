@@ -6,6 +6,7 @@
 	},
 	"rules": {
 		"nextkit/no-radix-props-on-base-ui": "error",
+		"nextkit/no-deferred-current-target": "error",
 		"no-unused-vars": "warn",
 		"typescript/no-non-null-assertion": "error",
 		"typescript/no-explicit-any": "error",
