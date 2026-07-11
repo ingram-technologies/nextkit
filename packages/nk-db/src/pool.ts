@@ -1,5 +1,5 @@
 import { Pool, type PoolConfig } from "pg";
-import { dbEnv } from "./keys.js";
+import { dbEnv, getDatabaseUrl } from "./keys.js";
 
 export interface CreatePoolConfig {
 	/** Override the resolved connection string (defaults to the env contract). */
@@ -62,10 +62,22 @@ export const normalizeCaCert = (caCert: string | undefined): string | undefined 
  * app-side `src/lib/db.ts` pattern in docs/db-package.md).
  */
 export const createPool = (config: CreatePoolConfig = {}): Pool => {
-	const env = config.connectionString ? undefined : dbEnv();
+	// Resolve the connection string WITHOUT throwing when it is simply absent.
+	// createPool runs at module load in every app's `lib/db`, so importing that
+	// module — and therefore `next build` collecting page data, a unit test, or
+	// a CLI tool that never queries — must stay side-effect-free. Validate the
+	// full env (which *does* throw fast on a present-but-invalid value) only once
+	// a URL is known to exist; when nothing is configured, defer the error to
+	// first use via `unconfiguredPool`.
+	const env =
+		config.connectionString !== undefined
+			? undefined
+			: getDatabaseUrl() !== undefined
+				? dbEnv()
+				: undefined;
 	const connectionString = config.connectionString ?? env?.connectionString;
 	if (!connectionString) {
-		throw new Error("@ingram-tech/nk-db: createPool needs a connection string.");
+		return unconfiguredPool();
 	}
 	const caCert = normalizeCaCert(config.caCert ?? env?.caCert);
 	const local = isLocal(connectionString);
@@ -94,4 +106,43 @@ export const createPool = (config: CreatePoolConfig = {}): Pool => {
 		connectionString: url.toString(),
 		ssl: { rejectUnauthorized: false },
 	});
+};
+
+/**
+ * A pool that constructs cleanly but rejects any real operation with the clear
+ * "set DATABASE_URL" error. Returned by {@link createPool} when no connection
+ * string is configured.
+ *
+ * Constructing the pool — which happens at module load in every app's `lib/db`,
+ * and therefore during `next build`'s page-data collection and in unit tests —
+ * must not throw just because a database isn't wired up. A process that then
+ * runs a real query without a URL is genuinely misconfigured and fails fast and
+ * legibly here; the env is fixed at process start, so this is never a transient
+ * miss. `query` and `connect` are the only entry points that reach the wire
+ * (Drizzle and `createQueries` go through them), so guarding both is sufficient.
+ *
+ * The rejection is deferred to a macrotask, not returned already-rejected, so it
+ * mimics real connection I/O: an async framework that inspects the in-flight
+ * promise before it settles — e.g. Next.js partial prerendering deciding a
+ * segment is dynamic — sees a pending promise and postpones it, exactly as it
+ * would for a real (reachable or not) pool. An already-rejected promise would
+ * instead surface as a synchronous render error at build.
+ */
+const unconfiguredPool = (): Pool => {
+	const pool = new Pool();
+	const reject = (): Promise<never> =>
+		new Promise((_resolve, rej) => {
+			setTimeout(
+				() =>
+					rej(
+						new Error(
+							"@ingram-tech/nk-db: no database connection string — set DATABASE_URL.",
+						),
+					),
+				0,
+			);
+		});
+	pool.query = reject as typeof pool.query;
+	pool.connect = reject as typeof pool.connect;
+	return pool;
 };

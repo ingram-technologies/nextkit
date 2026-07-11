@@ -69,3 +69,22 @@ describe("createPool local-socket precedence", () => {
 		await pool.end();
 	});
 });
+
+describe("createPool without a connection string", () => {
+	it("constructs a pool instead of throwing, and defers the error to first use", async () => {
+		const saved = process.env.DATABASE_URL;
+		delete process.env.DATABASE_URL;
+		try {
+			// Must not throw at construction — this is what keeps importing an
+			// app's db module (and `next build`) side-effect-free.
+			const pool = createPool();
+			expect(pool).toBeDefined();
+			// A real operation fails fast and legibly.
+			await expect(pool.query("select 1")).rejects.toThrow(/set DATABASE_URL/);
+			await expect(pool.connect()).rejects.toThrow(/set DATABASE_URL/);
+			await pool.end();
+		} finally {
+			if (saved !== undefined) process.env.DATABASE_URL = saved;
+		}
+	});
+});
