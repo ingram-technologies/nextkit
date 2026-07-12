@@ -1,6 +1,6 @@
 {
 	"name": "@ingram-tech/nk-seo",
-	"version": "0.6.0",
+	"version": "0.6.1",
 	"description": "SEO primitives for Next.js sites: typed schema.org JSON-LD builders, a <JsonLd> tag, a Metadata factory (canonical + OG + Twitter), and configurable hreflang alternates.",
 	"license": "MIT",
 	"type": "module",
