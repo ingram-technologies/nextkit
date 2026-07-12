@@ -1,5 +1,13 @@
 # @ingram-tech/nk-auth
 
+## 0.12.2
+
+### Patch Changes
+
+- b76d884: `createAuthHelpers`: memoize the validated session read per request with React `cache()`. A render fanning out many `getUser()` / `requireUser()` calls now validates the session against the database once per request instead of once per call (measured 9 → 1 validations on one consumer page render). Caveat: mutating the session mid-request and re-reading it through the helpers returns the pre-mutation snapshot; read `auth.api.getSession` directly in that case.
+- Updated dependencies [af5209d]
+  - @ingram-tech/nk-db@1.3.1
+
 ## 0.12.0
 
 ### Minor Changes
