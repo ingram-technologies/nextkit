@@ -17,7 +17,7 @@ exactly one Better Auth copy in the app.
 | `createAuthPool` (`./pool`) | **deprecated** — alias of `createPool` from [`@ingram-tech/nk-db`](../nk-db); inject the site's shared pool instead |
 | `makeEmailSenders`, `makePasskeyOptions`, `passkeyOptionsForBaseUrl`, `uuidGenerateId` (`./`) | email hooks, passkeys (`passkeyOptionsForBaseUrl` derives `rpID`/`origin` from a single base URL), UUID ids |
 | `bcryptPassword` (`./`) | **legacy only** — bcrypt verifier for sites with pre-existing bcrypt hashes. New sites omit it (Better Auth defaults to scrypt). See [Migrating bcrypt passwords to scrypt](#migrating-bcrypt-passwords-to-scrypt) |
-| `createAuthHelpers`, `safeNext` (`./server`) | validated App Router session helpers (`getSession` / `getUser` / `requireSession` / `requireUser` / `redirectIfAuthenticated`) with automatic `next` + stale-cookie signalling; `safeNext` validates a `?next=` param |
+| `createAuthHelpers`, `safeNext` (`./server`) | validated App Router session helpers (`getSession` / `getUser` / `requireSession` / `requireUser` / `redirectIfAuthenticated`), request-memoized via React `cache()`, with automatic `next` + stale-cookie signalling; `safeNext` validates a `?next=` param |
 | `createAuthMiddleware` (`./middleware`) | loop-safe edge middleware: gates unauthenticated users off protected paths, preserves `next`, and clears a stale session cookie so a bad session self-heals |
 
 > **Data access + RLS** is owned by [`@ingram-tech/nk-db`](../nk-db): query over a
@@ -252,7 +252,8 @@ export const config = {
 
 Why the split: middleware runs before render and can't afford a DB lookup, so it
 can only trust the cookie *exists*. The server helpers hit `auth.api.getSession`
-and check the session *contents*. When those disagree (revoked session, rotated
+and check the session *contents* (once per request — the read is memoized with
+React `cache()`). When those disagree (revoked session, rotated
 secret, wiped DB) the validated layer wins and parks the user on `/login` — and
 because middleware refuses to bounce `/login`, the form renders instead of
 ping-ponging.
