@@ -10,9 +10,11 @@
  *   export const { getSession, getUser, requireSession, requireUser,
  *     redirectIfAuthenticated } = createAuthHelpers(auth);
  *
- * These are the **validated** authority: every call hits `auth.api.getSession`,
- * which checks the session against the database — not merely the presence of a
- * cookie. When a guard finds no valid session it redirects to the sign-in page,
+ * These are the **validated** authority: they resolve through
+ * `auth.api.getSession`, which checks the session against the database — not
+ * merely the presence of a cookie. The read is memoized per request with React
+ * `cache()`, so a render fanning out many `getUser()` calls validates once,
+ * not once per call. When a guard finds no valid session it redirects to the sign-in page,
  * preserving the requested path as `next` (read from the header the middleware
  * injects) and, when a session cookie is present-but-invalid, adding `stale=1`
  * so the middleware clears the dead cookie. The optimistic, cookie-presence
@@ -24,6 +26,7 @@
  */
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 import { NK_AUTH_PATH_HEADER, signInUrl } from "./gating-internals.js";
 import { CREDENTIAL_PROVIDER_ID } from "./password.js";
 
@@ -77,10 +80,22 @@ export function createAuthHelpers<S extends SessionLike>(
 	const signInPath = options.signInPath ?? "/login";
 	const cookiePrefix = options.sessionCookiePrefix ?? "better-auth";
 
-	/** The validated session ({ user, session, … }) or null. */
-	async function getSession(): Promise<S | null> {
-		return auth.api.getSession({ headers: await headers() });
-	}
+	/**
+	 * The validated session ({ user, session, … }) or null. Memoized per request
+	 * via React `cache()`: the session cookie is constant within a request, so
+	 * every helper (and every component calling one) shares a single database
+	 * validation. Outside a request scope (scripts, tests) `cache()` degrades to
+	 * an uncached call.
+	 *
+	 * Caveat: code that mutates the session mid-request (e.g. a server action
+	 * updating the user) and then re-reads it through these helpers sees the
+	 * pre-mutation snapshot; re-read through `auth.api.getSession` directly if
+	 * that ever matters.
+	 */
+	const getSession = cache(
+		async (): Promise<S | null> =>
+			auth.api.getSession({ headers: await headers() }),
+	);
 
 	/** The authenticated user, or null. */
 	async function getUser(): Promise<S["user"] | null> {
