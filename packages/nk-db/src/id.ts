@@ -26,7 +26,7 @@ import { randomBytes } from "node:crypto";
  * `advanced.database.generateId`. Node/Bun's `randomUUID` is v4-only, so we lay
  * the bytes out by hand.
  */
-export const uuidGenerateId = (): string => {
+export const uuidGenerateId = (): Uuid => {
 	const bytes = randomBytes(16);
 	const ts = Date.now();
 	bytes[0] = Math.floor(ts / 2 ** 40) & 0xff;
@@ -37,7 +37,7 @@ export const uuidGenerateId = (): string => {
 	bytes[5] = ts & 0xff;
 	bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x70; // version 7
 	bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80; // variant 10
-	return bytesToUuid(bytes);
+	return bytesToUuid(bytes) as Uuid; // mint site
 };
 
 const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
@@ -129,6 +129,24 @@ export type Id<E extends string> = string & { readonly [ID_BRAND]: E };
  * accident. Recovered from an {@link Id} by a registry helper's `decode`.
  */
 export type Uuid = string & { readonly [UUID_BRAND]: "Uuid" };
+
+// Any RFC 9562 version (1-8): sites mint v7, but migrated rows are often v4.
+const UUID_RE =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * Whether `value` is a hyphenated uuid — the sanctioned string→{@link Uuid}
+ * bless: narrowing through the shape check is never a blind cast. Use at trust
+ * boundaries (env/config, external payloads, `crypto.randomUUID()`).
+ */
+export const isUuid = (value: string | null | undefined): value is Uuid =>
+	typeof value === "string" && UUID_RE.test(value);
+
+/** The throwing {@link isUuid}: bless a string you require to be a uuid. */
+export function asUuid(value: string): Uuid {
+	if (!isUuid(value)) throw new Error(`not a uuid: ${value}`);
+	return value;
+}
 
 /** Typed helpers for one entity's prefixed ids — built by {@link createIdRegistry}. */
 export interface IdHelper<E extends string = string> {

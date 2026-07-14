@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+	asUuid,
 	base58Id,
 	createIdRegistry,
 	fromPrefixedId,
+	isUuid,
 	toPrefixedId,
 	uuidGenerateId,
 } from "./id";
@@ -56,6 +58,26 @@ describe("uuidGenerateId", () => {
 	it("is unique across many mints", () => {
 		const ids = new Set(Array.from({ length: 1000 }, () => uuidGenerateId()));
 		expect(ids.size).toBe(1000);
+	});
+});
+
+describe("isUuid / asUuid", () => {
+	it("accepts v4 and v7 uuids, case-insensitively", () => {
+		expect(isUuid(uuidGenerateId())).toBe(true);
+		expect(isUuid("A2A6E4E0-7E9B-4B3D-8F2A-1C9D0E7B5A61")).toBe(true);
+	});
+
+	it("rejects prefixed ids, non-uuids, and nullish", () => {
+		expect(isUuid(toPrefixedId(uuidGenerateId(), "org"))).toBe(false);
+		expect(isUuid("not-a-uuid")).toBe(false);
+		expect(isUuid(null)).toBe(false);
+		expect(isUuid(undefined)).toBe(false);
+	});
+
+	it("asUuid returns the value or throws", () => {
+		const id = uuidGenerateId();
+		expect(asUuid(id)).toBe(id);
+		expect(() => asUuid("nope")).toThrow(/not a uuid/);
 	});
 });
 
