@@ -232,7 +232,7 @@ export function createIdRegistry<const T extends Record<string, string>>(
  * name, so a method would collide with an entity literally called `entityOf`.
  */
 export function entityOf<K extends string>(
-	registry: IdRegistry<K>,
+	registry: Record<K, IdHelper>,
 	value: string,
 ): K | null {
 	// Cheap reject: every prefixed id has one, and raw uuids never do.
@@ -254,7 +254,7 @@ export function entityOf<K extends string>(
  * when you know the entity and want a wrong prefix rejected.
  */
 export function decodeAnyId<K extends string>(
-	registry: IdRegistry<K>,
+	registry: Record<K, IdHelper>,
 	value: string,
 ): Uuid {
 	const entity = entityOf(registry, value);

@@ -1,6 +1,6 @@
 import { sql, type SQL } from "drizzle-orm";
 import { customType } from "drizzle-orm/pg-core";
-import { decodeAnyId, type IdRegistry } from "./id.js";
+import { decodeAnyId, type IdHelper } from "./id.js";
 
 /**
  * Drizzle bindings for the id codec (`@ingram-tech/nk-db/id/drizzle`).
@@ -79,7 +79,7 @@ type IdColumnConfig = { data: string; driverData: string };
  * ```
  */
 export function createIdColumns<K extends string>(
-	registry: IdRegistry<K>,
+	registry: Record<K, IdHelper>,
 ): IdColumnBindings<K> {
 	const decodeAny = (value: string) => decodeAnyId(registry, value);
 
