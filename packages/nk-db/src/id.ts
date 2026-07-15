@@ -1,10 +1,17 @@
-import { randomBytes } from "node:crypto";
-
 /**
  * The Ingram id codec — a UUIDv7 and its base58 skin. It lives here in nk-db
  * (the lowest package in the graph) behind the `@ingram-tech/nk-db/id` subpath,
- * so it stays `node:crypto`-only — no `pg` / `drizzle` — and any site can mint
- * ids without pulling a heavier slice.
+ * so it stays dependency-free — no `pg` / `drizzle` — and any site can mint ids
+ * without pulling a heavier slice.
+ *
+ * **This module is isomorphic and must stay that way.** It has no imports at
+ * all: randomness comes from Web Crypto (`crypto.getRandomValues`, a global on
+ * Node 19+, Bun, Deno, edge runtimes and browsers), not `node:crypto`. That is
+ * load-bearing, not incidental — a `node:crypto` import here makes every module
+ * that touches an id node-only, which in practice means a Drizzle `schema.ts`
+ * cannot encode/decode without dragging `node:crypto` into client bundles, and
+ * sites end up dependency-injecting the codec to route around it. Keep the
+ * import list empty.
  *
  * When a service has a non-JS twin of this codec (e.g. a Python API), keep its
  * byte → string vectors identical to the ones in `id.test.ts`, so a stored
@@ -27,7 +34,7 @@ import { randomBytes } from "node:crypto";
  * the bytes out by hand.
  */
 export const uuidGenerateId = (): Uuid => {
-	const bytes = randomBytes(16);
+	const bytes = crypto.getRandomValues(new Uint8Array(16));
 	const ts = Date.now();
 	bytes[0] = Math.floor(ts / 2 ** 40) & 0xff;
 	bytes[1] = Math.floor(ts / 2 ** 32) & 0xff;
@@ -208,4 +215,48 @@ export function createIdRegistry<const T extends Record<string, string>>(
 		reg[key] = makeHelper(prefix);
 	}
 	return reg as { [K in keyof T]: IdHelper };
+}
+
+/**
+ * Which entity a prefixed id belongs to, or `null` if no helper in `registry`
+ * recognises it (a raw uuid, a sentinel, a foreign prefix).
+ *
+ * A public id is **self-describing**: its prefix names its entity, so resolving
+ * one needs no surrounding context. That is the property behind every
+ * entity-agnostic decode — a polymorphic FK whose target is named by a sibling
+ * `*_type` column, a raw-SQL binding that only has a value, a webhook payload.
+ * The inverse does **not** hold: a bare uuid carries no entity, so encoding
+ * always needs to know which entity you meant.
+ *
+ * Standalone rather than a registry method: the registry is keyed by entity
+ * name, so a method would collide with an entity literally called `entityOf`.
+ */
+export function entityOf<K extends string>(
+	registry: IdRegistry<K>,
+	value: string,
+): K | null {
+	// Cheap reject: every prefixed id has one, and raw uuids never do.
+	if (!value.includes("_")) return null;
+	for (const entity of Object.keys(registry) as K[]) {
+		if (registry[entity].is(value)) return entity;
+	}
+	return null;
+}
+
+/**
+ * Decode a prefixed id belonging to **any** entity in `registry` (see
+ * {@link entityOf}), for the boundaries that can't name one: polymorphic FKs,
+ * raw-SQL id bindings, generic audit/event payloads.
+ *
+ * Tolerant by design — a value no helper recognises is returned unchanged, so an
+ * already-decoded uuid passes straight through and this is safe to apply to a
+ * value that may or may not be skinned. Use a helper's `decode`/`decodeOrNull`
+ * when you know the entity and want a wrong prefix rejected.
+ */
+export function decodeAnyId<K extends string>(
+	registry: IdRegistry<K>,
+	value: string,
+): Uuid {
+	const entity = entityOf(registry, value);
+	return entity === null ? (value as Uuid) : registry[entity].decode(value);
 }

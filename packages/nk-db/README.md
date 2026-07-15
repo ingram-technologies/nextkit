@@ -136,6 +136,50 @@ UUIDv7 minting (`uuidGenerateId`) plus a base58 "skin" for wire ids
 (`team_3nX…` ↔ stored UUID): `toPrefixedId` / `fromPrefixedId` / `base58Id`,
 and `createIdRegistry` for typed per-entity helpers.
 
+**This module is isomorphic** — zero imports, randomness from Web Crypto — so a
+Drizzle `schema.ts`, a client component or an edge runtime can all use it. Keep
+it that way: a single `node:crypto` import makes every module that touches an id
+node-only (a test enforces this).
+
+Store the raw `uuid` and skin at the edge. The prefixed id is presentation, not
+identity: inside the DB, "which entity is this?" is already carried by the
+column, so storing the prefix duplicates schema metadata into every row and puts
+codec bugs permanently on disk.
+
+**Ids are self-describing, uuids are not.** A prefix names its entity, so
+decoding needs no context — `entityOf(registry, id)` and `decodeAnyId(registry,
+id)` resolve one from the value alone, which is what makes polymorphic FKs and
+raw-SQL bindings work. The inverse does not hold: encoding always needs to know
+which entity you meant. Automate decode; enforce encode with the `Id<E>` brand.
+
+### Drizzle bindings (`@ingram-tech/nk-db/id/drizzle`)
+
+Decode public ids at the **column**, so a skinned id reaching a query stops being
+a failure mode:
+
+```ts
+export const ids = createIdRegistry({ invoice: "inv", account: "acct" });
+export const { idColumn, polymorphicIdColumn, sqlUuid, sqlUuidArray } =
+    createIdColumns(ids);
+
+export const invoices = pgTable("invoices", {
+    id: idColumn("invoice")().primaryKey(),      // eq(invoices.id, "inv_…") just works
+    account_id: idColumn("account")().notNull(),
+    entity_id: polymorphicIdColumn(),            // decodes any entity's id
+});
+```
+
+Drizzle runs `toDriver` on WHERE values (`eq`, `inArray`) as well as insert/update
+`SET`, and `dataType` stays `uuid` — so there is **no DDL and no migration**, and
+`drizzle-kit generate` reports no diff. There is deliberately no `fromDriver`
+(see the encode asymmetry above).
+
+Raw SQL and RPC args bypass the column layer, so bind those with `sqlUuid(id)` /
+`sqlUuidArray(ids)` rather than a bare `${id}::uuid`.
+
+This subpath pulls only `drizzle-orm` and the codec — never `pg` — because it is
+imported by `schema.ts`.
+
 ## PGlite dev & test (`@ingram-tech/nk-db/pglite`)
 
 `nk dev` runs the `nk-pglite-dev` bin automatically when this package is

@@ -22,23 +22,27 @@
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
-			"import": "./dist/index.js"
+			"default": "./dist/index.js"
 		},
 		"./id": {
 			"types": "./dist/id.d.ts",
-			"import": "./dist/id.js"
+			"default": "./dist/id.js"
+		},
+		"./id/drizzle": {
+			"types": "./dist/id-drizzle.d.ts",
+			"default": "./dist/id-drizzle.js"
 		},
 		"./migrate": {
 			"types": "./dist/migrate.d.ts",
-			"import": "./dist/migrate.js"
+			"default": "./dist/migrate.js"
 		},
 		"./pglite": {
 			"types": "./dist/pglite/index.d.ts",
-			"import": "./dist/pglite/index.js"
+			"default": "./dist/pglite/index.js"
 		},
 		"./pglite/reset": {
 			"types": "./dist/pglite/reset.d.ts",
-			"import": "./dist/pglite/reset.js"
+			"default": "./dist/pglite/reset.js"
 		}
 	},
 	"scripts": {

@@ -1,8 +1,11 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
 	asUuid,
 	base58Id,
 	createIdRegistry,
+	decodeAnyId,
+	entityOf,
 	fromPrefixedId,
 	isUuid,
 	toPrefixedId,
@@ -112,6 +115,50 @@ describe("createIdRegistry", () => {
 		expect(ids.org.decodeOrNull(ids.agent.mint())).toBeNull();
 		expect(ids.org.decodeOrNull("org_short")).toBeNull();
 		expect(ids.org.decodeOrNull("not-an-id")).toBeNull();
+	});
+});
+
+describe("entityOf / decodeAnyId", () => {
+	const ids = createIdRegistry({ org: "org", agent: "agt" });
+
+	it("names the entity a prefixed id belongs to", () => {
+		expect(entityOf(ids, ids.org.mint())).toBe("org");
+		expect(entityOf(ids, ids.agent.mint())).toBe("agent");
+	});
+
+	it("returns null for anything no helper recognises", () => {
+		expect(entityOf(ids, uuidGenerateId())).toBeNull(); // a raw uuid names no entity
+		expect(entityOf(ids, "cs_1111111111111111111111")).toBeNull(); // foreign prefix
+		expect(entityOf(ids, "unknown")).toBeNull();
+		expect(entityOf(ids, "")).toBeNull();
+	});
+
+	it("decodes an id of any entity in the registry", () => {
+		const uuid = uuidGenerateId();
+		expect(decodeAnyId(ids, ids.org.encode(uuid))).toBe(uuid);
+		expect(decodeAnyId(ids, ids.agent.encode(uuid))).toBe(uuid);
+	});
+
+	it("passes through a value it cannot decode, so it is safe on maybe-skinned input", () => {
+		const uuid = uuidGenerateId();
+		expect(decodeAnyId(ids, uuid)).toBe(uuid);
+		expect(decodeAnyId(ids, "unknown")).toBe("unknown");
+	});
+});
+
+describe("isomorphic invariant", () => {
+	// The codec is imported by Drizzle schemas, client components and edge
+	// runtimes. A single node-only import here (`node:crypto` for randomness is
+	// the tempting one) makes every module that touches an id node-only, which is
+	// what forces sites to dependency-inject the codec around their schema. Keep
+	// the import list empty; use Web Crypto (a global on Node 19+, Bun, Deno,
+	// edge, browsers) instead.
+	it("has no imports", () => {
+		const source = readFileSync(new URL("./id.ts", import.meta.url), "utf8");
+		const imports = source
+			.split("\n")
+			.filter((line) => /^\s*(import\s|.*\brequire\()/.test(line));
+		expect(imports).toEqual([]);
 	});
 });
 
