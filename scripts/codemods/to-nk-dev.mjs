@@ -5,7 +5,7 @@
  * (@ingram-tech/oxlint-config, typescript-config, test-config, git-hooks,
  * agent-guide, nk-cli) and @ingram-tech/biome-config. Run from the site root:
  *
- *   bunx --bun https://raw.githubusercontent.com/ingram-technologies/nextkit/main/scripts/codemods/to-nk-dev.mjs
+ *   bun x --bun https://raw.githubusercontent.com/ingram-technologies/nextkit/main/scripts/codemods/to-nk-dev.mjs
  *   bun install
  *   bun run check
  *
@@ -19,7 +19,7 @@
  *      delete a leftover biome.json.
  *
  * Anything it can't infer (e.g. a missing tsconfig.json or vitest.config.ts) it
- * leaves to `bunx nk init`. It is idempotent — safe to run twice.
+ * leaves to `bun x nk init`. It is idempotent — safe to run twice.
  */
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -209,6 +209,6 @@ if (existsSync(biomePath)) {
 }
 
 log(
-	"done. Next: `bun install`, then `bunx nk init` for anything missing, then `bun run check`.",
+	"done. Next: `bun install`, then `bun x nk init` for anything missing, then `bun run check`.",
 );
 log("Any inline `biome-ignore` comments must become `oxlint-disable-next-line`.");

@@ -51,7 +51,7 @@ extension. `nk init` writes these once; thereafter they are the site's own files
 | Format | `.oxfmtrc.json` — a copy of `@ingram-tech/nk-dev/oxfmtrc.json` (oxfmt has no `extends`), or `oxfmt -c` that path |
 | TypeScript | `tsconfig.json` → `"extends": "@ingram-tech/nk-dev/tsconfig/nextjs.json"` |
 | Tests | `vitest.config.ts` → `mergeConfig(nextkitTestConfig, …)` from `@ingram-tech/nk-dev/vitest` |
-| Git hooks | `.githooks/pre-commit` → `bunx nextkit-format-staged` |
+| Git hooks | `.githooks/pre-commit` → `bun x nextkit-format-staged` |
 | Agent guide | `CLAUDE.md` → `@./node_modules/@ingram-tech/nk-dev/guide.md` |
 | Email | `import { sendEmail } from "@ingram-tech/nk-email"` |
 

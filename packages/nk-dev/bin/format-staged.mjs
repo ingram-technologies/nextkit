@@ -56,8 +56,8 @@ if (toFormat.length === 0) process.exit(0);
 
 try {
 	execFileSync(
-		"bunx",
-		["oxfmt", "--write", "--no-error-on-unmatched-pattern", "--", ...toFormat],
+		"bun",
+		["x", "oxfmt", "--write", "--no-error-on-unmatched-pattern", "--", ...toFormat],
 		{ stdio: "inherit" },
 	);
 } catch (err) {

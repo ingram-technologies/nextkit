@@ -39,7 +39,7 @@ export function dev(extraArgs = []) {
 		console.log("nk: @ingram-tech/nk-db found — booting local PGlite (no Docker)…");
 	}
 	// spawnSync inherits stdio and blocks until exit, so Ctrl-C reaches the child.
-	const res = spawnSync("bunx", command, { stdio: "inherit" });
+	const res = spawnSync("bun", ["x", ...command], { stdio: "inherit" });
 	// Signal-killed (status null) is a failure, not a clean exit.
 	process.exit(res.status ?? (res.signal ? 1 : 0));
 }

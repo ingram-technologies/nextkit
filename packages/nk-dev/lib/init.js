@@ -96,7 +96,7 @@ const PRE_COMMIT = `#!/bin/sh
 # nextkit pre-commit: format staged files with oxfmt, then re-stage them.
 # Logic lives in @ingram-tech/nk-dev, so a version bump updates it everywhere.
 set -eu
-exec bunx --bun nextkit-format-staged
+exec bun x --bun nextkit-format-staged
 `;
 
 const GUIDE_IMPORT = "@./node_modules/@ingram-tech/nk-dev/guide.md";

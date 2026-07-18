@@ -127,8 +127,8 @@ export const startPgliteDev = async (
 	);
 
 	const child = spawn(
-		"bunx",
-		["next", "dev", "--turbopack", ...(options.nextArgs ?? [])],
+		"bun",
+		["x", "next", "dev", "--turbopack", ...(options.nextArgs ?? [])],
 		{ stdio: "inherit", env: { ...process.env, DATABASE_URL: databaseUrl } },
 	);
 
@@ -142,7 +142,7 @@ export const startPgliteDev = async (
 	process.on("SIGINT", () => child.kill("SIGINT"));
 	process.on("SIGTERM", () => child.kill("SIGTERM"));
 	child.on("exit", (code) => void close(code ?? 0));
-	// Without this, a failed spawn (e.g. bunx missing) is an uncaught exception
+	// Without this, a failed spawn (e.g. bun missing) is an uncaught exception
 	// and the socket server never shuts down.
 	child.on("error", (err) => {
 		console.error(`nk(pglite): failed to start next dev: ${err.message}`);

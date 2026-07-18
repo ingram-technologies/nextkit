@@ -23,7 +23,7 @@ the whole stack instead of re-listing each tool per site.
 
 ```sh
 bun add -d @ingram-tech/nk-dev
-bunx nk init
+bun x nk init
 bun install   # the prepare script wires the git hook
 ```
 
@@ -64,7 +64,7 @@ Point your package.json scripts at it:
 }
 ```
 
-`nk` shells out to the site's own `bunx`-resolved tools (oxlint, oxfmt, Next,
+`nk` shells out to the site's own `bun x`-resolved tools (oxlint, oxfmt, Next,
 tsc), so versions stay under each site's control — nk just orchestrates.
 
 > **`nk` is optional.** It only orchestrates the standard commands; it never

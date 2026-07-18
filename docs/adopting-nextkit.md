@@ -12,7 +12,7 @@ scaffold the config:
 
 ```bash
 bun add -d @ingram-tech/nk-dev
-bunx nk init
+bun x nk init
 bun install   # the prepare script wires the git hook
 ```
 
