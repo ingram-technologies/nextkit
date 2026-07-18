@@ -24,10 +24,7 @@ export interface VerifyOptions {
 }
 
 const getField = (formData: VerifyOptions["formData"], name: string): string => {
-	const value =
-		formData instanceof FormData
-			? formData.get(name)
-			: (formData as Record<string, unknown>)[name];
+	const value = formData instanceof FormData ? formData.get(name) : formData[name];
 	return typeof value === "string" ? value : "";
 };
 

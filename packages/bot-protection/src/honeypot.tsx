@@ -1,5 +1,5 @@
-import type { CSSProperties } from "react";
 import { HONEYPOT_FIELD, TOKEN_FIELD } from "./fields.js";
+import { VISUALLY_HIDDEN } from "./hidden-style.js";
 
 /**
  * Visually-hidden honeypot + signed timing token, dropped inside any <form>.
@@ -16,15 +16,6 @@ import { HONEYPOT_FIELD, TOKEN_FIELD } from "./fields.js";
  * field and fails open.
  */
 
-const hidden: CSSProperties = {
-	position: "absolute",
-	left: "-9999px",
-	top: "-9999px",
-	width: "1px",
-	height: "1px",
-	overflow: "hidden",
-};
-
 export const HoneypotField = ({
 	token,
 	field = HONEYPOT_FIELD,
@@ -32,7 +23,7 @@ export const HoneypotField = ({
 	token: string;
 	field?: string;
 }) => (
-	<div aria-hidden="true" style={hidden}>
+	<div aria-hidden="true" style={VISUALLY_HIDDEN}>
 		<label>
 			Leave this field empty
 			{/* oxlint-disable-next-line jsx-a11y/control-has-associated-label -- aria-hidden honeypot: the wrapping <label> names it, but the trap is intentionally hidden from real users and assistive tech. */}

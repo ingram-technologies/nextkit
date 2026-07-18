@@ -2,6 +2,7 @@
 
 import { type RefObject, useEffect, useRef, useState } from "react";
 import { HONEYPOT_FIELD, TOKEN_FIELD } from "./fields.js";
+import { VISUALLY_HIDDEN } from "./hidden-style.js";
 
 /**
  * Client-side bot protection for forms that POST JSON to your own route.
@@ -101,13 +102,7 @@ export function HoneypotInput({
 			data-1p-ignore
 			data-lpignore="true"
 			data-form-type="other"
-			style={{
-				position: "absolute",
-				left: "-9999px",
-				width: "1px",
-				height: "1px",
-				overflow: "hidden",
-			}}
+			style={VISUALLY_HIDDEN}
 		/>
 	);
 }

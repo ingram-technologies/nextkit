@@ -17,6 +17,10 @@ import { getSecret, getSecrets, isConfigured } from "./keys.js";
 const sign = (ts: string, secret: string): string =>
 	createHmac("sha256", secret).update(ts).digest("hex");
 
+// Warn at most once: createFormToken runs on every form render, so an
+// unconfigured secret would otherwise spam the logs on every request.
+let warnedUnconfigured = false;
+
 /**
  * Mint a token. Call server-side when rendering the form. If
  * BOT_PROTECTION_SECRET isn't configured, returns "" (the timing layer is
@@ -24,9 +28,12 @@ const sign = (ts: string, secret: string): string =>
  */
 export const createFormToken = (): string => {
 	if (!isConfigured()) {
-		console.warn(
-			"@ingram-tech/bot-protection: BOT_PROTECTION_SECRET not set — timing token disabled.",
-		);
+		if (!warnedUnconfigured) {
+			warnedUnconfigured = true;
+			console.warn(
+				"@ingram-tech/bot-protection: BOT_PROTECTION_SECRET not set — timing token disabled.",
+			);
+		}
 		return "";
 	}
 	const ts = Date.now().toString();
