@@ -1,5 +1,22 @@
 # @ingram-tech/nk-blog
 
+## 0.1.2
+
+### Patch Changes
+
+- 821a6e1: Absolutize a relative `canonical` frontmatter override before it ships into
+  BlogPosting JSON-LD (consumers don't resolve relative URLs). The same lenient
+  resolver used for `image` now handles `url` too, so `canonical: "/elsewhere"`
+  becomes absolute while a cross-origin syndication canonical still passes through
+  untouched — deliberately not routed through nk-seo's origin-checked `absoluteUrl`,
+  since blog images and syndication canonicals are legitimately off-origin.
+- 8b94b66: Close a `javascript:`/`data:` URL bypass in the limited-MDX sandbox. A braced
+  string-literal URL attribute (`<a href={"javascript:…"}>`) took the
+  attribute-expression branch, which only checked that the value was a literal and
+  never re-ran the scheme guard — so it slipped past the check that the
+  plain-string (`href="javascript:…"`) and markdown-link forms both enforce.
+  Braced literals on URL attributes now clear the same `isSafeUrl` guard.
+
 ## 0.1.1
 
 ### Patch Changes

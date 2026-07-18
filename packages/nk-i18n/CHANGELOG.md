@@ -1,5 +1,26 @@
 # @ingram-tech/nk-i18n
 
+## 0.3.0
+
+### Minor Changes
+
+- 170ee9b: Implement the `MissingKeysPolicy` that was previously declared but inert.
+  `createT` and `useT` now accept a `{ missingKeys }` option: `"error"` throws on
+  a missing catalog entry, `"warn"` logs once per locale+key, and `"ignore"` (the
+  default, and the prior behavior) falls back silently to the English key. Pass a
+  locale's configured policy through, e.g.
+  `createT(locale, msgs, undefined, { missingKeys: config.locales[locale].missingKeys })`.
+  No behavior change unless you opt in.
+
+### Patch Changes
+
+- 170ee9b: `negotiateAcceptLanguage` now matches case-insensitively on the **supported**
+  side too. It previously lowercased the header's primary subtag but compared it
+  against the raw `supported` array, so an entry with any uppercase or region
+  qualifier (`"EN"`, `"en-US"`) never matched despite the documented
+  case-insensitive contract. Both sides are now normalized on the primary subtag,
+  and the matching `supported` entry is returned verbatim (its own casing).
+
 ## 0.2.0
 
 ### Minor Changes
