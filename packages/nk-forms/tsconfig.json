@@ -1,0 +1,13 @@
+{
+	"extends": "@ingram-tech/nk-dev/tsconfig/base.json",
+	"compilerOptions": {
+		"outDir": "dist",
+		"rootDir": "src",
+		"jsx": "react-jsx",
+		// The client export (react.tsx) touches fetch + DOM element types.
+		"lib": ["esnext", "dom", "dom.iterable"],
+		"types": ["node", "react"]
+	},
+	"include": ["src"],
+	"exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.tsx"]
+}
