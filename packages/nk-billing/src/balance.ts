@@ -11,8 +11,9 @@
  */
 
 import type Stripe from "stripe";
-import { BillingError } from "./errors.js";
 import { getStripe } from "./client.js";
+import { DEFAULT_CURRENCY } from "./currency.js";
+import { BillingError } from "./errors.js";
 
 export interface Balance {
 	/** Credit available to the customer, in minor units (cents). Positive. */
@@ -28,10 +29,10 @@ export async function readBalance(
 	stripe: Stripe = getStripe(),
 ): Promise<Balance> {
 	const customer = await stripe.customers.retrieve(customerId);
-	if (customer.deleted) return { amount: 0, currency: "eur" };
+	if (customer.deleted) return { amount: 0, currency: DEFAULT_CURRENCY };
 	return {
 		amount: Math.max(0, -customer.balance),
-		currency: customer.currency ?? "eur",
+		currency: customer.currency ?? DEFAULT_CURRENCY,
 	};
 }
 

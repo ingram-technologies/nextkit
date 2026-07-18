@@ -366,9 +366,13 @@ export async function getBillingSummary(
 	}
 	const subscribed =
 		!!row.subscription_status && activeStatuses.has(row.subscription_status);
+	// Guard the parse like `entitled()` does: an unparseable timestamp yields NaN,
+	// so return null rather than a NaN `trialEndsAt`.
+	const trialStarted =
+		row.trial_started_at != null ? new Date(row.trial_started_at).getTime() : NaN;
 	const trialEndsAt =
-		!subscribed && opts.trialWindowMs != null && row.trial_started_at
-			? new Date(row.trial_started_at).getTime() + opts.trialWindowMs
+		!subscribed && opts.trialWindowMs != null && Number.isFinite(trialStarted)
+			? trialStarted + opts.trialWindowMs
 			: null;
 	return {
 		creditsBalance: toBalance(row.credits_balance),

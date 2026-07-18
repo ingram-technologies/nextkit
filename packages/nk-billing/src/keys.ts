@@ -9,13 +9,13 @@
  * Two deployment shapes are supported, picked per call site, never both at once:
  *
  *   1. Single-mode (the default for most sites): one account, one key.
- *      `getStripe()` reads STRIPE_SECRET_KEY and `webhookSecret()` reads
- *      STRIPE_WEBHOOK_SECRET.
+ *      `getStripe()` reads STRIPE_SECRET_KEY and `billingEnv().webhookSecret`
+ *      carries STRIPE_WEBHOOK_SECRET (passed to `verifyStripeWebhook`).
  *
  *   2. Dual-mode (a site that is its own merchant of record and runs the Stripe
  *      sandbox beside live): `stripeFor("test"|"live")` reads
- *      STRIPE_SECRET_KEY_{TEST,LIVE} and `webhookSecret(mode)` reads
- *      STRIPE_WEBHOOK_SECRET_{TEST,LIVE}.
+ *      STRIPE_SECRET_KEY_{TEST,LIVE} and `billingEnv().{test,live}WebhookSecret`
+ *      carries STRIPE_WEBHOOK_SECRET_{TEST,LIVE}.
  *
  * Nothing here hardcodes a price ID. Prices are resolved at runtime by their
  * stable Stripe `lookup_key` (set on the Price out of band, e.g. in your IaC), so
