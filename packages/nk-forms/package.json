@@ -1,6 +1,6 @@
 {
 	"name": "@ingram-tech/nk-forms",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"description": "Contact/signup form pipeline for Next.js sites — bot protection, validation, and escaped email notifications in one handler.",
 	"license": "MIT",
 	"type": "module",
