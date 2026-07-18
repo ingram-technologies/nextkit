@@ -30,6 +30,18 @@ describe("seo bridge", () => {
 		expect(node.keywords).toEqual(["ai"]);
 	});
 
+	it("absolutizes a relative canonical override but leaves a cross-origin one", () => {
+		// A relative canonical must not ship into JSON-LD unresolved...
+		const relative = blogPostArticle({ ...post, canonical: "/elsewhere" }, config);
+		expect(relative.url).toBe("https://example.com/elsewhere");
+		// ...while a cross-origin syndication canonical passes through untouched.
+		const syndicated = blogPostArticle(
+			{ ...post, canonical: "https://other.example/orig" },
+			config,
+		);
+		expect(syndicated.url).toBe("https://other.example/orig");
+	});
+
 	it("builds Home → Blog → Post breadcrumbs", () => {
 		const node = blogPostBreadcrumbs(post, { ...config, blogName: "Posts" });
 		expect(node.itemListElement.map((item) => item.name)).toEqual([

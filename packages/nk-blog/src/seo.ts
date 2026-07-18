@@ -25,11 +25,15 @@ export function postUrl(post: BlogPostPreview, config: BlogSeoConfig): string {
 }
 
 // JSON-LD consumers don't resolve relative URLs, so anything without a scheme
-// (leading-`/` or bare `img/x.png`) is absolutized against the site.
-const absoluteImage = (image: string, baseUrl: string): string =>
-	/^https?:\/\//.test(image)
-		? image
-		: `${baseUrl}${image.startsWith("/") ? "" : "/"}${image}`;
+// (leading-`/` or bare `img/x.png`) is absolutized against the site. Unlike
+// nk-seo's `absoluteUrl`, an already-absolute value passes through untouched
+// rather than being origin-checked: a post's image can live on a CDN and its
+// `canonical` can be a cross-origin syndication override, both legitimately
+// off-origin — so this must not throw the way the canonical-link resolver does.
+const toAbsoluteUrl = (url: string, baseUrl: string): string =>
+	/^https?:\/\//.test(url)
+		? url
+		: `${baseUrl}${url.startsWith("/") ? "" : "/"}${url}`;
 
 /** BlogPosting JSON-LD for a post — the nk-seo bridge. */
 export function blogPostArticle(
@@ -41,11 +45,11 @@ export function blogPostArticle(
 		type: "BlogPosting",
 		headline: post.title,
 		description: post.description,
-		url: post.canonical ?? postUrl(post, config),
+		url: toAbsoluteUrl(post.canonical ?? postUrl(post, config), config.baseUrl),
 		datePublished: post.date,
 		dateModified: post.updated,
 		authors: post.authors.map((name) => ({ name })),
-		image: post.image ? absoluteImage(post.image, config.baseUrl) : undefined,
+		image: post.image ? toAbsoluteUrl(post.image, config.baseUrl) : undefined,
 		keywords: post.tags.length ? post.tags : undefined,
 		publisher: config.publisher,
 		...overrides,
