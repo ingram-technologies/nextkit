@@ -38,6 +38,118 @@ class FakeDb implements Queryable {
 		// must be faithful to that, or the suite can't catch coercion bugs.
 		const bigint = (n: number) => String(n);
 
+		// The webhook mutators fold the event claim and the state change into one
+		// `with claim as (...) ...` statement (atomic on a bare pool). Emulate the
+		// claim + conditional-apply here; `claimed` mirrors `exists(select 1 from
+		// claim)`.
+		if (s.startsWith("with claim as")) {
+			const eventId = params[0] as string;
+			const claimed = !this.events.has(eventId);
+			if (claimed) this.events.add(eventId);
+
+			// refundCredits (eventId form): claim + increment in one statement.
+			if (s.includes("set credits_balance = credits_balance + $3")) {
+				const [, tenant, amount] = params as [string, string, number];
+				const row = this.rows.get(tenant);
+				if (claimed && row) row.credits_balance += amount;
+				return { rows: [] };
+			}
+			// grantCredits: claim + upsert credits_balance.
+			if (
+				s.includes(
+					"insert into billing_credits (tenant_id, credits_balance, stripe_customer_id)",
+				)
+			) {
+				const [, , tenant, amount, customer] = params as [
+					string,
+					string,
+					string,
+					number,
+					string | null,
+				];
+				if (claimed) {
+					const row = this.rows.get(tenant);
+					if (row) {
+						row.credits_balance += amount;
+						row.stripe_customer_id = customer ?? row.stripe_customer_id;
+					} else {
+						this.rows.set(tenant, {
+							credits_balance: amount,
+							subscription_status: null,
+							subscription_status_at: null,
+							trial_started_at: null,
+							stripe_customer_id: customer,
+						});
+					}
+				}
+				return { rows: [{ claimed } as unknown as R] };
+			}
+			// recordSubscriptionStatus (eventCreated form): claim + ordered upsert.
+			if (s.includes("subscription_status_at")) {
+				const [, , tenant, status, createdSec, customer] = params as [
+					string,
+					string,
+					string,
+					string,
+					number,
+					string | null,
+				];
+				if (claimed) {
+					const row = this.rows.get(tenant);
+					if (row) {
+						if (
+							row.subscription_status_at === null ||
+							createdSec >= row.subscription_status_at
+						) {
+							row.subscription_status = status;
+							row.subscription_status_at = createdSec;
+							row.stripe_customer_id = customer ?? row.stripe_customer_id;
+						}
+					} else {
+						this.rows.set(tenant, {
+							credits_balance: 0,
+							subscription_status: status,
+							subscription_status_at: createdSec,
+							trial_started_at: null,
+							stripe_customer_id: customer,
+						});
+					}
+				}
+				return { rows: [{ claimed } as unknown as R] };
+			}
+			// recordSubscriptionStatus (no eventCreated): claim + last-write-wins.
+			if (
+				s.includes(
+					"insert into billing_credits (tenant_id, subscription_status, stripe_customer_id)",
+				)
+			) {
+				const [, , tenant, status, customer] = params as [
+					string,
+					string,
+					string,
+					string,
+					string | null,
+				];
+				if (claimed) {
+					const row = this.rows.get(tenant);
+					if (row) {
+						row.subscription_status = status;
+						row.stripe_customer_id = customer ?? row.stripe_customer_id;
+					} else {
+						this.rows.set(tenant, {
+							credits_balance: 0,
+							subscription_status: status,
+							subscription_status_at: null,
+							trial_started_at: null,
+							stripe_customer_id: customer,
+						});
+					}
+				}
+				return { rows: [{ claimed } as unknown as R] };
+			}
+			throw new Error(`unhandled CTE query: ${s}`);
+		}
+
 		if (
 			s.startsWith(
 				"insert into billing_credits (tenant_id, credits_balance, trial_started_at)",

@@ -159,17 +159,29 @@ export async function refundCredits(
 	opts: { tenantId: string; amount: number; eventId?: string },
 ): Promise<void> {
 	if (!Number.isSafeInteger(opts.amount) || opts.amount <= 0) return;
-	if (
-		opts.eventId != null &&
-		!(await claimStripeEvent(db, opts.eventId, "credits.refund"))
-	) {
+	if (opts.eventId == null) {
+		await db.query(
+			`update billing_credits
+			 set credits_balance = credits_balance + $2, updated_at = now()
+			 where tenant_id = $1`,
+			[opts.tenantId, opts.amount],
+		);
 		return;
 	}
+	// Claim the event and apply the refund in a single statement, so the pair is
+	// atomic even when `db` is a bare pool (autocommit): a crash can't commit the
+	// claim while dropping the refund — which would strand the credits, since the
+	// retried handler would see the event already processed and no-op.
 	await db.query(
-		`update billing_credits
-		 set credits_balance = credits_balance + $2, updated_at = now()
-		 where tenant_id = $1`,
-		[opts.tenantId, opts.amount],
+		`with claim as (
+		   insert into billing_stripe_events (event_id, type) values ($1, 'credits.refund')
+		   on conflict (event_id) do nothing
+		   returning event_id
+		 )
+		 update billing_credits
+		 set credits_balance = credits_balance + $3, updated_at = now()
+		 where tenant_id = $2 and exists (select 1 from claim)`,
+		[opts.eventId, opts.tenantId, opts.amount],
 	);
 }
 
@@ -207,17 +219,34 @@ export async function grantCredits(
 		stripeCustomerId?: string | null;
 	},
 ): Promise<boolean> {
-	if (!(await claimStripeEvent(db, opts.eventId, opts.eventType))) return false;
-	await db.query(
-		`insert into billing_credits (tenant_id, credits_balance, stripe_customer_id)
-		 values ($1, $2, $3)
-		 on conflict (tenant_id) do update set
-		   credits_balance = billing_credits.credits_balance + excluded.credits_balance,
-		   stripe_customer_id = coalesce(excluded.stripe_customer_id, billing_credits.stripe_customer_id),
-		   updated_at = now()`,
-		[opts.tenantId, opts.amount, opts.stripeCustomerId ?? null],
+	// Claim the event and increment the balance in one statement, so the pair is
+	// atomic even when `db` is a bare pool (autocommit): a crash can't commit the
+	// claim while dropping the grant — which would mark the Stripe event processed
+	// with the credits never applied, and the retry would no-op.
+	const { rows } = await db.query<{ claimed: boolean }>(
+		`with claim as (
+		   insert into billing_stripe_events (event_id, type) values ($1, $2)
+		   on conflict (event_id) do nothing
+		   returning event_id
+		 ),
+		 upsert as (
+		   insert into billing_credits (tenant_id, credits_balance, stripe_customer_id)
+		   select $3, $4, $5 where exists (select 1 from claim)
+		   on conflict (tenant_id) do update set
+		     credits_balance = billing_credits.credits_balance + excluded.credits_balance,
+		     stripe_customer_id = coalesce(excluded.stripe_customer_id, billing_credits.stripe_customer_id),
+		     updated_at = now()
+		 )
+		 select exists (select 1 from claim) as claimed`,
+		[
+			opts.eventId,
+			opts.eventType,
+			opts.tenantId,
+			opts.amount,
+			opts.stripeCustomerId ?? null,
+		],
 	);
-	return true;
+	return rows[0]?.claimed ?? false;
 }
 
 /** Cache a tenant's subscription status from a webhook, idempotently per event.
@@ -241,32 +270,63 @@ export async function recordSubscriptionStatus(
 		stripeCustomerId?: string | null;
 	},
 ): Promise<boolean> {
-	if (!(await claimStripeEvent(db, opts.eventId, opts.eventType))) return false;
+	// Claim the event and cache the status in one statement, so the pair is atomic
+	// even when `db` is a bare pool (autocommit): a crash can't commit the claim
+	// while dropping the status write, which the retry would then never re-apply.
 	if (opts.eventCreated == null) {
-		await db.query(
-			`insert into billing_credits (tenant_id, subscription_status, stripe_customer_id)
-			 values ($1, $2, $3)
-			 on conflict (tenant_id) do update set
-			   subscription_status = excluded.subscription_status,
-			   stripe_customer_id = coalesce(excluded.stripe_customer_id, billing_credits.stripe_customer_id),
-			   updated_at = now()`,
-			[opts.tenantId, opts.status, opts.stripeCustomerId ?? null],
+		const { rows } = await db.query<{ claimed: boolean }>(
+			`with claim as (
+			   insert into billing_stripe_events (event_id, type) values ($1, $2)
+			   on conflict (event_id) do nothing
+			   returning event_id
+			 ),
+			 upsert as (
+			   insert into billing_credits (tenant_id, subscription_status, stripe_customer_id)
+			   select $3, $4, $5 where exists (select 1 from claim)
+			   on conflict (tenant_id) do update set
+			     subscription_status = excluded.subscription_status,
+			     stripe_customer_id = coalesce(excluded.stripe_customer_id, billing_credits.stripe_customer_id),
+			     updated_at = now()
+			 )
+			 select exists (select 1 from claim) as claimed`,
+			[
+				opts.eventId,
+				opts.eventType,
+				opts.tenantId,
+				opts.status,
+				opts.stripeCustomerId ?? null,
+			],
 		);
-		return true;
+		return rows[0]?.claimed ?? false;
 	}
-	await db.query(
-		`insert into billing_credits (tenant_id, subscription_status, subscription_status_at, stripe_customer_id)
-		 values ($1, $2, to_timestamp($3), $4)
-		 on conflict (tenant_id) do update set
-		   subscription_status = excluded.subscription_status,
-		   subscription_status_at = excluded.subscription_status_at,
-		   stripe_customer_id = coalesce(excluded.stripe_customer_id, billing_credits.stripe_customer_id),
-		   updated_at = now()
-		 where billing_credits.subscription_status_at is null
-		   or excluded.subscription_status_at >= billing_credits.subscription_status_at`,
-		[opts.tenantId, opts.status, opts.eventCreated, opts.stripeCustomerId ?? null],
+	const { rows } = await db.query<{ claimed: boolean }>(
+		`with claim as (
+		   insert into billing_stripe_events (event_id, type) values ($1, $2)
+		   on conflict (event_id) do nothing
+		   returning event_id
+		 ),
+		 upsert as (
+		   insert into billing_credits (tenant_id, subscription_status, subscription_status_at, stripe_customer_id)
+		   select $3, $4, to_timestamp($5), $6 where exists (select 1 from claim)
+		   on conflict (tenant_id) do update set
+		     subscription_status = excluded.subscription_status,
+		     subscription_status_at = excluded.subscription_status_at,
+		     stripe_customer_id = coalesce(excluded.stripe_customer_id, billing_credits.stripe_customer_id),
+		     updated_at = now()
+		   where billing_credits.subscription_status_at is null
+		     or excluded.subscription_status_at >= billing_credits.subscription_status_at
+		 )
+		 select exists (select 1 from claim) as claimed`,
+		[
+			opts.eventId,
+			opts.eventType,
+			opts.tenantId,
+			opts.status,
+			opts.eventCreated,
+			opts.stripeCustomerId ?? null,
+		],
 	);
-	return true;
+	return rows[0]?.claimed ?? false;
 }
 
 export interface BillingSummary {
