@@ -29,6 +29,19 @@ export interface WireSubscribeOptions {
 
 export type WireSubscribeStatus = "subscribed" | "pending" | "already";
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+	typeof value === "object" && value !== null;
+
+/** Validate Wire's response body without a cast (this package stays
+ *  zero-dependency, so no Zod): unknown shapes resolve to `null`. */
+function parseWireStatus(body: unknown): WireSubscribeStatus | null {
+	if (!isRecord(body)) return null;
+	const { status } = body;
+	return status === "subscribed" || status === "pending" || status === "already"
+		? status
+		: null;
+}
+
 /**
  * Forward a signup to Wire. Returns the resulting status, or `null` when no API
  * key is configured (so a site with Wire unset simply no-ops). Throws on a
@@ -59,8 +72,12 @@ export async function subscribeToWire(
 		const detail = await res.text().catch(() => "");
 		throw new Error(`Wire subscribe failed: ${res.status} ${detail}`.trim());
 	}
-	const data = (await res.json().catch(() => ({}))) as {
-		status?: WireSubscribeStatus;
-	};
-	return data.status ?? null;
+	let body: unknown;
+	try {
+		body = await res.json();
+	} catch {
+		// A 200 with a non-JSON body carries no status to report.
+		return null;
+	}
+	return parseWireStatus(body);
 }

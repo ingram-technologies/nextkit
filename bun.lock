@@ -199,7 +199,7 @@
     },
     "packages/nk-forms": {
       "name": "@ingram-tech/nk-forms",
-      "version": "0.1.0",
+      "version": "0.2.1",
       "dependencies": {
         "@ingram-tech/bot-protection": "workspace:*",
         "@ingram-tech/nk-email": "workspace:*",
@@ -255,6 +255,30 @@
     "packages/nk-seo": {
       "name": "@ingram-tech/nk-seo",
       "version": "0.6.1",
+      "devDependencies": {
+        "@ingram-tech/nk-dev": "workspace:*",
+        "@types/node": "^26.1.1",
+        "@types/react": "^19.2.17",
+        "next": "^16.2.10",
+        "react": "^19.2.7",
+        "typescript": "^7.0.2",
+        "vitest": "^4.1.10",
+      },
+      "peerDependencies": {
+        "next": ">=14.0.0",
+        "react": "^18.0.0 || ^19.0.0",
+      },
+      "optionalPeers": [
+        "next",
+        "react",
+      ],
+    },
+    "packages/nk-themes": {
+      "name": "@ingram-tech/nk-themes",
+      "version": "0.1.0",
+      "dependencies": {
+        "@wrksz/themes": "^1.0.0",
+      },
       "devDependencies": {
         "@ingram-tech/nk-dev": "workspace:*",
         "@types/node": "^26.1.1",
@@ -470,6 +494,8 @@
     "@ingram-tech/nk-marketing": ["@ingram-tech/nk-marketing@workspace:packages/nk-marketing"],
 
     "@ingram-tech/nk-seo": ["@ingram-tech/nk-seo@workspace:packages/nk-seo"],
+
+    "@ingram-tech/nk-themes": ["@ingram-tech/nk-themes@workspace:packages/nk-themes"],
 
     "@inquirer/external-editor": ["@inquirer/external-editor@1.0.3", "", { "dependencies": { "chardet": "^2.1.1", "iconv-lite": "^0.7.0" }, "peerDependencies": { "@types/node": ">=18" }, "optionalPeers": ["@types/node"] }, "sha512-RWbSrDiYmO4LbejWY7ttpxczuwQyZLBUyygsA9Nsv95hpzUWwnNTVQmAq3xuh7vNwCp07UTmE5i11XAEExx4RA=="],
 
@@ -830,6 +856,8 @@
     "@vitest/spy": ["@vitest/spy@4.1.10", "", {}, "sha512-PLf/Ugvoq5wO/b4rwYCR1h2PSIdXz7wnkQFMiUpLdtM7l6pqVFcQIBEHyT1+l+cj7mNwAfZHzqXqDyjvOuwbDw=="],
 
     "@vitest/utils": ["@vitest/utils@4.1.10", "", { "dependencies": { "@vitest/pretty-format": "4.1.10", "convert-source-map": "^2.0.0", "tinyrainbow": "^3.1.0" } }, "sha512-fy9am/HWxbaGt/Sawrp90vt6Y6jQwf1RX77cz3uwoJwJVMli/e1IEwRPnMNJ7vKfPTwo0diXifkpPvwH9v7nGA=="],
+
+    "@wrksz/themes": ["@wrksz/themes@1.0.0", "", { "peerDependencies": { "next": ">=16.0.0", "react": "^18.0.0 || ^19.0.0", "react-dom": "^18.0.0 || ^19.0.0", "typescript": ">=4.5.0" }, "optionalPeers": ["next"] }, "sha512-UZ1mvFe9xXvxPCK/aXKVYbJCtI4gxM9J4orvDEZLdpk/9tvcbH2U8ZU3h5R1Pwjjjf4Q3um0wK4o+wqj3Vv40Q=="],
 
     "acorn": ["acorn@8.17.0", "", { "bin": { "acorn": "bin/acorn" } }, "sha512-xRQbDb9BnwDafYNn6Vwl839DYVjqXYb1XVGtWAZ1kcDc6iwAL4hg3B1dZlRiuENFeO2H53gFG3in621AdERVAg=="],
 
