@@ -6,9 +6,13 @@ package. Stay a thin, standard Next.js app (bun · oxlint + oxfmt · strict TS).
 
 ## Hard rules
 
-- **Any form that emails or stores a submission MUST use `@ingram-tech/bot-protection`**
-  (server: `verifyHuman` → silently drop bots; client: honeypot + signed token).
-  Never ship a form without it.
+- **Public contact/signup forms MUST use `@ingram-tech/nk-forms`** —
+  `handleFormSubmission` server-side (rate-limit → bot gate → validate →
+  escaped-email deliver → uniform 200) and `useFormSubmit` + `HoneypotInput`
+  client-side. It layers over `@ingram-tech/bot-protection`, which stays the
+  primitive for guarding *non-form* endpoints (a checkout, an authed route) —
+  call `checkBot` / `verifyHuman` directly there. Never ship a public form
+  without the bot gate.
 - **Send email only via `@ingram-tech/nk-email`** — never add another mail client.
 - **Never trust an external request body's shape — validate it with Zod, never
   `as`-cast it.** Every `/api` route and webhook handler takes untrusted input;
@@ -81,8 +85,12 @@ the UI/page tree, and never expose internal plumbing under `/api/`.
 - `@ingram-tech/nk-db` — Postgres data layer: `createPool` (one TLS-aware pool) + `createQueries` (raw SQL) + `createDb` (Drizzle), the PGlite dev/test harness at `@ingram-tech/nk-db/pglite`, the prefixed-id codec at `@ingram-tech/nk-db/id`, and the drift-aware migration runner at `@ingram-tech/nk-db/migrate`
 - `@ingram-tech/nk-api` — the standard HTTP API seam (Hono + `@hono/zod-openapi`): one `{ error, details? }` envelope, `createApiApp` / `createRouter`, auth + multi-tenant resource-scope middleware, pagination helpers, and an emitted OpenAPI/Swagger doc. Reach for it instead of hand-rolling route handlers
 - `@ingram-tech/nk-billing` — Stripe primitives: subscriptions, a Stripe-side wallet, and an optional Postgres credit ledger behind the `/credits` subpath. Prices resolve at runtime by Stripe `lookup_key` — **never hardcode a price id**, so test and live share one code path
-- `@ingram-tech/bot-protection` — invisible form protection (honeypot + timing + Vercel BotID)
+- `@ingram-tech/bot-protection` — invisible form protection (honeypot + timing + Vercel BotID); the primitive nk-forms builds on, used directly only for non-form endpoints
+- `@ingram-tech/nk-forms` — the public contact/signup submission pipeline over bot-protection + nk-email: `handleFormSubmission` (rate-limit → bot gate → validate → escaped-email deliver → uniform 200), `renderNotificationEmail`, `mintFormToken`, and `useFormSubmit` / `HoneypotInput` (`/react`). Reach for it instead of wiring bot-protection by hand
 - `@ingram-tech/nk-i18n` — type-safe, English-as-key i18n: the English source text *is* the key (no `en.json`), ICU MessageFormat, colocated JSON catalogs; routing is left to the site
+- `@ingram-tech/nk-marketing` — Postgres-backed marketing & lifecycle email: contacts + consent, newsletter broadcast audiences, and idempotent triggered campaigns, with RFC 8058 one-click unsubscribe
+- `@ingram-tech/nk-seo` — SEO toolkit: metadata factory, JSON-LD builders, sitemap/robots routes, hreflang + canonical links, and an OG image template
+- `@ingram-tech/nk-blog` — file-indexed blog engine: frontmatter contract, limited-MDX rendering with a component vocabulary, RSS, blog SEO, GitHub publishing
 - `@ingram-tech/nk-dev` — the whole dev toolchain in one devDependency: the `nk` command (`nk dev` boots local PGlite via `@ingram-tech/nk-db` if installed, then Next; plus `nk format` / `lint` / `knip` / `check` / `type-check` / `test` / `build`), the shared oxlint + oxfmt / TypeScript / Vitest config, knip, the oxfmt format-on-commit hook, and this guide. `nk check` runs every fast checker (oxlint, oxfmt, knip) in one gate; `nk doctor --fix` reconciles a site back to the canonical toolchain. `nk init` scaffolds a site to use it all.
 
 For detail on any package, read its README in `node_modules/@ingram-tech/<pkg>/`.
