@@ -92,6 +92,9 @@ export function createResourceScope<User, Role extends string, Key extends strin
 			}
 		}
 		return createMiddleware<ResourceScopeEnv<User, Role, Key>>(async (c, next) => {
+			// The env types `user` as present, but this middleware only fails closed
+			// if the guard below can actually see `undefined` — widen it so a chain
+			// that forgot `requireAuth` 401s here instead of reading a missing user.
 			const user = c.get("user") as User | undefined;
 			if (!user) {
 				return c.json({ error: "Unauthorized" }, 401);
