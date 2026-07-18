@@ -1,6 +1,7 @@
 // Server-safe entry — no React. Client hooks live at "@ingram-tech/nk-i18n/client".
 export {
 	createT,
+	type CreateTOptions,
 	defineI18nScope,
 	defineMessages,
 	type I18nScope,

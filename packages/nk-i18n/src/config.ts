@@ -1,14 +1,18 @@
 /**
- * Reserved: declared for forward compatibility but not yet consumed by
- * `createT`/`useT` — a missing key currently always falls back to the English
- * source silently, regardless of this setting.
+ * What a translator does when the active locale's catalog has no entry for a
+ * key: `"error"` throws, `"warn"` logs once per locale+key, `"ignore"` (the
+ * default) silently falls back to the English source. Pass a locale's policy to
+ * `createT`/`useT` via their `missingKeys` option (e.g.
+ * `createT(locale, msgs, undefined, { missingKeys: config.locales[locale].missingKeys })`).
  */
 export type MissingKeysPolicy = "error" | "warn" | "ignore";
 
 /**
  * Metadata for one locale. `label` (the display name, usually native) is
- * required; sites may add their own fields (e.g. `htmlLang`, `ogLocale`) and
- * read them back type-safely with {@link localeMap}.
+ * required; `missingKeys` sets this locale's {@link MissingKeysPolicy} (read it
+ * back with `config.locales[locale].missingKeys` and hand it to the translator).
+ * Sites may add their own fields (e.g. `htmlLang`, `ogLocale`) and read them
+ * back type-safely with {@link localeMap}.
  */
 export type LocaleDefinition = {
 	label: string;

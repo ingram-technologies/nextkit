@@ -1,7 +1,13 @@
 "use client";
 
 import { createContext, type ReactNode, useContext, useMemo, useRef } from "react";
-import { createT, type I18nScope, type Messages, type Translator } from "./core.js";
+import {
+	type CreateTOptions,
+	createT,
+	type I18nScope,
+	type Messages,
+	type Translator,
+} from "./core.js";
 
 const LocaleContext = createContext<string>("en");
 
@@ -36,16 +42,18 @@ export function useLocale<TLocale extends string = string>(): TLocale {
 export function useT<const TSource extends Messages | I18nScope | undefined>(
 	messagesOrScope?: TSource,
 	runtimeMessages?: Messages | I18nScope,
+	options?: CreateTOptions,
 ): Translator<TSource> {
 	const locale = useContext(LocaleContext);
-	const sources = useRef({ messagesOrScope, runtimeMessages });
-	sources.current = { messagesOrScope, runtimeMessages };
+	const sources = useRef({ messagesOrScope, runtimeMessages, options });
+	sources.current = { messagesOrScope, runtimeMessages, options };
 	return useMemo(
 		() =>
 			createT(
 				locale,
 				sources.current.messagesOrScope,
 				sources.current.runtimeMessages,
+				sources.current.options,
 			),
 		[locale],
 	);

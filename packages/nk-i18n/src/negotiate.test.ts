@@ -18,6 +18,13 @@ describe("negotiateAcceptLanguage", () => {
 		expect(negotiateAcceptLanguage("NL-be", supported)).toBe("nl");
 	});
 
+	it("is case-insensitive on the supported side too, returning it verbatim", () => {
+		// A supported list with uppercase or region-qualified entries must still
+		// match a lowercased header, and echo the caller's own casing back.
+		expect(negotiateAcceptLanguage("nl", ["EN", "NL", "FR"])).toBe("NL");
+		expect(negotiateAcceptLanguage("en-US", ["en-GB", "fr"])).toBe("en-GB");
+	});
+
 	it("returns undefined for no header or no match", () => {
 		expect(negotiateAcceptLanguage(null, supported)).toBeUndefined();
 		expect(negotiateAcceptLanguage("es-ES,it;q=0.9", supported)).toBeUndefined();

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createT, defineI18nScope } from "./core.js";
 
 const fr = {
@@ -62,6 +62,45 @@ describe("createT", () => {
 	it("lets runtimeMessages override the static source", () => {
 		const t = createT("fr", { fr, nl }, { fr: { Hello: "Salut" }, nl });
 		expect(t("Hello")).toBe("Salut");
+	});
+});
+
+describe("missingKeys policy", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it('throws on a missing key when the policy is "error"', () => {
+		const t = createT("fr", { fr: {}, nl: {} }, undefined, {
+			missingKeys: "error",
+		});
+		expect(() => t("MissingErrorKey")).toThrow(/missing "fr" translation/);
+	});
+
+	it('warns once and falls back when the policy is "warn"', () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const t = createT("fr", { fr: {}, nl: {} }, undefined, {
+			missingKeys: "warn",
+		});
+		// Distinct key so the module-level dedupe set can't be pre-primed by
+		// another test.
+		expect(t("MissingWarnKey")).toBe("MissingWarnKey");
+		expect(t("MissingWarnKey")).toBe("MissingWarnKey"); // repeat is deduped
+		expect(warn).toHaveBeenCalledTimes(1);
+	});
+
+	it('is silent and falls back by default (policy "ignore")', () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const t = createT("fr", { fr: {}, nl: {} }, undefined, {
+			missingKeys: "ignore",
+		});
+		expect(t("MissingIgnoreKey")).toBe("MissingIgnoreKey");
+		expect(warn).not.toHaveBeenCalled();
+	});
+
+	it("does not fire the policy for a present translation", () => {
+		const t = createT("fr", { fr, nl }, undefined, { missingKeys: "error" });
+		expect(t("Hello")).toBe("Bonjour");
 	});
 });
 
