@@ -165,6 +165,20 @@ function checkElement(node: JsxElement, allow: readonly string[], file: VFile): 
 				`<${name} ${attribute.name}={…}> — attribute expressions are not allowed in limited MDX; use a literal.`,
 				node,
 			);
+			continue;
+		}
+		// A braced string literal is still a URL the browser will navigate
+		// (`href={"javascript:…"}`), so it must clear the same scheme guard as the
+		// plain-string branch above — the `Literal` check alone would wave it through.
+		if (
+			typeof expression.value === "string" &&
+			URL_ATTRIBUTES.has(attribute.name.toLowerCase()) &&
+			!isSafeUrl(expression.value)
+		) {
+			file.fail(
+				`<${name} ${attribute.name}={…}> uses a URL scheme that is not allowed in limited MDX (http/https/mailto/tel or a relative path).`,
+				node,
+			);
 		}
 	}
 }

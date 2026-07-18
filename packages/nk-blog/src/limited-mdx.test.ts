@@ -72,6 +72,20 @@ describe("validateLimitedMdx", () => {
 		expect((await check('<a href="java\tscript:alert(1)">x</a>')).ok).toBe(false);
 	});
 
+	it("rejects javascript:/data: URLs in braced string-literal attributes", async () => {
+		// A braced literal (`href={"javascript:…"}`) still compiles to a live URL,
+		// so it must clear the same scheme guard as the plain-string form — the
+		// `Literal` check alone used to wave it through.
+		expect(
+			(await check('<a href={"javascript:alert(document.cookie)"}>x</a>')).ok,
+		).toBe(false);
+		expect((await check('<Figure src={"data:text/html,x"} alt="x" />')).ok).toBe(
+			false,
+		);
+		// The same braced form with a safe URL is still accepted.
+		expect((await check('<a href={"https://example.com"}>x</a>')).ok).toBe(true);
+	});
+
 	it("rejects javascript: URLs in plain markdown links and images", async () => {
 		// The MDX pipeline has no urlTransform (unlike react-markdown), so a
 		// markdown link compiles to a live anchor.
