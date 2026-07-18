@@ -78,6 +78,18 @@ the UI/page tree, and never expose internal plumbing under `/api/`.
   surfaces the real Postgres error and pre-flights journal drift. Generate **and
   apply** in the same step; don't leave "run the migration" as a handoff.
 
+## Large-scale / structural edits
+
+For a **mechanical change repeated across many files** — rewrite an import,
+rename an API, add a prop, reshape a call — don't hand-edit file by file or reach
+for `sed`. Use **`nk ast-grep`** (`@ingram-tech/nk-dev`): AST-aware structural
+search & rewrite of TS/TSX via the vendored ast-grep. **Before starting such a
+refactor, read the skill at
+`node_modules/@ingram-tech/nk-dev/skills/ts-codemod.md`** — it covers the
+search → preview → apply → `nk format` + `nk type-check` workflow, pattern
+syntax, and the syntactic-not-semantic limits (when to step up to a type-aware
+tool instead). One-off single-file edits: just edit the file.
+
 ## What nextkit provides (reach for these)
 
 - `@ingram-tech/nk-email` — Cloudflare email: `sendEmail`, `fromAddress`

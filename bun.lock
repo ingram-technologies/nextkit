@@ -13,7 +13,7 @@
     },
     "packages/bot-protection": {
       "name": "@ingram-tech/bot-protection",
-      "version": "0.4.0",
+      "version": "0.4.1",
       "devDependencies": {
         "@ingram-tech/nk-dev": "workspace:*",
         "@types/node": "^26.1.1",
@@ -52,7 +52,7 @@
     },
     "packages/nk-auth": {
       "name": "@ingram-tech/nk-auth",
-      "version": "0.12.2",
+      "version": "0.12.3",
       "dependencies": {
         "@ingram-tech/nk-db": "workspace:^",
         "bcrypt": "^6.0.0",
@@ -89,7 +89,7 @@
     },
     "packages/nk-billing": {
       "name": "@ingram-tech/nk-billing",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "dependencies": {
         "stripe": "^22.3.0",
         "zod": "^4.4.3",
@@ -103,7 +103,7 @@
     },
     "packages/nk-blog": {
       "name": "@ingram-tech/nk-blog",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "dependencies": {
         "@ingram-tech/nk-seo": "workspace:^",
         "@mdx-js/mdx": "^3.1.1",
@@ -177,6 +177,7 @@
         "nextkit-format-staged": "bin/format-staged.mjs",
       },
       "dependencies": {
+        "@ast-grep/cli": "^0.44.1",
         "@testing-library/jest-dom": "^6.9.1",
         "@typescript/native": "npm:typescript@^7.0.2",
         "jsdom": "^29.1.1",
@@ -199,7 +200,7 @@
     },
     "packages/nk-forms": {
       "name": "@ingram-tech/nk-forms",
-      "version": "0.2.1",
+      "version": "0.2.2",
       "dependencies": {
         "@ingram-tech/bot-protection": "workspace:*",
         "@ingram-tech/nk-email": "workspace:*",
@@ -221,7 +222,7 @@
     },
     "packages/nk-i18n": {
       "name": "@ingram-tech/nk-i18n",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "dependencies": {
         "intl-messageformat": "^11.2.10",
       },
@@ -241,7 +242,7 @@
     },
     "packages/nk-marketing": {
       "name": "@ingram-tech/nk-marketing",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "dependencies": {
         "@ingram-tech/nk-email": "workspace:^",
       },
@@ -275,7 +276,7 @@
     },
     "packages/nk-themes": {
       "name": "@ingram-tech/nk-themes",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "dependencies": {
         "@wrksz/themes": "^1.0.0",
       },
@@ -308,6 +309,22 @@
     "@asamuzakjp/generational-cache": ["@asamuzakjp/generational-cache@1.0.1", "", {}, "sha512-wajfB8KqzMCN2KGNFdLkReeHncd0AslUSrvHVvvYWuU8ghncRJoA50kT3zP9MVL0+9g4/67H+cdvBskj9THPzg=="],
 
     "@asamuzakjp/nwsapi": ["@asamuzakjp/nwsapi@2.3.9", "", {}, "sha512-n8GuYSrI9bF7FFZ/SjhwevlHc8xaVlb/7HmHelnc/PZXBD2ZR49NnN9sMMuDdEGPeeRQ5d0hqlSlEpgCX3Wl0Q=="],
+
+    "@ast-grep/cli": ["@ast-grep/cli@0.44.1", "", { "dependencies": { "detect-libc": "2.1.2" }, "optionalDependencies": { "@ast-grep/cli-darwin-arm64": "0.44.1", "@ast-grep/cli-darwin-x64": "0.44.1", "@ast-grep/cli-linux-arm64-gnu": "0.44.1", "@ast-grep/cli-linux-x64-gnu": "0.44.1", "@ast-grep/cli-win32-arm64-msvc": "0.44.1", "@ast-grep/cli-win32-ia32-msvc": "0.44.1", "@ast-grep/cli-win32-x64-msvc": "0.44.1" }, "bin": { "sg": "sg", "ast-grep": "ast-grep" } }, "sha512-wSjtu0/9xSYzzo/EW31w5pf1qB33tejYKmKXb2nBAlZ5PpYtOqwFmk9H1nywhjzO913beugsKAZYxrwciqW9AQ=="],
+
+    "@ast-grep/cli-darwin-arm64": ["@ast-grep/cli-darwin-arm64@0.44.1", "", { "os": "darwin", "cpu": "arm64" }, "sha512-wOzb+IqFy4Pdhvs+PeaHdQJ1VemsI1SgoOGJf+x0J0KBSJ+s/hUg2n1fVJwfsrw/XDIbz9m7PGKTGCLxsgYa1g=="],
+
+    "@ast-grep/cli-darwin-x64": ["@ast-grep/cli-darwin-x64@0.44.1", "", { "os": "darwin", "cpu": "x64" }, "sha512-X3OzzsnO9Q3ISQ4qO3jasWk8EZhJA03xfmJHhuS9rGJZZCbNEuqjicrwrDMKK8EgEGJ7MG4oL0BE5qUcn3twLw=="],
+
+    "@ast-grep/cli-linux-arm64-gnu": ["@ast-grep/cli-linux-arm64-gnu@0.44.1", "", { "os": "linux", "cpu": "arm64" }, "sha512-2F1YBRd9tQnfrGX+4BlkfXWLb2jqNgTmjp0ETLNRLMmSDinR905QsZn2A55qcAZxhQDU982mEzzgT4NduPXIGg=="],
+
+    "@ast-grep/cli-linux-x64-gnu": ["@ast-grep/cli-linux-x64-gnu@0.44.1", "", { "os": "linux", "cpu": "x64" }, "sha512-d5UNoDLT2i6xV4GGqcPnrAR6CB3H078+v3BiqjKxZdZMHFnDe46+i+DxfH1IK6yvJqViqv2F611+wiAAn/s7qw=="],
+
+    "@ast-grep/cli-win32-arm64-msvc": ["@ast-grep/cli-win32-arm64-msvc@0.44.1", "", { "os": "win32", "cpu": "arm64" }, "sha512-r6K49Z14BLOeJdBSmaoK+TdgtPRqJfJ562F0n0KvRi0qH3o8is8N2dXtEMYKynYm/tdOd65i69Mc1WKSuIeWyA=="],
+
+    "@ast-grep/cli-win32-ia32-msvc": ["@ast-grep/cli-win32-ia32-msvc@0.44.1", "", { "os": "win32", "cpu": "ia32" }, "sha512-AusXTP5SfUQEL/EkF0fhHoA4H30M7hsVgvsVEZ7PeZrxB69trzUcqKnHC8pBDYTmgIsJsr9dtXjTPDcBauaPiA=="],
+
+    "@ast-grep/cli-win32-x64-msvc": ["@ast-grep/cli-win32-x64-msvc@0.44.1", "", { "os": "win32", "cpu": "x64" }, "sha512-gDMHT17Edmp/tXTDdMSQHd9vJki2Y2WSXq9ycrvjziHwpmnsnc6xlCQ7SEOGA1987vepSpkOkqBCPliP2TVW0w=="],
 
     "@asteasolutions/zod-to-openapi": ["@asteasolutions/zod-to-openapi@8.5.0", "", { "dependencies": { "openapi3-ts": "^4.1.2" }, "peerDependencies": { "zod": "^4.0.0" } }, "sha512-SABbKiObg5dLRiTFnqiW1WWwGcg1BJfmHtT2asIBnBHg6Smy/Ms2KHc650+JI4Hw7lSkdiNebEGXpwoxfben8Q=="],
 

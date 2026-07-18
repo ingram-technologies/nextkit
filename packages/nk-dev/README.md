@@ -3,7 +3,7 @@
 The nextkit **dev toolchain in one package**. Everything a site needs at
 development time — and nothing that ships to production — lives here:
 
-- the **`nk` CLI** (`nk dev` / `format` / `lint` / `knip` / `check` / `type-check` / `test` / `build`, plus `nk doctor`);
+- the **`nk` CLI** (`nk dev` / `format` / `lint` / `knip` / `ast-grep` / `check` / `type-check` / `test` / `build`, plus `nk doctor`);
 - the shared **oxlint + oxfmt**, **TypeScript**, and **Vitest** config;
 - **knip** (unused dependency / export / file detection), bundled and run by `nk check`;
 - the **oxfmt format-on-commit** git hook (`nextkit-format-staged`);
@@ -92,6 +92,12 @@ tsc), so versions stay under each site's control — nk just orchestrates.
   generated (drizzle migrations, `pg_dump` baselines, pglite fixtures).
 - **`nk lint`** — `oxlint`.
 - **`nk knip`** — `knip` (unused dependencies / exports / files).
+- **`nk ast-grep [...]`** — structural search & rewrite of TS/TSX by AST pattern,
+  via the vendored [ast-grep](https://ast-grep.github.io) (args passed through to
+  it). For large mechanical refactors — import rewrites, API renames, call-shape
+  changes — instead of hand-editing or `sed`. The workflow (search → preview →
+  apply → `nk format` + `nk type-check`) and its syntactic-not-semantic limits
+  live in the codemod skill, `skills/ts-codemod.md`.
 - **`nk check`** — `oxlint` + `oxfmt --check` + `knip` (only when the repo has a
   knip config) + the agent-guide import gate. The CI gate; runs every checker and
   reports them all before failing.
