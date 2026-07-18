@@ -14,5 +14,8 @@ export {
 } from "./email.js";
 export { mintFormToken } from "./token.js";
 
-// Re-export the underlying primitives so a form route is a single import.
-export { createFormToken, verifyHuman } from "@ingram-tech/bot-protection";
+// Re-export the underlying primitives so a form route is a single import, and
+// a site never needs to depend on @ingram-tech/bot-protection directly.
+// `checkBot` is the raw Vercel BotID layer, for guarding non-form endpoints
+// (a checkout, an authed route) where the full form pipeline doesn't fit.
+export { checkBot, createFormToken, verifyHuman } from "@ingram-tech/bot-protection";
