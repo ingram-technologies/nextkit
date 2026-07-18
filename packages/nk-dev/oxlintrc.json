@@ -7,6 +7,9 @@
 	"rules": {
 		"nextkit/no-radix-props-on-base-ui": "error",
 		"nextkit/no-deferred-current-target": "error",
+		"nextkit/no-redundant-usestate-type": "warn",
+		"nextkit/lucide-icon-suffix": "warn",
+		"nextkit/no-redirect-only-page": "warn",
 		"no-unused-vars": "warn",
 		"typescript/no-non-null-assertion": "error",
 		"typescript/no-explicit-any": "error",

@@ -4,8 +4,17 @@
 
 import baseUi from "./base-ui.js";
 import deferredCurrentTarget from "./deferred-current-target.js";
+import lucideIconSuffix from "./lucide-icon-suffix.js";
+import noRedirectOnlyPage from "./no-redirect-only-page.js";
+import redundantUseStateType from "./redundant-usestate-type.js";
 
 export default {
 	meta: { name: "nextkit" },
-	rules: { ...baseUi.rules, ...deferredCurrentTarget.rules },
+	rules: {
+		...baseUi.rules,
+		...deferredCurrentTarget.rules,
+		...lucideIconSuffix.rules,
+		...noRedirectOnlyPage.rules,
+		...redundantUseStateType.rules,
+	},
 };
