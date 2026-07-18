@@ -1,5 +1,15 @@
 # @ingram-tech/nk-marketing
 
+## 0.3.1
+
+### Patch Changes
+
+- 92bc16f: `subscribeToWire` no longer casts Wire's response with `as` or swallows the body
+  with the inline `res.json().catch(() => ({}))` pattern (both flagged by
+  code-style.md). It parses the body with an explicit runtime guard instead —
+  staying zero-dependency, per the module's design — so an unexpected shape
+  resolves to `null` rather than a trusted-but-unvalidated value.
+
 ## 0.3.0
 
 ### Minor Changes

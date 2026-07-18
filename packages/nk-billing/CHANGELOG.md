@@ -1,5 +1,26 @@
 # @ingram-tech/nk-billing
 
+## 0.3.1
+
+### Patch Changes
+
+- 91bd974: Make the webhook credit mutators atomic on a bare pool. `grantCredits`,
+  `refundCredits` (with an `eventId`), and `recordSubscriptionStatus` previously
+  issued the `claimStripeEvent` insert and the balance/status write as two separate
+  statements — atomic only if the caller wrapped them in a transaction, which
+  `Queryable` (satisfied by a bare `pg.Pool`) does not enforce. A crash between the
+  two would commit the claim while dropping the mutation, permanently marking the
+  Stripe event processed with the credits never applied (the retry then no-ops).
+  Each now folds the claim and the mutation into one `WITH claim AS (…)` statement,
+  so the pair commits or rolls back together even under autocommit. Behavior is
+  otherwise unchanged (idempotency, out-of-order status defense, return values).
+- 67046b8: Small consistency fixes: `getBillingSummary` now guards the `trial_started_at`
+  parse with `Number.isFinite` (matching `entitled()`), so an unparseable
+  timestamp yields `trialEndsAt: null` instead of `NaN`; `readBalance` falls back
+  to `DEFAULT_CURRENCY` instead of a duplicated hardcoded `"eur"`; and the `keys.ts`
+  docstring now describes the real `billingEnv().webhookSecret` fields rather than
+  non-existent `webhookSecret()` helper functions.
+
 ## 0.3.0
 
 ### Minor Changes
