@@ -18,9 +18,9 @@ const getErrorMessage = (data: unknown): string | null => {
 		typeof data === "object" &&
 		data !== null &&
 		"error" in data &&
-		typeof (data as { error: unknown }).error === "string"
+		typeof data.error === "string"
 	) {
-		return (data as { error: string }).error;
+		return data.error;
 	}
 	return null;
 };

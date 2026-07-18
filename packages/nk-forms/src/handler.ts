@@ -24,6 +24,9 @@ interface Loggerish {
 	error(message: string, error?: unknown): void;
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+	typeof value === "object" && value !== null;
+
 export interface FormHandlerOptions<T> {
 	/** Validates (and narrows) the submission. Zod strips bot-protection fields. */
 	schema: FormSchema<T>;
@@ -98,7 +101,7 @@ export const handleFormSubmission = async <T>(
 	} catch {
 		return json({ error: "Invalid request." }, 400);
 	}
-	if (typeof body !== "object" || body === null) {
+	if (!isRecord(body)) {
 		return json({ error: "Invalid request." }, 400);
 	}
 
@@ -106,7 +109,7 @@ export const handleFormSubmission = async <T>(
 	//    it, never punish a real user with a visible error.
 	const verdict = await verifyHuman({
 		...options.verify,
-		formData: body as Record<string, unknown>,
+		formData: body,
 	});
 	if (!verdict.ok) {
 		log?.warn(`${label}: dropped by bot protection (${verdict.reason})`);
