@@ -58,11 +58,19 @@ export function createAuthMiddleware(config: AuthMiddlewareConfig) {
 	const frontDoorPaths = config.frontDoorPaths ?? [];
 	const cookiePrefix = config.sessionCookiePrefix ?? "better-auth";
 
+	// Segment-boundary match: "/app" gates "/app" and "/app/x" but not
+	// "/application". Used for both the construction-time loop check and the
+	// per-request gate, so the two can't drift (a broader construction check
+	// would reject safe configs like protectedPaths ["/log"] + signInPath
+	// "/login", where "/login" is never actually gated).
+	const isProtected = (path: string): boolean =>
+		config.protectedPaths.some((p) => path === p || path.startsWith(`${p}/`));
+
 	// Loop-safety, enforced once at construction rather than hoped-for per
 	// request. The sign-in path is where the validated guard parks an
 	// invalid-but-present session; it must never be the target of an optimistic
 	// redirect, or a stale cookie loops.
-	if (config.protectedPaths.some((p) => signInPath.startsWith(p))) {
+	if (isProtected(signInPath)) {
 		throw new Error(
 			`@ingram-tech/nk-auth: signInPath "${signInPath}" must not fall under protectedPaths — a cookie-less visit would redirect to itself forever.`,
 		);
@@ -111,12 +119,7 @@ export function createAuthMiddleware(config: AuthMiddlewareConfig) {
 
 		// 2. Unauthenticated (no cookie) on a protected path -> sign in, and
 		//    remember where they were going.
-		if (
-			!hasSessionCookie &&
-			// Segment-boundary match: "/app" must gate "/app" and "/app/x" but not
-			// "/application".
-			config.protectedPaths.some((p) => path === p || path.startsWith(`${p}/`))
-		) {
+		if (!hasSessionCookie && isProtected(path)) {
 			const original = request.nextUrl.pathname + request.nextUrl.search;
 			const to = request.nextUrl.clone();
 			to.pathname = signInPath;

@@ -25,8 +25,26 @@ const loc = (res: { headers: Headers }) => {
 describe("createAuthMiddleware — construction-time loop safety", () => {
 	it("rejects a signInPath that falls under protectedPaths (cookie-less self-loop)", () => {
 		expect(() =>
-			createAuthMiddleware({ protectedPaths: ["/"], signInPath: "/login" }),
+			createAuthMiddleware({ protectedPaths: ["/login"], signInPath: "/login" }),
 		).toThrow(/must not fall under protectedPaths/);
+		// Segment-boundary, not prefix: a nested sign-in under a protected root loops.
+		expect(() =>
+			createAuthMiddleware({
+				protectedPaths: ["/app"],
+				signInPath: "/app/login",
+			}),
+		).toThrow(/must not fall under protectedPaths/);
+	});
+
+	it("allows a signInPath that only shares a string prefix with a protectedPath", () => {
+		// "/login" is NOT gated by "/log" or "/" under segment-boundary matching,
+		// so the construction guard must not false-positive on the shared prefix.
+		expect(() =>
+			createAuthMiddleware({ protectedPaths: ["/log"], signInPath: "/login" }),
+		).not.toThrow();
+		expect(() =>
+			createAuthMiddleware({ protectedPaths: ["/"], signInPath: "/login" }),
+		).not.toThrow();
 	});
 
 	it("rejects a signInPath used as a frontDoorPath (the stale-cookie loop)", () => {

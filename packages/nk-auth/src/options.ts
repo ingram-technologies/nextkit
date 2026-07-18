@@ -24,6 +24,14 @@ export { uuidGenerateId } from "./id.js";
  * Better Auth's default is scrypt — new sites should omit this and use that
  * default. Sites still on bcrypt should migrate hashes to scrypt and drop this;
  * see the nk-auth README (§"Migrating bcrypt passwords to scrypt") for the path.
+ *
+ * NOTE: bcrypt silently truncates the password at **72 bytes**, so two passwords
+ * sharing their first 72 bytes verify as equal — even though the password policy
+ * allows up to {@link DEFAULT_MAX_PASSWORD_LENGTH} (128) characters. This is a
+ * property of bcrypt, not a bug here, and it's deliberately not length-guarded:
+ * a guard would break verification of the legacy long-password hashes this
+ * preset exists to support (bcrypt already truncated them at hash time). It is
+ * one more reason to migrate off bcrypt — scrypt has no such ceiling.
  */
 export const bcryptPassword = {
 	hash: (password: string): Promise<string> => bcrypt.hash(password, 10),
