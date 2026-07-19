@@ -1,5 +1,53 @@
 # @ingram-tech/nk-dev
 
+## 0.6.0
+
+### Minor Changes
+
+- 320cf3c: Add `nk ast-grep` — AST-aware structural search & rewrite of TS/TSX, backed by a
+  vendored [ast-grep](https://ast-grep.github.io) (`@ast-grep/cli`, resolved to the
+  pinned binary rather than a global on `PATH`). Args pass straight through to
+  ast-grep. Ships alongside it a codemod **skill** (`skills/ts-codemod.md`) that the
+  agent guide points to, teaching the search → preview → apply → `nk format` +
+  `nk type-check` workflow and its syntactic-not-semantic limits — so large
+  mechanical refactors (import rewrites, API renames, call-shape changes) stop being
+  hand-edited file by file. Purely additive; no existing command changes.
+- 3b500ea: Add three custom oxlint rules to the shared `nextkit` plugin, ported from the
+  Ingram ESLint recommended set and adapted for oxlint (all `warn`):
+
+  - `nextkit/no-redundant-usestate-type` — strips `useState<T>` type arguments
+    that TypeScript already infers from the initial value (autofix). Narrower than
+    the upstream rule: it skips `null` initial values (a runtime change, not a
+    redundancy) and array annotations (`useState<string[]>([])` is load-bearing —
+    `useState([])` infers `never[]`), both of which the upstream autofix silently
+    broke.
+  - `nextkit/lucide-icon-suffix` — enforces the `Icon` suffix on `lucide-react`
+    imports and rewrites references (autofix), matching lucide's own deprecation
+    of the bare aliases. Inert on sites that don't import lucide; skips the
+    package's non-icon exports.
+  - `nextkit/no-redirect-only-page` — suggests a `next.config` redirect for an App
+    Router `page.tsx` whose only job is to call `redirect(...)`, with the config
+    entry inlined in one diagnostic. Now validates every page shape (including
+    `export default function`), closing a false-positive the upstream rule had on
+    function-declaration pages.
+
+  The Supabase rules and the opinionated `nextjs-page-pattern` rule from the
+  upstream set were intentionally not ported.
+
+### Patch Changes
+
+- 3ac010f: Invoke the site toolchain via `bun x` instead of the `bunx` shim. On some
+  installs — notably Windows and Git's bundled `sh`, where the `.githooks/pre-commit`
+  hook runs — only `bun` lands on `PATH` while the standalone `bunx` shim does not.
+  `bunx` is an alias for `bun x`, so spawning `bun x` works in a strict superset of
+  environments with identical behavior. Updated the pre-commit hook template
+  (`nk init`), `format-staged` (oxfmt), and the `nk` command runner (`dev`, and the
+  generic tool runner); the ENOENT hint now points at `bun`.
+
+  Note: `nk init` writes the hook string into each site's committed
+  `.githooks/pre-commit`, so existing sites keep the old `bunx` line until they
+  re-run `bun x nk init` (or edit the one line by hand).
+
 ## 0.5.0
 
 ### Minor Changes
