@@ -33,7 +33,7 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
-		"stripe": "^22.3.0",
+		"stripe": "^22.3.2",
 		"zod": "^4.4.3"
 	},
 	"devDependencies": {
