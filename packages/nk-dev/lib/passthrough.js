@@ -4,9 +4,9 @@ import { FORMATTER } from "./formatter.js";
 import { hasKnipConfig, runKnip } from "./knip.js";
 import { run } from "./run.js";
 
-/** `nk lint` — oxlint. */
-export function lint() {
-	process.exit(run(FORMATTER.lint[0], FORMATTER.lint[1]));
+/** `nk lint [...]` — oxlint, with extra args passed through (e.g. `--fix`). */
+export function lint(extraArgs = []) {
+	process.exit(run(FORMATTER.lint[0], [...FORMATTER.lint[1], ...extraArgs]));
 }
 
 /**

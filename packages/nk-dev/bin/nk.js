@@ -20,7 +20,7 @@ Commands:
   dev                 Start the Next dev server (Turbopack). Boots local PGlite
                       first when @ingram-tech/nk-db is installed (no Docker).
   format [--check]    Format code with oxfmt. --check verifies without writing.
-  lint                Lint with oxlint.
+  lint [...]          Lint with oxlint (extra args passed through, e.g. --fix).
   knip                Find unused dependencies / exports / files with knip.
   ast-grep [...]      Structural search & rewrite of TS/TSX by AST pattern
                       (vendored ast-grep; args passed through). For large
@@ -50,7 +50,7 @@ switch (cmd) {
 		format({ check: rest.includes("--check") });
 		break;
 	case "lint":
-		lint();
+		lint(rest);
 		break;
 	case "knip":
 		knip(rest);
