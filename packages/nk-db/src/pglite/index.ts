@@ -27,7 +27,27 @@ export interface PgliteServerOptions {
 	fresh?: boolean;
 	/** Drizzle migrations folder for the default applier. Default `drizzle`. */
 	migrationsFolder?: string;
-	/** Override how migrations are applied (e.g. raw-SQL apps). */
+	/**
+	 * Extra journaled migration chains to apply **before** `migrationsFolder`,
+	 * in the order given — each with its own journal table so it versions
+	 * independently of the app's `drizzle/` chain. Use for schema owned by a
+	 * dependency that the app's own migrations then reference (e.g. `nk-auth`
+	 * ships its auth tables this way, and app tables FK to `user`). Applying
+	 * these first is what makes those FKs resolve. Generic on purpose: this
+	 * harness knows nothing about which package a chain belongs to — the caller
+	 * (`nk dev`, a test harness) resolves the folder and names the table.
+	 */
+	dependencyMigrations?: Array<{
+		/** The chain's migrations folder (must contain `meta/_journal.json`). */
+		folder: string;
+		/** Journal table — MUST differ from other chains sharing `schema`
+		 *  (default `drizzle`), or the chains collide. E.g. `__nkauth_migrations`. */
+		table: string;
+		/** Journal table schema. Default `drizzle`. */
+		schema?: string;
+	}>;
+	/** Override how the primary `migrationsFolder` is applied (e.g. raw-SQL apps).
+	 *  `dependencyMigrations` still run first, before this. */
 	migrate?: (db: PGlite) => Promise<void>;
 	/**
 	 * PGlite contrib/extension modules to register at create time — e.g.
@@ -67,6 +87,26 @@ const defaultMigrate =
 		await migrate(drizzle(db), { migrationsFolder });
 	};
 
+/** Apply each dependency chain in order, before the app's own migrations. Each
+ *  gets its own journal table so it tracks independently (see
+ *  {@link PgliteServerOptions.dependencyMigrations}). */
+const applyDependencyMigrations = async (
+	db: PGlite,
+	chains: NonNullable<PgliteServerOptions["dependencyMigrations"]>,
+): Promise<void> => {
+	if (chains.length === 0) return;
+	const { drizzle } = await import("drizzle-orm/pglite");
+	const { migrate } = await import("drizzle-orm/pglite/migrator");
+	const orm = drizzle(db);
+	for (const chain of chains) {
+		await migrate(orm, {
+			migrationsFolder: chain.folder,
+			migrationsTable: chain.table,
+			migrationsSchema: chain.schema ?? "drizzle",
+		});
+	}
+};
+
 /**
  * Boot PGlite, apply migrations (on a fresh/in-memory db), and expose it over a
  * TCP socket so a normal `pg.Pool` connects via `DATABASE_URL` with no app code
@@ -98,6 +138,9 @@ export const createPgliteServer = async (
 	// existing dataDir this applies only what's new (previously it was skipped
 	// entirely whenever the dir existed, silently ignoring added migrations
 	// until a --fresh wipe). A custom `migrate` must be idempotent the same way.
+	// Dependency chains (e.g. nk-auth's tables) go first so the app's own
+	// migrations can reference them by FK.
+	await applyDependencyMigrations(db, options.dependencyMigrations ?? []);
 	await (options.migrate ?? defaultMigrate(migrationsFolder))(db);
 
 	const server = new PGLiteSocketServer({ db, host, port });

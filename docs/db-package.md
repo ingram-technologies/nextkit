@@ -253,6 +253,38 @@ because the stock drizzle-kit applier has recurring failure modes worth owning:
 Journal rows are byte-compatible with drizzle's (`sha256` of the raw file, same
 table/schema defaults), so the runner and drizzle tooling can be mixed freely.
 
+### The nk-auth migration chain
+
+A site is not limited to one chain. The runner takes `migrationsFolder` +
+`migrationsTable` per invocation, so an independently-versioned set of migrations
+can be applied against its **own journal table** in the same database. nk-auth
+uses this to **own its auth tables** (`user` / `session` / `account` /
+`verification` / `jwks` / `passkey`, hardened for RLS): it ships an append-only
+SQL chain in `packages/nk-auth/migrations/` — with a `meta/_journal.json` — and a
+site applies it straight from `node_modules`, no copy-in:
+
+```bash
+# auth chain first (app tables FK to "user"), on its own journal table…
+nk-pg-migrate --migrations node_modules/@ingram-tech/nk-auth/migrations --table __nkauth_migrations
+# …then the app's own drizzle/ chain
+nk-pg-migrate
+```
+
+This is the deliberate answer to "a better-auth upgrade that adds a column
+becomes a hand-written migration in every site." It doesn't: the delta ships as a
+new file in nk-auth's chain, so a site bumps the dependency and its next migrate
+applies it. The cost, accepted on purpose: the auth DDL lives in a **dependency**
+rather than the site's own `drizzle/` tree, and nk-auth's chain is **append-only**
+— a shipped file is never rewritten (the runner hashes each file; a changed
+baseline drifts every site that applied it), so upgrades land as `0002_*.sql`,
+`0003_*.sql`, … Full rationale and the maintainer's upgrade flow are in
+[`packages/nk-auth/README.md`](../packages/nk-auth/README.md#1-apply-the-schema).
+
+Two chains sharing a schema **must** use distinct journal tables (nk-auth's is
+`__nkauth_migrations`; the app default is `__drizzle_migrations`) or they collide.
+The advisory lock serializes them regardless, so running both in one deploy step
+is safe.
+
 ## PGlite dev & test (the `./pglite` subpath)
 
 [PGlite](https://pglite.dev) is Postgres compiled to WASM, in-process: the
@@ -273,6 +305,16 @@ orchestration only, per the
 [`nk` carve-out](./philosophy.md#the-nk-carve-out-orchestration-never-interception);
 command surface in [`packages/nk-dev/README.md`](../packages/nk-dev/README.md).
 
+The harness applies the same [multi-chain model](#the-nk-auth-migration-chain)
+locally, via `createPgliteServer`'s generic `dependencyMigrations` option (extra
+journaled chains applied **before** the app's `drizzle/` folder). The harness
+itself is package-agnostic — it never names nk-auth. The wiring lives one layer
+up: `nk dev` resolves nk-auth's shipped migrations folder and passes it to
+`nk-pglite-dev` as `--dep-migrations <folder>#<table>`, so the dependency graph
+stays acyclic (nk-auth → nk-db, never the reverse) and local dev needs zero
+per-site config. Test harnesses pass `dependencyMigrations` to `createTestDb`
+directly (example in [nk-auth's README](../packages/nk-auth/README.md#1-apply-the-schema)).
+
 ## Relationship to nk-auth
 
 `nk-auth` **takes the pool by injection** rather than creating its own —
@@ -282,6 +324,12 @@ realizing "one pool, reused for everything including Better Auth".
 kept only so existing call sites keep working; new code imports from nk-db.
 Better Auth needs prepared statements, so the pool must use a **direct
 connection or session-mode pooling**, never transaction-mode pgbouncer.
+
+nk-auth is also nk-db's one stateful consumer: it owns the auth tables and ships
+them as its own [migration chain](#the-nk-auth-migration-chain), applied by this
+package's runner against a separate journal table. nk-db stays generic — the
+runner and the PGlite harness never name nk-auth; the wiring is injected from
+above (`nk dev`, or a test harness).
 
 ## Enforcement (push it down the ladder)
 

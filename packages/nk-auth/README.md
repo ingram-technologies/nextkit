@@ -70,16 +70,64 @@ the app: the security-sensitive default then lives in exactly one place.
 
 ## 1. Apply the schema
 
-```bash
-cp node_modules/@ingram-tech/nk-auth/migrations/0001_better_auth.sql \
-   migrations/$(date +%Y%m%d%H%M%S)_better_auth.sql
+nk-auth **owns its auth tables as its own migration chain** — the versioned SQL
+files it ships in `migrations/`, journaled separately from your app's `drizzle/`
+migrations. You don't copy anything in; you point the runner at the shipped
+folder. It creates Better Auth's tables (`user`, `session`, `account`,
+`verification`, `jwks`, `passkey`), defaults new user ids to UUIDs, and puts
+**deny-all RLS** on all of them (Better Auth reaches them through its own
+privileged connection). See [db-package.md § "The nk-auth migration
+chain"](../../docs/db-package.md#the-nk-auth-migration-chain) for the full model.
+
+The auth chain runs **before** your app chain, because your app tables FK to
+`user`.
+
+**Production / deploy** — add the auth chain to your `db:migrate` script,
+auth-first, on its own journal table:
+
+```jsonc
+// package.json
+"scripts": {
+  "db:migrate": "nk-pg-migrate --migrations node_modules/@ingram-tech/nk-auth/migrations --table __nkauth_migrations && nk-pg-migrate"
+}
 ```
 
-It creates Better Auth's tables (`user`, `session`, `account`, `verification`,
-`jwks`, `passkey`), defaults new user ids to UUIDs, and puts **deny-all RLS** on
-all of them (Better Auth reaches them through its own privileged connection).
-Reconcile against your pinned `better-auth` with `npx @better-auth/cli generate`
-after upgrades.
+The first invocation applies (and journals) nk-auth's chain; the second applies
+your app's `drizzle/` chain. Both are idempotent and drift-checked, so re-running
+is a no-op — see the [`nk-pg-migrate` runner](../../docs/db-package.md#migrations).
+
+**Local dev** — nothing to do. `nk dev` resolves nk-auth and applies its chain to
+the local PGlite database automatically, before your `drizzle/` migrations.
+
+**Tests** — when a test needs the auth tables, pass the shipped folder to
+`createTestDb` as a dependency chain (applied first, own journal table):
+
+```ts
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
+
+const authMigrations = join(
+	dirname(createRequire(import.meta.url).resolve("@ingram-tech/nk-auth/package.json")),
+	"migrations",
+);
+
+const db = await createTestDb({
+	dependencyMigrations: [{ folder: authMigrations, table: "__nkauth_migrations" }],
+});
+```
+
+**Upgrading better-auth** never means hand-writing a migration in your site: a
+schema-changing upgrade ships as a new file in nk-auth's chain, so you bump the
+dependency and your next migrate applies it. Reconcile the shipped schema against
+a pinned `better-auth` with `npx @better-auth/cli generate` (a nextkit-maintainer
+task, done once here — not per site).
+
+> **Adopting from the old copy-in model?** Earlier docs told sites to `cp` the
+> baseline into their own `drizzle/` chain. If you already did, keep that file
+> (deleting an applied migration causes journal drift) and just add the auth-chain
+> invocation above: its DDL is all `… if not exists`, so it no-ops against your
+> existing tables and simply records the nk-auth journal. New auth migrations then
+> flow through the shipped chain from here on.
 
 ## 2. Configure the server
 

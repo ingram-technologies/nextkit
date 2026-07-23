@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 
 /**
  * Whether `@ingram-tech/nk-db` is resolvable from the site — the signal that
@@ -20,6 +20,32 @@ function hasPgliteDev() {
 }
 
 /**
+ * If `@ingram-tech/nk-auth` is installed, the `nk-pglite-dev` flag that makes
+ * the local database apply its shipped auth-table migration chain (see
+ * docs/db-package.md § "The nk-auth migration chain"). Returned as
+ * `--dep-migrations <folder>#<table>` args, or `[]` when nk-auth is absent.
+ *
+ * This resolution lives here, not in nk-db: `nk` is the orchestrator that
+ * already knows both packages, so nk-db's harness stays generic and the
+ * dependency graph stays acyclic (nk-auth → nk-db, never the reverse).
+ */
+function authMigrationArgs() {
+	try {
+		const require = createRequire(resolve(process.cwd(), "package.json"));
+		// Resolve the shipped journal via nk-auth's `./migrations/*` export (its
+		// `exports` deliberately does not expose `./package.json`). A successful
+		// resolve both locates the folder AND confirms the chain is shipped; the
+		// folder is the journal's grandparent (…/migrations/meta/_journal.json).
+		const journal =
+			require.resolve("@ingram-tech/nk-auth/migrations/meta/_journal.json");
+		const folder = dirname(dirname(journal));
+		return ["--dep-migrations", `${folder}#__nkauth_migrations`];
+	} catch {
+		return [];
+	}
+}
+
+/**
  * `nk dev` — start the Next dev server on the golden-path local database.
  *
  * If `@ingram-tech/nk-db` is installed, hand off to its `nk-pglite-dev` bin: it
@@ -33,7 +59,7 @@ function hasPgliteDev() {
  */
 export function dev(extraArgs = []) {
 	const command = hasPgliteDev()
-		? ["nk-pglite-dev", ...extraArgs]
+		? ["nk-pglite-dev", ...authMigrationArgs(), ...extraArgs]
 		: ["next", "dev", "--turbopack", ...extraArgs];
 	if (command[0] === "nk-pglite-dev") {
 		console.log("nk: @ingram-tech/nk-db found — booting local PGlite (no Docker)…");
