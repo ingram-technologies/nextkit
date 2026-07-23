@@ -28,7 +28,7 @@ jobs:
       # used as-is: node 24 ships npm >= 11.6.2 (>= 11.5.1 is what OIDC +
       # provenance needs), and upgrading to npm@latest on release day is how we
       # hit npm/cli#9722 (12.0.0 shipped without its bundled sigstore).
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
