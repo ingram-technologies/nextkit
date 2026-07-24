@@ -1,5 +1,11 @@
 # @ingram-tech/nk-api
 
+## 0.3.2
+
+### Patch Changes
+
+- 8eec90d: Bump `hono` 4.12.28→4.12.31 and `@hono/zod-openapi` 1.4→1.5.1 to latest.
+
 ## 0.3.1
 
 ### Patch Changes

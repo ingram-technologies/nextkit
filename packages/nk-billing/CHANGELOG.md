@@ -1,5 +1,11 @@
 # @ingram-tech/nk-billing
 
+## 0.3.2
+
+### Patch Changes
+
+- 8eec90d: Bump `stripe` to 22.3.2 (latest patch).
+
 ## 0.3.1
 
 ### Patch Changes

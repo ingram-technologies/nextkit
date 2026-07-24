@@ -1,5 +1,16 @@
 # @ingram-tech/nk-dev
 
+## 0.6.1
+
+### Patch Changes
+
+- 8eec90d: Bump the bundled toolchain to latest: oxlint 1.73→1.74, oxfmt 0.58→0.59, knip
+  6.25→6.27. No behavior change for consumers beyond the upstream tools' own fixes.
+- a12c536: `nk lint` now forwards extra args to oxlint, so `nk lint --fix` (and `--quiet`,
+  `--deny`, etc.) work — previously the wrapper dropped them, so autofixable rules
+  (e.g. `lucide-icon-suffix`) could only be fixed by invoking `oxlint --fix`
+  directly. `nk check` is unchanged (still a read-only gate).
+
 ## 0.6.0
 
 ### Minor Changes
