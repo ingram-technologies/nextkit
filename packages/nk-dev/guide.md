@@ -77,6 +77,18 @@ the UI/page tree, and never expose internal plumbing under `/api/`.
   `@ingram-tech/nk-db`'s drift-aware runner (`@ingram-tech/nk-db/migrate`), which
   surfaces the real Postgres error and pre-flights journal drift. Generate **and
   apply** in the same step; don't leave "run the migration" as a handoff.
+- **`drizzle-kit` is GENERATE-ONLY — it must never apply schema.** Use it for
+  `drizzle-kit generate` (and `generate --custom` for a package-owned/raw SQL
+  migration). Applying is always **`nk-pg-migrate`** (the bin from
+  `@ingram-tech/nk-db`): `bun run db:migrate`, and check first with
+  `db:migrate:status`. Two commands are banned, and `nk doctor` fails on either:
+  - **`drizzle-kit push`** applies a diff straight to the live DB with no
+    migration file and no journal entry. It is the schema-drift source — it has
+    already drifted a production database in this fleet, and where the dev DB is
+    shared it rewrites everyone's. To iterate locally, rebuild from migrations
+    (the PGlite harness / your `dev:*fresh` script), don't push.
+  - **`drizzle-kit migrate`** is opaque: it exits non-zero with no message (even
+    on a clean no-op) and hides journal drift.
 
 ## Large-scale / structural edits
 

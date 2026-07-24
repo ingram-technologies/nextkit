@@ -36,7 +36,7 @@ function writeJson(file, value) {
  * returns a short past-tense note. `level` is "error" (breaks the model) or
  * "warn" (cosmetic / cleanup).
  */
-function findings(cwd) {
+export function findings(cwd) {
 	const out = [];
 	const pkgPath = resolve(cwd, "package.json");
 	const pkg = readJson(pkgPath);
@@ -202,7 +202,47 @@ function findings(cwd) {
 		}
 	}
 
-	// 7. .prettierignore is now dead weight (nk no longer formats SQL).
+	// 7. drizzle-kit is GENERATE-ONLY — it must never apply schema.
+	//    `drizzle-kit push` diffs the live DB and applies straight to it with no
+	//    migration file and no journal entry: the schema-drift source (it has
+	//    already drifted one production database in this fleet, and on sites
+	//    whose dev DB is shared it rewrites everyone's).
+	//    `drizzle-kit migrate` is opaque — it exits non-zero with no message
+	//    (even on a clean no-op) and hides journal drift.
+	//    `nk-pg-migrate` (@ingram-tech/nk-db) is the one runner that applies:
+	//    it surfaces the real Postgres error and pre-flights drift.
+	for (const [name, cmd] of Object.entries(scripts)) {
+		if (typeof cmd !== "string") continue;
+		if (/\bdrizzle-kit\s+push\b/.test(cmd)) {
+			out.push({
+				id: `script:drizzle-push:${name}`,
+				level: "error",
+				message: `\`${name}\` runs \`drizzle-kit push\` — it applies schema to the live DB with no migration (drift). Generate a migration and apply it with \`nk-pg-migrate\`.`,
+				fix: (dir) => {
+					const p = resolve(dir, "package.json");
+					const j = readJson(p);
+					delete j.scripts?.[name];
+					writeJson(p, j);
+					return `removed \`${name}\` (drizzle-kit push)`;
+				},
+			});
+		} else if (/\bdrizzle-kit\s+migrate\b/.test(cmd)) {
+			out.push({
+				id: `script:drizzle-migrate:${name}`,
+				level: "error",
+				message: `\`${name}\` runs \`drizzle-kit migrate\` — apply with \`nk-pg-migrate\` instead (it surfaces the real error and pre-flights journal drift).`,
+				fix: (dir) => {
+					const p = resolve(dir, "package.json");
+					const j = readJson(p);
+					j.scripts[name] = "nk-pg-migrate";
+					writeJson(p, j);
+					return `set \`${name}\` → "nk-pg-migrate"`;
+				},
+			});
+		}
+	}
+
+	// 8. .prettierignore is now dead weight (nk no longer formats SQL).
 	const prettierIgnore = resolve(cwd, ".prettierignore");
 	if (existsSync(prettierIgnore)) {
 		out.push({
@@ -223,8 +263,9 @@ function findings(cwd) {
 /**
  * `nk doctor [--fix]` — report drift from the canonical nk-dev model (scripts,
  * dependencies, oxlint/tsconfig extends, the CLAUDE.md guide import, stale knip
- * ignores, a dead .prettierignore). With `--fix`, apply every auto-fixable
- * finding, then remind to reinstall.
+ * ignores, forbidden schema-applying drizzle-kit scripts, a dead
+ * .prettierignore). With `--fix`, apply every auto-fixable finding, then remind
+ * to reinstall.
  */
 export function doctor(args = []) {
 	const fix = args.includes("--fix");
