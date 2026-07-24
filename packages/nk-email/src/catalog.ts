@@ -52,7 +52,7 @@ export interface EmailCatalogEntry {
 /** The serialized manifest an operator surface reads. */
 export interface EmailCatalog {
 	version: number;
-	/** Optional product label for display, e.g. "Financica". */
+	/** Optional product label for display, e.g. "Acme". */
 	product?: string;
 	entries: EmailCatalogEntry[];
 }

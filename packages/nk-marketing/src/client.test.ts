@@ -5,14 +5,32 @@ import type { Queryable } from "./db.js";
 
 // Mock the email boundary; everything else runs for real against the fake DB.
 // escapeHtml is included because the renderer imports it from this module.
-vi.mock("@ingram-tech/nk-email", () => ({
-	sendEmail: vi.fn(),
-	fromAddress: vi.fn(
-		(name: string, localPart = "notifications") =>
-			`${name} <${localPart}@mail.test>`,
-	),
-	escapeHtml: (v: string) => v.replace(/</g, "&lt;").replace(/>/g, "&gt;"),
-}));
+// createMailer delegates to the same sendEmail spy (stripping the log-only
+// fields, exactly as the real mailer does), so the payload assertions below are
+// unaffected by the client now sending through the mailer. Send-logging itself
+// is covered by nk-email's own mailer tests.
+vi.mock("@ingram-tech/nk-email", () => {
+	const sendEmail = vi.fn();
+	return {
+		sendEmail,
+		createMailer: () => ({
+			send: (opts: Record<string, unknown>) => {
+				const {
+					kind: _kind,
+					templateKey: _tk,
+					campaignKey: _ck,
+					...rest
+				} = opts;
+				return sendEmail(rest);
+			},
+		}),
+		fromAddress: vi.fn(
+			(name: string, localPart = "notifications") =>
+				`${name} <${localPart}@mail.test>`,
+		),
+		escapeHtml: (v: string) => v.replace(/</g, "&lt;").replace(/>/g, "&gt;"),
+	};
+});
 
 const sendMock = vi.mocked(sendEmail);
 

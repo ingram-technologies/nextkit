@@ -13,7 +13,7 @@
  * unsubscribe, and rendering. The site never re-implements those.
  */
 
-import { fromAddress, sendEmail } from "@ingram-tech/nk-email";
+import { createMailer, fromAddress } from "@ingram-tech/nk-email";
 import { generateToken, normalizeEmail, requireEmail, type Queryable } from "./db.js";
 import {
 	derivePreviewText,
@@ -44,6 +44,15 @@ export interface MarketingConfig {
 	unsubscribePath?: string;
 	/** Override the built-in HTML/text rendering. */
 	render?: (input: MarketingRenderInput) => { html: string; text: string };
+	/**
+	 * Record every broadcast/lifecycle send to nk-email's `nk_email_log` (as
+	 * `kind: "marketing"`), so a send history is available to an operator
+	 * surface. Best-effort — a logging failure never blocks a send. Default
+	 * `true`; requires nk-email's `0001_email_log.sql` migration to be applied
+	 * (absent, each send just logs a console error and carries on). Set `false`
+	 * to opt out entirely.
+	 */
+	logSends?: boolean;
 }
 
 /** The bare address inside a "Name <addr>" string (or the string itself). */
@@ -60,6 +69,12 @@ export const createMarketing = (config: MarketingConfig) => {
 			html: renderMarketingHtml(input),
 			text: renderMarketingText(input),
 		}));
+	// Every send goes through the mailer so it lands in nk_email_log as
+	// kind:"marketing". With logSends off (or no log table), createMailer without
+	// a db is a pure pass-through to sendEmail — same behaviour as before.
+	const mailer = createMailer(
+		(config.logSends ?? true) ? { db, defaultKind: "marketing" } : {},
+	);
 
 	/**
 	 * Upsert a contact by email. New email → insert (with a fresh unsubscribe
@@ -216,15 +231,17 @@ export const createMarketing = (config: MarketingConfig) => {
 		replyTo?: string;
 		subject: string;
 		input: MarketingRenderInput;
+		campaignKey?: string;
 	}): Promise<void> => {
 		const { html, text } = renderFn(args.input);
-		await sendEmail({
+		await mailer.send({
 			to: args.to,
 			from: args.from,
 			replyTo: args.replyTo,
 			subject: args.subject,
 			html,
 			text,
+			campaignKey: args.campaignKey,
 			listUnsubscribe: {
 				url: args.input.unsubscribeUrl,
 				mailto: bareAddress(args.from),
@@ -292,6 +309,7 @@ export const createMarketing = (config: MarketingConfig) => {
 					from,
 					replyTo: audience.reply_to ?? undefined,
 					subject: options.subject,
+					campaignKey: options.campaignKey,
 					input: {
 						subject: options.subject,
 						content: options.content,
@@ -355,6 +373,7 @@ export const createMarketing = (config: MarketingConfig) => {
 				from,
 				replyTo: sender.replyTo,
 				subject: options.subject,
+				campaignKey: options.campaignKey,
 				input: {
 					subject: options.subject,
 					content: options.content,
