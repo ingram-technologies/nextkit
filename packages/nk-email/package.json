@@ -13,13 +13,15 @@
 		"access": "public"
 	},
 	"files": [
-		"dist"
+		"dist",
+		"migrations"
 	],
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js"
-		}
+		},
+		"./migrations/*": "./migrations/*"
 	},
 	"scripts": {
 		"build": "tsc -p tsconfig.json",

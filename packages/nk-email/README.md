@@ -61,6 +61,70 @@ callers that assemble headers themselves. For the full subscription / lifecycle
 machinery (contacts, consent, dedup, rendering) reach for
 [`@ingram-tech/nk-marketing`](../nk-marketing), which builds on this.
 
+### Send-log (opt-in history)
+
+`sendEmail` is fire-and-forget — it persists nothing. When you want a durable
+record of what actually went out (an operator surface asking "what did we send,
+to whom, did it land?"), build a **mailer** with a database and call `send`
+where you called `sendEmail`:
+
+```ts
+import { createMailer } from "@ingram-tech/nk-email";
+
+const mailer = createMailer({ db: pool }); // pg Pool / nk-db helper, by injection
+
+await mailer.send({
+	to: "customer@example.com",
+	from: fromAddress("Acme", "hello"),
+	subject: "Your booking is confirmed",
+	html,
+	text,
+	kind: "transactional",  // or "marketing"; default "transactional"
+	templateKey: "booking-confirmed", // links the row to your email catalog
+});
+```
+
+Every send writes one row to `nk_email_log` (`kind`, recipient, subject, sender,
+`template_key`, `campaign_key`, `message_id`, `status`, `error`, `created_at`).
+It's **best-effort** — a logging outage never fails the mail — and **opt-in**:
+with no `db` the mailer is a pure pass-through, so you can adopt the API first
+and turn on persistence later without touching call sites. Apply
+`migrations/0001_email_log.sql` (with your own migration pipeline) when you turn
+logging on. `recordEmail(db, record)` is the low-level writer if you need it;
+`@ingram-tech/nk-marketing` uses it to log broadcasts as `kind: "marketing"`.
+
+### Email catalog (drift-proof previews)
+
+Declare a manifest of every message your product sends and the occasion that
+triggers it, so an operator surface can preview them without reading the code.
+The one rule that keeps a preview honest: **build each entry from the same
+function the real sender uses**, so the previewed subject/html/text is
+byte-for-byte what ships.
+
+```ts
+import { defineEmailCatalog, serializeEmailCatalog } from "@ingram-tech/nk-email";
+
+export const catalog = defineEmailCatalog([
+	{
+		key: "booking-confirmed",
+		group: "Bookings",
+		name: "Booking confirmed",
+		audience: "Customer",
+		scenario: "Sent the moment a paid booking is taken.",
+		// rendered from your real builder with sample data:
+		...renderBookingConfirmed({ name: "Ava", when: "Saturday" }),
+	},
+]);
+
+// a build/CI step writes this to a committed email-catalog.json:
+serializeEmailCatalog(catalog, { product: "Acme" });
+```
+
+nk-email does no templating (you pass rendered `subject`/`html`/`text`), so an
+entry already holds the final strings. The serializer emits a versioned JSON
+manifest — commit it and point your operator surface at it. No route, no send,
+no runtime footprint.
+
 ### Escaping
 
 `escapeHtml(value)` escapes the five HTML-significant characters — use it when
