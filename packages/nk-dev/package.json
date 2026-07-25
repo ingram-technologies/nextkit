@@ -1,6 +1,6 @@
 {
 	"name": "@ingram-tech/nk-dev",
-	"version": "0.7.0",
+	"version": "0.8.0",
 	"description": "The nextkit dev toolchain in one package: the `nk` CLI plus shared oxlint/oxfmt, TypeScript, and Vitest config, the format-on-commit hook, and the AI agent guide. `nk init` scaffolds a site to use it.",
 	"license": "MIT",
 	"type": "module",

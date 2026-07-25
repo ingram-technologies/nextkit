@@ -1,6 +1,6 @@
 {
 	"name": "@ingram-tech/nk-marketing",
-	"version": "0.4.0",
+	"version": "0.4.1",
 	"description": "Postgres-backed marketing & lifecycle email: contacts, consent, newsletter audiences, and idempotent triggered campaigns with RFC 8058 one-click unsubscribe. Sends via @ingram-tech/nk-email.",
 	"license": "MIT",
 	"type": "module",

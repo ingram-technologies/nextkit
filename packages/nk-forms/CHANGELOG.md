@@ -1,5 +1,13 @@
 # @ingram-tech/nk-forms
 
+## 0.2.4
+
+### Patch Changes
+
+- Updated dependencies [4a644dc]
+  - @ingram-tech/nk-email@0.5.0
+  - @ingram-tech/bot-protection@0.4.1
+
 ## 0.2.3
 
 ### Patch Changes
