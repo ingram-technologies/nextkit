@@ -43,10 +43,14 @@ export interface EmailCatalogEntry {
 	scenario: string;
 	/** Rendered subject line. */
 	subject: string;
-	/** Rendered HTML body (empty string if this message is text-only). */
-	html: string;
-	/** Rendered plain-text body (empty string if this message is html-only). */
-	text: string;
+	/**
+	 * Rendered HTML body. Optional so a text-only message can omit it (a real
+	 * send may carry only one part) — but an entry must have `html` or `text`,
+	 * which {@link defineEmailCatalog} enforces.
+	 */
+	html?: string;
+	/** Rendered plain-text body. Optional — see {@link html}. */
+	text?: string;
 }
 
 /** The serialized manifest an operator surface reads. */

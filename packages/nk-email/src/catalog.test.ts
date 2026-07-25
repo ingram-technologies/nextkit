@@ -47,6 +47,15 @@ describe("defineEmailCatalog", () => {
 		expect(() => defineEmailCatalog([entry({ text: "" })])).not.toThrow();
 		expect(() => defineEmailCatalog([entry({ html: "" })])).not.toThrow();
 	});
+
+	// A real send may carry only one MIME part, so a builder that returns no
+	// `text` must be spreadable into an entry without a placeholder "".
+	it("accepts an entry that omits html or text entirely", () => {
+		const { text: _t, ...htmlOnly } = entry();
+		expect(() => defineEmailCatalog([htmlOnly])).not.toThrow();
+		const { html: _h, ...textOnly } = entry();
+		expect(() => defineEmailCatalog([textOnly])).not.toThrow();
+	});
 });
 
 describe("serializeEmailCatalog", () => {
