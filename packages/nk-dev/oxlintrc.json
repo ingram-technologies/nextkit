@@ -10,6 +10,8 @@
 		"nextkit/no-redundant-usestate-type": "warn",
 		"nextkit/lucide-icon-suffix": "warn",
 		"nextkit/no-redirect-only-page": "warn",
+		"nextkit/t-requires-values": "error",
+		"nextkit/t-no-positional-args": "error",
 		"no-unused-vars": "warn",
 		"typescript/no-non-null-assertion": "error",
 		"typescript/no-explicit-any": "error",

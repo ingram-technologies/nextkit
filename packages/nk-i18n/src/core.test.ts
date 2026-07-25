@@ -113,6 +113,7 @@ describe("format resilience", () => {
 
 	it("degrades when a placeholder value is missing", () => {
 		const t = createT("fr", { fr: { "Hi {name}": "Salut {name}" } });
+		// oxlint-disable-next-line nextkit/t-requires-values -- the omission is under test
 		expect(t("Hi {name}", {})).toBe("Salut {name}");
 	});
 
