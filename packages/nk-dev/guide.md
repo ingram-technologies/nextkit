@@ -77,6 +77,12 @@ the UI/page tree, and never expose internal plumbing under `/api/`.
   `@ingram-tech/nk-db`'s drift-aware runner (`@ingram-tech/nk-db/migrate`), which
   surfaces the real Postgres error and pre-flights journal drift. Generate **and
   apply** in the same step; don't leave "run the migration" as a handoff.
+- **A migration that moves data asserts how much it moved.** Any backfill /
+  seed / copy counts the rows it expects, compares that to the `row_count` it
+  got (`get diagnostics`), and `raise exception`s on a mismatch — inside the
+  transaction, before commit. A blind move that touches nothing (an RLS mask, a
+  wrong `where`) otherwise reports success, and the drop of the source columns
+  in the same migration makes it unrecoverable.
 - **`drizzle-kit` is GENERATE-ONLY — it must never apply schema.** Use it for
   `drizzle-kit generate` (and `generate --custom` for a package-owned/raw SQL
   migration). Applying is always **`nk-pg-migrate`** (the bin from
