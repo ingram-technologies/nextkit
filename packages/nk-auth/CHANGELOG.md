@@ -1,5 +1,64 @@
 # @ingram-tech/nk-auth
 
+## 0.13.0
+
+### Minor Changes
+
+- 0aa46e5: `makeEmailSenders` now covers all three auth mails and hands your sender enough
+  context to render a real, localized template.
+
+  The message passed to `send` gains `kind` (`"verify-email" | "reset-password" |
+"change-email"`), the full `user` (`id`, `email`, `name`), the raw `token`, the
+  originating `request`, and `newEmail` on change-email. Existing senders that
+  destructure `{ to, subject, url }` keep working unchanged.
+
+  Adds **`sendChangeEmailConfirmation`**, so `user.changeEmail` no longer has to
+  be hand-wired. That mattered more than it looks: `betterAuth()` receives its
+  options through a generic, which switches **off** excess-property checking, so a
+  callback under a wrong-but-plausible name — `sendChangeEmailVerification` is the
+  one people reach for — compiles cleanly and never fires. Better Auth then falls
+  through to sending the _verification_ mail to the **new** address, so the
+  current address is never told the account is moving and the confirm-from-the-
+  current-owner control silently does nothing. `options.ts` now pins all three
+  callback names to the real Better Auth option types, so an upstream rename
+  breaks nk-auth's build instead of quietly disabling a site's mail.
+
+  Sites could previously only tell these mails apart by string-matching the
+  English `subject`, and got no `user.id`, so auth mail could not be localized
+  while every other message could. Switch on `kind` instead.
+
+  The README's canonical example no longer shows `text: url, html: url` — a bare
+  link reads as phishing on exactly the mails that need trust most. It now points
+  at the registry's email components and the `no-reply` from-address convention.
+
+### Patch Changes
+
+- a98f265: Test files are now type-checked. Every package excluded `**/*.test.ts` from the
+  one tsconfig it used for both building and type-checking, so `tsc` never looked
+  at a single test — and vitest strips types without checking them, so nothing
+  did. Type-level assertions in tests were silently dead.
+
+  `tsconfig.json` now excludes only `node_modules` and `dist` (and is what
+  `type-check` and your editor use); the new `tsconfig.build.json` adds the test
+  globs back, so `dist` still ships no tests.
+
+  Fixing the 49 errors this surfaced was mostly mechanical (missing `.js`
+  extensions on relative imports, which the NodeNext base config has always
+  required), but three were real:
+
+  - **nk-auth** `migrations.test.ts` passed `migrationsTable`, which is not a
+    `PgliteServerOptions` key and was silently ignored — the test applied its
+    migration chain twice, once as a dependency chain and again as the default app
+    chain. It now stubs the primary applier so it tests the shape it documents.
+  - **nk-seo** `metadata.test.ts` read `.type` off the `OpenGraph` union, where it
+    is only present on the variants.
+  - **nk-i18n**'s missing-key tests pass keys an empty catalog types as `never`.
+    They exercise the runtime missing-key policy, which exists for catalogs that
+    drift at runtime, so they now carry an explicit `@ts-expect-error`.
+
+- Updated dependencies [a98f265]
+  - @ingram-tech/nk-db@1.4.2
+
 ## 0.12.3
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @ingram-tech/nk-forms
 
+## 0.2.5
+
+### Patch Changes
+
+- Updated dependencies [a98f265]
+  - @ingram-tech/nk-email@0.5.1
+
 ## 0.2.4
 
 ### Patch Changes
