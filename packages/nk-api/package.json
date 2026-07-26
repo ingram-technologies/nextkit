@@ -1,7 +1,7 @@
 {
 	"name": "@ingram-tech/nk-api",
-	"version": "0.3.2",
-	"description": "The Ingram HTTP API seam: a Hono + zod-openapi app factory, a single error envelope, an auth-middleware factory, and Next.js + typed-client adapters \u2014 the standard alternative to auto-generated REST APIs.",
+	"version": "0.3.3",
+	"description": "The Ingram HTTP API seam: a Hono + zod-openapi app factory, a single error envelope, an auth-middleware factory, and Next.js + typed-client adapters — the standard alternative to auto-generated REST APIs.",
 	"license": "MIT",
 	"type": "module",
 	"repository": {

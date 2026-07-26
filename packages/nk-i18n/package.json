@@ -1,7 +1,7 @@
 {
 	"name": "@ingram-tech/nk-i18n",
-	"version": "0.3.1",
-	"description": "Type-safe, English-as-key i18n for Ingram Next.js sites \u2014 ICU translator, scopes, locale config, and Accept-Language negotiation.",
+	"version": "0.3.2",
+	"description": "Type-safe, English-as-key i18n for Ingram Next.js sites — ICU translator, scopes, locale config, and Accept-Language negotiation.",
 	"license": "MIT",
 	"type": "module",
 	"repository": {
