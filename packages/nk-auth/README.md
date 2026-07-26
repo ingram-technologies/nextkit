@@ -151,9 +151,13 @@ import { betterAuth } from "better-auth";
 import { pool } from "@/lib/db"; // the ONE shared createPool() from @ingram-tech/nk-db
 
 const env = authEnv();
-const email = makeEmailSenders(({ to, subject, url }) =>
-	sendEmail({ to, from: fromAddress(), subject, text: url, html: url }),
-);
+// Render a real template per `kind` — these are the first mails a user ever
+// gets from you. `text: url, html: url` ships a bare link that reads as
+// phishing; see "Auth emails" below.
+const email = makeEmailSenders(async ({ kind, to, url, user, newEmail }) => {
+	const { subject, html, text } = await renderAuthEmail({ kind, url, user, newEmail });
+	sendEmail({ to, from: fromAddress("Example", "no-reply"), subject, html, text });
+});
 
 export const auth = betterAuth({
 	database: pool, // inject the shared pool — exactly one pool per process
@@ -173,6 +177,15 @@ export const auth = betterAuth({
 		sendResetPassword: email.sendResetPassword,
 	},
 	emailVerification: { sendVerificationEmail: email.sendVerificationEmail },
+	user: {
+		// Confirms the move from the CURRENT address. Note the name: it is
+		// `sendChangeEmailConfirmation`, and betterAuth() does not
+		// excess-property-check, so a wrong name here silently never fires.
+		changeEmail: {
+			enabled: true,
+			sendChangeEmailConfirmation: email.sendChangeEmailConfirmation,
+		},
+	},
 	socialProviders: {
 		google: {
 			clientId: process.env.GOOGLE_CLIENT_ID ?? "",
@@ -196,6 +209,57 @@ import { toNextJsHandler } from "better-auth/next-js";
 import { auth } from "@/lib/auth";
 export const { GET, POST } = toNextJsHandler(auth);
 ```
+
+## Auth emails
+
+`makeEmailSenders(send)` returns the three callbacks Better Auth needs. Every
+message reaches your `send` with a **`kind`** discriminator — switch on that to
+pick a template. Never switch on `subject`: it is default English copy that a
+localized site is expected to throw away.
+
+| `kind`           | Better Auth option                            | Goes to               |
+| ---------------- | --------------------------------------------- | --------------------- |
+| `verify-email`   | `emailVerification.sendVerificationEmail`      | the new signup        |
+| `reset-password` | `emailAndPassword.sendResetPassword`           | the account address   |
+| `change-email`   | `user.changeEmail.sendChangeEmailConfirmation` | the **current** address |
+
+Each message also carries `user` (`id` for a locale/preferences lookup, `name`
+to personalize), `token`, and the originating `request` — whose `Accept-Language`
+is the only locale signal available for a signup verification, before the user
+has any stored preference.
+
+**Render a real template.** Verification, reset and change-email are the first
+mail a user ever gets from you; a bare `<a href=url>url</a>` reads as phishing
+and trains people to distrust your domain. Take the
+[`registry`](https://github.com/ingram-technologies/registry) email components
+(`shadcn add email-verification email-password-reset`) — they accept `heading` /
+`body` / `ctaLabel` / `preview` overrides precisely so you can pass translated
+copy — or write your own. Send auth links from the `no-reply` local part
+(`fromAddress("Example", "no-reply")`), per
+[transactional-email.md](../../docs/transactional-email.md).
+
+**Spread all three in; do not hand-write them.** `betterAuth()` takes its
+options through a generic, which switches **off** excess-property checking on
+that object literal. A callback under a wrong-but-plausible name compiles
+perfectly and then never fires:
+
+```ts
+user: {
+	changeEmail: {
+		enabled: true,
+		// WRONG NAME. No type error — and no email, ever. The real option is
+		// `sendChangeEmailConfirmation`.
+		sendChangeEmailVerification: async ({ user, url }) => { /* dead code */ },
+	},
+},
+```
+
+That is not hypothetical — it shipped, and the failure is silent in both
+directions: Better Auth falls through to sending the *verification* mail to the
+**new** address instead, so the current address is never told its account is
+moving. `makeEmailSenders` exists to keep you off that path; `options.ts` pins
+all three names to the real Better Auth option types, so an upstream rename
+fails nk-auth's build rather than quietly disabling your mail.
 
 ## 3. Query data with RLS intact
 
