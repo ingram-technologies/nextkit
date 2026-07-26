@@ -156,7 +156,7 @@ const env = authEnv();
 // phishing; see "Auth emails" below.
 const email = makeEmailSenders(async ({ kind, to, url, user, newEmail }) => {
 	const { subject, html, text } = await renderAuthEmail({ kind, url, user, newEmail });
-	sendEmail({ to, from: fromAddress("Example", "no-reply"), subject, html, text });
+	sendEmail({ to, from: fromAddress("Example"), subject, html, text });
 });
 
 export const auth = betterAuth({
@@ -234,8 +234,9 @@ and trains people to distrust your domain. Take the
 [`registry`](https://github.com/ingram-technologies/registry) email components
 (`shadcn add email-verification email-password-reset`) — they accept `heading` /
 `body` / `ctaLabel` / `preview` overrides precisely so you can pass translated
-copy — or write your own. Send auth links from the `no-reply` local part
-(`fromAddress("Example", "no-reply")`), per
+copy — or write your own. Send auth links from the default `notifications` local
+part (`fromAddress("Example")`) — **not** `no-reply`: this is the mail users are
+most likely to reply to, and dropping that reply is hostile. See
 [transactional-email.md](../../docs/transactional-email.md).
 
 **Spread all three in; do not hand-write them.** `betterAuth()` takes its

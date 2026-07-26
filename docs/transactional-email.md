@@ -30,10 +30,17 @@ standardize the **local part**:
 
 | Local part      | Use for                                                      |
 | --------------- | ------------------------------------------------------------ |
-| `notifications` | default — product/system notices, receipts, reports, usage   |
-| `no-reply`      | auth links: verification, password reset, magic-link, change-email |
+| `notifications` | default — auth links, product/system notices, receipts, reports, usage |
 | `invites`       | organization / team invitations                              |
 | `support`       | human-reply support / contact threads                        |
+
+**We deliberately do not use `no-reply`.** Auth mail is the first thing a user
+ever receives from a product, and it is exactly the mail they are most likely to
+answer — "I didn't request this", "this link is broken". Bouncing that reply, or
+dropping it silently, is hostile at the worst moment. `notifications` is the
+default for a reason: send auth links from it and let replies land somewhere a
+human can see. `fromAddress(displayName)` already resolves to it, so this is the
+path of least effort too.
 
 It's a **convention, not a type** — the local part is a free string (other
 values, i18n, etc. are fine). Don't encode this as a union; just follow it.
