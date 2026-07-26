@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { checkRateLimit, getClientKey, rateLimit } from "./rate-limit";
+import { checkRateLimit, getClientKey, rateLimit } from "./rate-limit.js";
 
 // Each test uses a unique key so the module-level bucket map can't leak state
 // between cases.

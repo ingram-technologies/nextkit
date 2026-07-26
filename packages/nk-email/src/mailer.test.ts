@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fromAddress } from "./client";
-import type { Queryable } from "./log";
-import { createMailer } from "./mailer";
+import { fromAddress } from "./client.js";
+import type { Queryable } from "./log.js";
+import { createMailer } from "./mailer.js";
 
 const ORIGINAL_ENV = { ...process.env };
 

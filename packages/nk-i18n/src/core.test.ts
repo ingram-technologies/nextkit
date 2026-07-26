@@ -27,6 +27,11 @@ describe("createT", () => {
 
 	it("falls back to the key when a translation is missing", () => {
 		const t = createT("fr", { fr: {}, nl: {} });
+		// An empty catalog makes the key type `never`, so a missing key is
+		// unreachable *statically* — but catalogs drift at runtime (a key
+		// deleted from JSON, a stale build), which is the whole reason the
+		// missing-key policy exists. Assert the runtime behaviour past the type.
+		// @ts-expect-error - deliberately missing from the catalog
 		expect(t("Untranslated string")).toBe("Untranslated string");
 	});
 
@@ -74,6 +79,11 @@ describe("missingKeys policy", () => {
 		const t = createT("fr", { fr: {}, nl: {} }, undefined, {
 			missingKeys: "error",
 		});
+		// An empty catalog makes the key type `never`, so a missing key is
+		// unreachable *statically* — but catalogs drift at runtime (a key
+		// deleted from JSON, a stale build), which is the whole reason the
+		// missing-key policy exists. Assert the runtime behaviour past the type.
+		// @ts-expect-error - deliberately missing from the catalog
 		expect(() => t("MissingErrorKey")).toThrow(/missing "fr" translation/);
 	});
 
@@ -84,7 +94,13 @@ describe("missingKeys policy", () => {
 		});
 		// Distinct key so the module-level dedupe set can't be pre-primed by
 		// another test.
+		// An empty catalog makes the key type `never`, so a missing key is
+		// unreachable *statically* — but catalogs drift at runtime (a key
+		// deleted from JSON, a stale build), which is the whole reason the
+		// missing-key policy exists. Assert the runtime behaviour past the type.
+		// @ts-expect-error - deliberately missing from the catalog
 		expect(t("MissingWarnKey")).toBe("MissingWarnKey");
+		// @ts-expect-error - deliberately missing from the catalog
 		expect(t("MissingWarnKey")).toBe("MissingWarnKey"); // repeat is deduped
 		expect(warn).toHaveBeenCalledTimes(1);
 	});
@@ -94,6 +110,11 @@ describe("missingKeys policy", () => {
 		const t = createT("fr", { fr: {}, nl: {} }, undefined, {
 			missingKeys: "ignore",
 		});
+		// An empty catalog makes the key type `never`, so a missing key is
+		// unreachable *statically* — but catalogs drift at runtime (a key
+		// deleted from JSON, a stale build), which is the whole reason the
+		// missing-key policy exists. Assert the runtime behaviour past the type.
+		// @ts-expect-error - deliberately missing from the catalog
 		expect(t("MissingIgnoreKey")).toBe("MissingIgnoreKey");
 		expect(warn).not.toHaveBeenCalled();
 	});

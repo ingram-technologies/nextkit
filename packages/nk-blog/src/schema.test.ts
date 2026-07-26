@@ -65,7 +65,7 @@ describe("slug validation", () => {
 
 	it("rejects slugs that would break routes or traverse paths", () => {
 		for (const slug of [
-			"../evil",
+			"../evil.js",
 			"a/b",
 			"a b",
 			"UPPER",

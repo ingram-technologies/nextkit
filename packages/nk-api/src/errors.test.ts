@@ -1,8 +1,8 @@
 import { createRoute } from "@hono/zod-openapi";
 import { afterEach, describe, expect, it } from "vitest";
-import { createApiApp } from "./app";
-import { createRouter } from "./router";
-import { setDefaultErrorLogger } from "./errors";
+import { createApiApp } from "./app.js";
+import { createRouter } from "./router.js";
+import { setDefaultErrorLogger } from "./errors.js";
 
 const crashApp = () =>
 	createApiApp({ title: "T", version: "1.0.0", basePath: "/api/v1" }).route(

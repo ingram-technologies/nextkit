@@ -69,7 +69,7 @@ describe("createMetadata", () => {
 			path: "/blog/post",
 			type: "article",
 		});
-		expect(meta.openGraph?.type).toBe("article");
+		expect(meta.openGraph).toMatchObject({ type: "article" });
 	});
 });
 

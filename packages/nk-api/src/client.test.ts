@@ -1,9 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { describe, expect, it } from "vitest";
-import { createApiApp } from "./app";
-import { HttpError, jsonBody, jsonContent } from "./errors";
-import { createRouter } from "./router";
-import { assertResponseOk, hc, unwrap } from "./client";
+import { createApiApp } from "./app.js";
+import { HttpError, jsonBody, jsonContent } from "./errors.js";
+import { createRouter } from "./router.js";
+import { assertResponseOk, hc, unwrap } from "./client.js";
 
 const routes = createRouter()
 	.openapi(
@@ -52,7 +52,8 @@ const app = createApiApp({ title: "T", version: "1.0.0", basePath: "/api/v1" }).
 	routes,
 );
 const client = hc<typeof app>("http://local", {
-	fetch: (input: RequestInfo | URL, init?: RequestInit) => app.request(input, init),
+	fetch: (input: Request | string | URL, init?: RequestInit) =>
+		app.request(input, init),
 });
 
 describe("unwrap", () => {

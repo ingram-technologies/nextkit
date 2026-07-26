@@ -60,7 +60,7 @@
 		"./migrations/*": "./migrations/*"
 	},
 	"scripts": {
-		"build": "rm -rf dist tsconfig.tsbuildinfo && tsc -p tsconfig.json",
+		"build": "rm -rf dist *.tsbuildinfo && tsc -p tsconfig.build.json",
 		"type-check": "tsc -p tsconfig.json --noEmit",
 		"test": "vitest run"
 	},

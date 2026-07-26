@@ -63,7 +63,7 @@ function makeAuth(capture: { token?: string }) {
 }
 
 const credentialAccounts = () =>
-	store.account.filter(
+	(store.account ?? []).filter(
 		(a) => a.providerId === "credential" && a.userId === SOCIAL_USER_ID,
 	);
 

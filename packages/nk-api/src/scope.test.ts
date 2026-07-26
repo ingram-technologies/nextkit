@@ -1,10 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { describe, expect, it } from "vitest";
-import { createApiApp } from "./app";
-import { type AuthEnv, createRequireAuth } from "./auth";
-import { jsonContent } from "./errors";
-import { createRouter } from "./router";
-import { createResourceScope, type ResourceScopeEnv } from "./scope";
+import { createApiApp } from "./app.js";
+import { type AuthEnv, createRequireAuth } from "./auth.js";
+import { jsonContent } from "./errors.js";
+import { createRouter } from "./router.js";
+import { createResourceScope, type ResourceScopeEnv } from "./scope.js";
 
 type User = { id: string };
 type Role = "read_only" | "member" | "admin" | "owner";

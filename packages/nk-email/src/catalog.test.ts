@@ -5,7 +5,7 @@ import {
 	EMAIL_CATALOG_VERSION,
 	type EmailCatalogEntry,
 	serializeEmailCatalog,
-} from "./catalog";
+} from "./catalog.js";
 
 const entry = (over: Partial<EmailCatalogEntry> = {}): EmailCatalogEntry => ({
 	key: "welcome",

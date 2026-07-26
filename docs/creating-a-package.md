@@ -12,9 +12,20 @@ packages/<name>/
   src/
     index.ts
     keys.ts          # if it reads any env vars
-  tsconfig.json      # runtime packages only
+  tsconfig.json      # runtime packages only — type-check + editor; INCLUDES tests
+  tsconfig.build.json # extends the above, excludes tests so `dist` stays clean
   vitest.config.ts   # if it has tests
 ```
+
+The two-config split is deliberate. `tsconfig.json` excludes only `node_modules`
+and `dist`, so **test files are type-checked**: a type error in a test is a real
+error, and a type-level assertion (`satisfies`, an assignability pin) is worth
+nothing if nothing checks it. Vitest strips types without checking them, so
+`tsc` is the only thing that ever will. `tsconfig.build.json` is what `build`
+compiles, and it adds the test globs back so they never reach `dist`.
+
+Wire them up as `"build": "tsc -p tsconfig.build.json"` and
+`"type-check": "tsc -p tsconfig.json --noEmit"`.
 
 ## 2. package.json essentials
 

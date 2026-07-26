@@ -1,9 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { describe, expect, it } from "vitest";
-import { createApiApp } from "./app";
-import { createRequireAuth, type AuthEnv } from "./auth";
-import { HttpError, jsonContent } from "./errors";
-import { createRouter } from "./router";
+import { createApiApp } from "./app.js";
+import { createRequireAuth, type AuthEnv } from "./auth.js";
+import { HttpError, jsonContent } from "./errors.js";
+import { createRouter } from "./router.js";
 
 // A router whose handlers throw — exercises the per-router onError gotcha: a
 // mounted OpenAPIHono does NOT bubble thrown errors to the parent's onError, so

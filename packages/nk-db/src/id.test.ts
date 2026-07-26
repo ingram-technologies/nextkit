@@ -10,7 +10,7 @@ import {
 	isUuid,
 	toPrefixedId,
 	uuidGenerateId,
-} from "./id";
+} from "./id.js";
 
 // 16-byte input (hex) -> canonical base58 body. These vectors are the
 // cross-impl contract: keep any non-JS twin of this codec identical to them.

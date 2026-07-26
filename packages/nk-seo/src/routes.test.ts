@@ -17,7 +17,7 @@ describe("createSitemap", () => {
 			baseUrl,
 			routes: ["https://other.test/x"],
 		});
-		expect(entry.url).toBe("https://other.test/x");
+		expect(entry?.url).toBe("https://other.test/x");
 	});
 
 	it("applies per-entry and default lastModified / changeFrequency / priority", () => {
@@ -51,7 +51,7 @@ describe("createSitemap", () => {
 				},
 			],
 		});
-		expect(entry.alternates).toEqual({
+		expect(entry?.alternates).toEqual({
 			languages: {
 				en: "https://acme.test/about",
 				fr: "https://acme.test/fr/about",

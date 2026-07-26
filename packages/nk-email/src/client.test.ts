@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fromAddress, sendEmail } from "./client";
-import { isConfigured, keys } from "./keys";
+import { fromAddress, sendEmail } from "./client.js";
+import { isConfigured, keys } from "./keys.js";
 
 const ORIGINAL_ENV = { ...process.env };
 

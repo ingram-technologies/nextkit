@@ -1,8 +1,8 @@
 import { getTableColumns, type SQL } from "drizzle-orm";
 import { PgDialect, pgTable } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
-import { createIdColumns } from "./id-drizzle";
-import { createIdRegistry, uuidGenerateId } from "./id";
+import { createIdColumns } from "./id-drizzle.js";
+import { createIdRegistry, uuidGenerateId } from "./id.js";
 
 const ids = createIdRegistry({ invoice: "inv", account: "acct" });
 const { idColumn, polymorphicIdColumn, sqlUuid, sqlUuidArray } = createIdColumns(ids);

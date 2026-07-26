@@ -28,7 +28,7 @@
 		"./migrations/*": "./migrations/*"
 	},
 	"scripts": {
-		"build": "tsc -p tsconfig.json",
+		"build": "tsc -p tsconfig.build.json",
 		"type-check": "tsc -p tsconfig.json --noEmit",
 		"test": "vitest run"
 	},

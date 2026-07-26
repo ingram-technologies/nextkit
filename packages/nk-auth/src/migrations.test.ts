@@ -17,10 +17,13 @@ let db: TestDb;
 
 beforeAll(async () => {
 	// Apply the shipped chain as a dependency chain (its own journal table) — the
-	// exact shape `nk dev` / a site's `db:migrate` uses. No app chain needed.
+	// exact shape `nk dev` / a site's `db:migrate` uses. nk-auth has no app chain
+	// of its own, so stub the primary applier out: left at its default it would
+	// re-apply this same folder under drizzle's default journal table, which is
+	// not the shape under test. (It previously passed a `migrationsTable` option
+	// that does not exist on PgliteServerOptions and was silently ignored.)
 	db = await createTestDb({
-		migrationsFolder: MIGRATIONS,
-		migrationsTable: "__unused_app_chain",
+		migrate: async () => {},
 		dependencyMigrations: [{ folder: MIGRATIONS, table: "__nkauth_migrations" }],
 	});
 });

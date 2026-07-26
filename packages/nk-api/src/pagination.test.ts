@@ -1,6 +1,11 @@
 import { z } from "@hono/zod-openapi";
 import { describe, expect, it } from "vitest";
-import { offsetFor, paginate, paginatedResponse, paginationQuery } from "./pagination";
+import {
+	offsetFor,
+	paginate,
+	paginatedResponse,
+	paginationQuery,
+} from "./pagination.js";
 
 describe("pagination", () => {
 	it("offsetFor is zero-based from a 1-based page", () => {

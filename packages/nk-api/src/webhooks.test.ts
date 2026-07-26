@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { verifyHmacSha256 } from "./webhooks";
+import { verifyHmacSha256 } from "./webhooks.js";
 
 const sign = (payload: string, secret: string, encoding: "hex" | "base64" = "hex") =>
 	createHmac("sha256", secret).update(payload).digest(encoding);
