@@ -1,10 +1,20 @@
 /**
- * Optional send-log — a durable record of every email a site dispatches.
+ * Optional send-log — a durable **metadata** record of every email a site
+ * dispatches.
  *
  * nk-email is fire-and-forget by default: {@link sendEmail} returns `void` and
  * persists nothing. When a site wants an audit trail (an operator surface asking
  * "what did we actually send, to whom, and did it land?"), it passes a database
  * to {@link createMailer} and every send writes one row to `nk_email_log`.
+ *
+ * **Scope, deliberately narrow: no bodies.** A row records that a message went
+ * out, not what it said — no rendered html/text, and no foreign key into a
+ * site's own person/user tables, which is what keeps the table standalone,
+ * RLS-free, and appliable unchanged by any site. The consequence is that this
+ * log cannot power a "preview exactly what was sent" pane, and a site that
+ * already has a body-storing send log should keep it rather than migrate here:
+ * moving would trade a feature for uniformity. The two coexist. See the README
+ * and docs/transactional-email.md.
  *
  * Stays zero-dependency the same way nk-marketing does: the DB is taken by
  * injection through a structural {@link Queryable} — a `pg` Pool/PoolClient or

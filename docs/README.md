@@ -20,7 +20,7 @@ conventions and the design/decision records.
 - **[testing.md](./testing.md)** — testing stack and conventions.
 - **[transactional-email.md](./transactional-email.md)** — fleet conventions for
   transactional email: registry templates, from-address local parts, the
-  dev/unconfigured fallback, and imports.
+  dev/unconfigured fallback, send history vs. previews, and imports.
 - **[forms.md](./forms.md)** — the public contact/signup submission pipeline
   (`@ingram-tech/nk-forms`): the bot gate, validation, escaped notifications, and
   when to use it vs. `@ingram-tech/bot-protection` directly.

@@ -9,6 +9,10 @@
  * `sendEmail(...)`. When no `db` is configured the mailer is a pure pass-through
  * — logging is opt-in, so a site can adopt the API first and turn on persistence
  * later without touching call sites.
+ *
+ * What lands in the log is metadata only (see {@link ./log}); a site that keeps
+ * its own body-storing log is not expected to replace it with this one, and can
+ * write to both from the same call site.
  */
 
 import { type EmailOptions, sendEmail } from "./client.js";

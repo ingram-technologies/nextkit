@@ -63,6 +63,41 @@ positive polarity, no hidden control flow. We considered and **rejected** a
 boolean guard helper (`ensureConfiguredOrLog`): the inverted `!guard()` check and
 a name that hides a `throw` are footguns.
 
+## Send history and previews
+
+Two questions sites ask about their mail look alike and are not the same:
+
+| Question | Answered by | Where it lives |
+| --- | --- | --- |
+| "What went out, to whom, did it land?" | metadata audit trail | `nk_email_log` (nk-email's opt-in send-log) |
+| "Show me the exact message this person received" | body archive | the **site's own** log |
+| "What emails does this product send, and what do they look like?" | sample renders of the current code | `defineEmailCatalog` manifest |
+
+`nk_email_log` stores **no rendered body** and **no foreign key** into a site's
+own tables — by design, so the table stays standalone, RLS-free, and appliable
+unchanged by any site, with no message content accruing in shared infrastructure
+to retain or purge.
+
+**The rule: a site that already has a body-storing send log keeps it.** Do not
+migrate it into `nk_email_log`. That migration trades a feature (the "preview
+exactly what was sent" pane, the join to your own person records) for
+fleet uniformity, and it is not recoverable afterwards — the bodies are simply
+gone. Reach for nk-email's log when you are starting from nothing, or when
+metadata really is all you need.
+
+The two coexist. A site can keep its own body-storing log *and* write
+`nk_email_log` rows from the same call site, which is what nk-marketing already
+does for broadcasts. Nothing in nk-email requires exclusivity.
+
+Whichever store backs it, an operator preview stays honest the same way: **build
+it from the same function the real sender uses.** A catalog entry is a sample
+render of today's code, not an artifact of a past send — so a site with both
+surfaces gets drift-proof "what this email looks like" from the catalog and
+"what we actually mailed" from its own log, and neither is guessing.
+
+Revisit this split if nk-email ever grows body storage; until then the answer for
+a site with its own log is "keep yours".
+
 ## Imports
 
 Import `@ingram-tech/nk-email` directly. A thin per-app `@/lib/email` barrel that

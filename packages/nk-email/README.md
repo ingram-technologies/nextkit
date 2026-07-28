@@ -61,11 +61,11 @@ callers that assemble headers themselves. For the full subscription / lifecycle
 machinery (contacts, consent, dedup, rendering) reach for
 [`@ingram-tech/nk-marketing`](../nk-marketing), which builds on this.
 
-### Send-log (opt-in history)
+### Send-log (opt-in metadata history)
 
 `sendEmail` is fire-and-forget — it persists nothing. When you want a durable
-record of what actually went out (an operator surface asking "what did we send,
-to whom, did it land?"), build a **mailer** with a database and call `send`
+record of *that* a message went out (an operator surface asking "what did we
+send, to whom, did it land?"), build a **mailer** with a database and call `send`
 where you called `sendEmail`:
 
 ```ts
@@ -92,6 +92,22 @@ and turn on persistence later without touching call sites. Apply
 `migrations/0001_email_log.sql` (with your own migration pipeline) when you turn
 logging on. `recordEmail(db, record)` is the low-level writer if you need it;
 `@ingram-tech/nk-marketing` uses it to log broadcasts as `kind: "marketing"`.
+
+**What it deliberately does not store:** the rendered body. `nk_email_log` is
+**metadata only** — an audit trail, not a message archive. It cannot answer "show
+me the exact email this person received", it holds no foreign key into your
+`users`/`people` tables (it is a standalone, RLS-free table that any site can
+apply unchanged), and it has no retention policy, because there is no message
+content in it to retain.
+
+**Already have a site-owned send log?** Keep it — do not migrate it into
+`nk_email_log`. If your log stores rendered bodies, or joins to your own person
+records, moving to this table is a data migration that *loses* a feature. The two
+are not competitors and coexist fine: a site can run its own body-storing log
+and still take `nk_email_log` for the fleet-uniform metadata view (nk-marketing
+already writes there). Adopt this one when you are starting from nothing, or when
+metadata is genuinely all you need. See
+[transactional email conventions](../../docs/transactional-email.md#send-history-and-previews).
 
 ### Email catalog (drift-proof previews)
 
@@ -124,6 +140,11 @@ nk-email does no templating (you pass rendered `subject`/`html`/`text`), so an
 entry already holds the final strings. The serializer emits a versioned JSON
 manifest — commit it and point your operator surface at it. No route, no send,
 no runtime footprint.
+
+A catalog entry is a **sample render**, not a sent message: it shows what the
+"booking confirmed" email looks like, with sample data, as of the current code.
+That is a different question from "what exactly did we mail Ava on Tuesday",
+which needs a body-storing log of your own — see the note above.
 
 ### Escaping
 
