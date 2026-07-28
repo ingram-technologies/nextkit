@@ -1,0 +1,44 @@
+-- @ingram-tech/nk-email — nk_email_log optional extras: body + meta.
+--
+-- Two independent, nullable enrichments of a log row. Apply this only if you use
+-- one of them; nk-email leaves each column out of the insert when it has nothing
+-- to write, so 0001 alone remains a complete, working install.
+--
+--   body — the rendered message, written when createMailer({ captureBody }) is
+--          on. This is what lets a "preview exactly what was sent" surface read
+--          the log directly instead of a site keeping a parallel one.
+--   meta — site-defined correlation data, passed per send. The seam for linking
+--          a row to your own records: this table deliberately carries no foreign
+--          key into a site's tables (that is what lets every site apply these
+--          migrations unchanged), so put your id in meta and join on it.
+--
+-- Both are jsonb: body holds whichever parts a send actually had ({"html": "…"},
+-- {"text": "…"}, or both) plus the {"truncated": true} marker nk-email sets when
+-- a part exceeded its ceiling; meta holds whatever shape the caller passes. Both
+-- can gain fields later without another migration. They are stored, not searched
+-- — no index here. If you join on a meta key, index that expression for your own
+-- access pattern:
+--
+--     create index on nk_email_log ((meta->>'personEmailId'));
+--
+-- BEFORE APPLYING, `body` makes two things yours (`meta` does not — keep it to
+-- ids and it stays cheap and boring):
+--
+--   1. Secrets. A verification / password-reset / magic-link body contains a live
+--      credential. Archived, it makes read access to this table equivalent to
+--      account takeover — this is the reason auth sends should pass
+--      `captureBody: false` (the metadata row is still written), and the reason
+--      an operator surface reading bodies wants a tighter role than one reading
+--      the metadata.
+--   2. Retention. Bodies are personal data, and nothing here expires them. The
+--      table is append-only from the app, so purging is a scheduled job you own:
+--
+--          update nk_email_log set body = null
+--           where body is not null and created_at < now() - interval '90 days';
+--
+--      Nulling the column keeps the audit trail (who/what/when/did it land)
+--      while dropping the content, which is usually the right trade; delete the
+--      whole row instead if your retention policy covers the metadata too.
+
+alter table nk_email_log add column if not exists body jsonb;
+alter table nk_email_log add column if not exists meta jsonb;

@@ -16,9 +16,12 @@ export {
 	serializeEmailCatalog,
 } from "./catalog.js";
 export {
+	type EmailBody,
 	type EmailKind,
 	type EmailLogRecord,
 	type EmailStatus,
+	MAX_LOGGED_BODY_CHARS,
+	MAX_LOGGED_META_CHARS,
 	type Queryable,
 	recordEmail,
 } from "./log.js";

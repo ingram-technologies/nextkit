@@ -11,11 +11,12 @@
 -- identical across Postgres and PGlite (no uuidv7()/pgcrypto assumption). The
 -- log is append-only from the app's side; there is no updated_at.
 --
--- Deliberately body-free and reference-free: no rendered html/text, and no FK to
--- a site's users/people table. That is what lets every site apply this file
--- unchanged, and it means no message content accrues here to retain or purge. A
--- site that needs "preview exactly what was sent", or a join to its own person
--- records, keeps its own log alongside this one — see the package README.
+-- Metadata only, and no FK to a site's users/people table — that is what lets
+-- every site apply this file unchanged. Rendered bodies and site-defined
+-- correlation data are a separate, opt-in step (0002_email_log_extras.sql):
+-- bodies because they bring a secrets and retention burden this table otherwise
+-- doesn't have, `meta` because it is the seam for joining rows back to your own
+-- records. With 0001 alone, correlate on `recipient`.
 
 create table if not exists nk_email_log (
 	id           uuid        primary key default gen_random_uuid(),

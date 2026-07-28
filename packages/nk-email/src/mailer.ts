@@ -10,13 +10,15 @@
  * — logging is opt-in, so a site can adopt the API first and turn on persistence
  * later without touching call sites.
  *
- * What lands in the log is metadata only (see {@link ./log}); a site that keeps
- * its own body-storing log is not expected to replace it with this one, and can
- * write to both from the same call site.
+ * A row is metadata by default. {@link MailerConfig.captureBody} additionally
+ * archives the rendered message, which is what a "preview exactly what was sent"
+ * surface needs — read the secrets/retention note on that option before turning
+ * it on, and keep credential-bearing auth mail out with a per-send
+ * `captureBody: false`.
  */
 
 import { type EmailOptions, sendEmail } from "./client.js";
-import { type EmailKind, type Queryable, recordEmail } from "./log.js";
+import { type EmailBody, type EmailKind, type Queryable, recordEmail } from "./log.js";
 
 export interface MailerConfig {
 	/**
@@ -27,6 +29,23 @@ export interface MailerConfig {
 	db?: Queryable;
 	/** Kind stamped on a send that doesn't specify one. Default "transactional". */
 	defaultKind?: EmailKind;
+	/**
+	 * Archive the rendered `html`/`text` of every send in the row's `body` jsonb
+	 * column, turning the log into something a "preview exactly what was sent"
+	 * surface can read. Default `false` — the log stays metadata-only unless you
+	 * ask for this.
+	 *
+	 * Requires `migrations/0002_email_log_extras.sql`. Two things you take on by
+	 * turning it on:
+	 *
+	 * - **Secrets.** Verification, password-reset and magic-link bodies contain a
+	 *   live credential; archived, they make read access to this table equivalent
+	 *   to account takeover. Pass `captureBody: false` on those sends (see
+	 *   {@link SendOptions.captureBody}) — the metadata row is still written.
+	 * - **Retention.** Stored bodies are personal data and nothing expires them
+	 *   for you; schedule a purge (recipe in the package README).
+	 */
+	captureBody?: boolean;
 }
 
 /** {@link sendEmail} options plus the metadata the log records. */
@@ -37,6 +56,20 @@ export interface SendOptions extends EmailOptions {
 	templateKey?: string;
 	/** Marketing campaign/issue key, recorded for the history. */
 	campaignKey?: string;
+	/**
+	 * Overrides {@link MailerConfig.captureBody} for this send. Set `false` on
+	 * anything carrying a live credential (verification, reset, magic link) to
+	 * keep it out of the archive while still logging the send itself; set `true`
+	 * to archive one message from an otherwise metadata-only mailer.
+	 */
+	captureBody?: boolean;
+	/**
+	 * Site-defined correlation data stored on the row's `meta` jsonb column —
+	 * the seam for linking a logged send back to your own records, since
+	 * `nk_email_log` holds no foreign key into a site's tables. Ids, not
+	 * payloads. See {@link EmailLogRecord.meta}.
+	 */
+	meta?: Record<string, unknown>;
 }
 
 /** The bare primary recipient — first address when `to` is a list. */
@@ -54,20 +87,37 @@ export interface Mailer {
 
 export const createMailer = (config: MailerConfig = {}): Mailer => {
 	const defaultKind: EmailKind = config.defaultKind ?? "transactional";
+	const defaultCapture = config.captureBody ?? false;
 
 	const send = async (options: SendOptions): Promise<void> => {
-		const { kind, templateKey, campaignKey, ...emailOptions } = options;
+		const { kind, templateKey, campaignKey, captureBody, meta, ...emailOptions } =
+			options;
+		// The rendered parts, when this send archives them. A failed send is
+		// captured too: what we tried to deliver is exactly what you want to look
+		// at when working out why it didn't land.
+		const body: EmailBody | undefined =
+			(captureBody ?? defaultCapture)
+				? {
+						...(options.html === undefined ? {} : { html: options.html }),
+						...(options.text === undefined ? {} : { text: options.text }),
+					}
+				: undefined;
+		const common = {
+			kind: kind ?? defaultKind,
+			recipient: primaryRecipient(options.to),
+			subject: options.subject,
+			sender: options.from,
+			templateKey,
+			campaignKey,
+			body,
+			meta,
+		};
 		try {
 			await sendEmail(emailOptions);
 		} catch (err) {
 			if (config.db) {
 				await recordEmail(config.db, {
-					kind: kind ?? defaultKind,
-					recipient: primaryRecipient(options.to),
-					subject: options.subject,
-					sender: options.from,
-					templateKey,
-					campaignKey,
+					...common,
 					status: "failed",
 					error: err instanceof Error ? err.message : String(err),
 				});
@@ -75,15 +125,7 @@ export const createMailer = (config: MailerConfig = {}): Mailer => {
 			throw err;
 		}
 		if (config.db) {
-			await recordEmail(config.db, {
-				kind: kind ?? defaultKind,
-				recipient: primaryRecipient(options.to),
-				subject: options.subject,
-				sender: options.from,
-				templateKey,
-				campaignKey,
-				status: "sent",
-			});
+			await recordEmail(config.db, { ...common, status: "sent" });
 		}
 	};
 

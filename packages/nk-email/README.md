@@ -93,20 +93,89 @@ and turn on persistence later without touching call sites. Apply
 logging on. `recordEmail(db, record)` is the low-level writer if you need it;
 `@ingram-tech/nk-marketing` uses it to log broadcasts as `kind: "marketing"`.
 
-**What it deliberately does not store:** the rendered body. `nk_email_log` is
-**metadata only** — an audit trail, not a message archive. It cannot answer "show
-me the exact email this person received", it holds no foreign key into your
-`users`/`people` tables (it is a standalone, RLS-free table that any site can
-apply unchanged), and it has no retention policy, because there is no message
-content in it to retain.
+### Archiving bodies (opt-in)
 
-**Already have a site-owned send log?** Keep it — do not migrate it into
-`nk_email_log`. If your log stores rendered bodies, or joins to your own person
-records, moving to this table is a data migration that *loses* a feature. The two
-are not competitors and coexist fine: a site can run its own body-storing log
-and still take `nk_email_log` for the fleet-uniform metadata view (nk-marketing
-already writes there). Adopt this one when you are starting from nothing, or when
-metadata is genuinely all you need. See
+Metadata answers "did it land". It does not answer "**show me the exact email
+this person received**" — the question an operator actually gets asked, and the
+one a support thread turns on. Turn on `captureBody` and each row also carries
+the rendered message in a `body` jsonb column, which is enough to drive a preview
+pane straight off the log:
+
+```ts
+const mailer = createMailer({ db: pool, captureBody: true });
+
+await mailer.send({ /* … */ });        // row.body = { html, text }
+
+// per-send override — keep a live credential out of the archive:
+await mailer.send({ ...magicLink, captureBody: false }); // metadata row still written
+```
+
+Apply `migrations/0002_email_log_extras.sql` when you turn it on. It is a separate
+step because a metadata log and a message archive carry different burdens, and
+**two of them become yours**:
+
+- **Secrets.** A verification / password-reset / magic-link body contains a live
+  credential. Archived, it makes read access to this table equivalent to account
+  takeover. Pass `captureBody: false` on those sends, and give a body-reading
+  operator surface a tighter role than a metadata-reading one.
+- **Retention.** Bodies are personal data and nothing expires them for you. The
+  table is append-only from the app, so purging is a job you schedule:
+
+  ```sql
+  update nk_email_log set body = null
+   where body is not null and created_at < now() - interval '90 days';
+  ```
+
+  Nulling keeps the audit trail while dropping the content; delete the row
+  instead if your policy covers the metadata too.
+
+Bodies are clamped per part at `MAX_LOGGED_BODY_CHARS` (256k), and a clamped row
+is marked `{"truncated": true}` so a preview can say so rather than present a
+cut-off message as whole. With capture off — the default, and what nk-marketing
+uses — the `body` column is left out of the insert entirely, so `0001` alone
+remains a complete install.
+
+### Linking a row to your own records
+
+`nk_email_log` carries no foreign key into your tables — that is what lets every
+site apply the same migration unchanged. Pass `meta` instead: site-defined JSON,
+stored as-is in a `meta` jsonb column, which is the seam for correlating a logged
+send with whatever it belongs to.
+
+```ts
+await mailer.send({
+	to: person.email,
+	from: fromAddress("Acme"),
+	subject: "Your booking is confirmed",
+	html,
+	templateKey: "booking-confirmed",
+	meta: { personEmailId: person.emailId, bookingId: booking.id },
+});
+```
+
+```sql
+select l.subject, l.status, l.created_at, p.name
+  from nk_email_log l
+  join people p on p.id = (l.meta->>'personEmailId')::uuid
+ order by l.created_at desc;
+
+-- if you read that way often:
+create index on nk_email_log ((meta->>'personEmailId'));
+```
+
+It's a correlation key, not referential integrity: nothing stops a `meta` id from
+outliving the row it names. Keep it to **ids, not payloads** — `meta` is capped at
+`MAX_LOGGED_META_CHARS` (4k) serialized, and anything larger (or unserializable)
+is dropped with a `console.error` rather than truncated, since half a JSON
+document is not a JSON document. The send and the rest of the row are never at
+risk. `meta` is independent of `captureBody` — a metadata-only log can carry it —
+and, like `body`, its column stays out of the insert when unset.
+
+**Already have a site-owned send log?** You can now fold it in — bodies and your
+own join both survive the move. It is still a judgement call rather than an
+upgrade path: you trade a real foreign key for a `meta` correlation, in exchange
+for running one log instead of two. Nothing forces the choice; a site can keep
+its own log and still write `nk_email_log` for the fleet-uniform view. See
 [transactional email conventions](../../docs/transactional-email.md#send-history-and-previews).
 
 ### Email catalog (drift-proof previews)
@@ -144,7 +213,9 @@ no runtime footprint.
 A catalog entry is a **sample render**, not a sent message: it shows what the
 "booking confirmed" email looks like, with sample data, as of the current code.
 That is a different question from "what exactly did we mail Ava on Tuesday",
-which needs a body-storing log of your own — see the note above.
+which the send-log answers once `captureBody` is on. A site with an operator
+surface usually wants both, and they stay consistent because each is built from
+the real sender rather than a copy of it.
 
 ### Escaping
 
