@@ -1,5 +1,12 @@
 # @ingram-tech/nk-marketing
 
+## 0.4.2
+
+### Patch Changes
+
+- Updated dependencies [71e49b2]
+  - @ingram-tech/nk-email@0.6.0
+
 ## 0.4.1
 
 ### Patch Changes
