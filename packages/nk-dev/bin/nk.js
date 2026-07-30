@@ -5,7 +5,7 @@ import { doctor } from "../lib/doctor.js";
 import { format } from "../lib/format.js";
 import { init } from "../lib/init.js";
 import { knip } from "../lib/knip.js";
-import { build, check, lint, test, typeCheck } from "../lib/passthrough.js";
+import { build, check, clean, lint, test, typeCheck } from "../lib/passthrough.js";
 
 const USAGE = `nk — the nextkit CLI
 
@@ -27,7 +27,10 @@ Commands:
                       mechanical refactors — see the codemod skill.
   check               The CI gate: lint + format verify + knip (when configured)
                       + the agent-guide import gate.
-  type-check          next typegen && tsc --noEmit.
+  type-check          next typegen && tsc --noEmit. Recovers automatically when
+                      generated types are damaged (e.g. a killed dev server).
+  clean               Remove regenerable build artifacts: Next's generated
+                      types and TypeScript incremental caches.
   test [...]          vitest run (extra args passed through).
   build [...]         next build (extra args passed through).
 
@@ -63,6 +66,9 @@ switch (cmd) {
 		break;
 	case "type-check":
 		typeCheck();
+		break;
+	case "clean":
+		clean();
 		break;
 	case "test":
 		test(rest);

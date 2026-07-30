@@ -1,0 +1,155 @@
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+	cleanGeneratedArtifacts,
+	errorFiles,
+	listGeneratedArtifacts,
+	onlyGeneratedTypeErrors,
+} from "../lib/artifacts.js";
+
+const PLAIN =
+	".next/dev/types/validator.ts(695,1): error TS1128: Declaration or statement expected.";
+const PRETTY =
+	".next/dev/types/validator.ts:695:1 - error TS1128: Declaration or statement expected.";
+/** Pretty output as tsc actually emits it to a TTY, colour codes and all. */
+const PRETTY_COLOURED =
+	"\u001B[96msrc/app/page.tsx\u001B[0m:\u001B[93m12\u001B[0m:\u001B[93m5\u001B[0m - \u001B[91merror\u001B[0m\u001B[90m TS2345: \u001B[0mArgument of type 'x'.";
+
+describe("errorFiles", () => {
+	it("reads the plain (piped) location format", () => {
+		expect(errorFiles(PLAIN)).toEqual([".next/dev/types/validator.ts"]);
+	});
+
+	it("reads the pretty (TTY) location format", () => {
+		expect(errorFiles(PRETTY)).toEqual([".next/dev/types/validator.ts"]);
+	});
+
+	it("strips colour codes before matching", () => {
+		expect(errorFiles(PRETTY_COLOURED)).toEqual(["src/app/page.tsx"]);
+	});
+
+	it("deduplicates repeated files and ignores non-error lines", () => {
+		const output = [
+			PLAIN,
+			".next/dev/types/validator.ts(355,1): error TS1128: Declaration expected.",
+			"",
+			"Found 2 errors in the same file, starting at: .next/dev/types/validator.ts:355",
+		].join("\n");
+		expect(errorFiles(output)).toEqual([".next/dev/types/validator.ts"]);
+	});
+
+	it("normalises Windows separators and a leading ./", () => {
+		expect(
+			errorFiles(".\\.next\\dev\\types\\validator.ts(1,1): error TS1128: x"),
+		).toEqual([".next/dev/types/validator.ts"]);
+	});
+
+	it("returns nothing for output with no errors", () => {
+		expect(errorFiles("")).toEqual([]);
+		expect(errorFiles("Generating route types...\n✓ Types generated")).toEqual([]);
+	});
+});
+
+describe("onlyGeneratedTypeErrors", () => {
+	it("is true when every error is inside generated type output", () => {
+		expect(onlyGeneratedTypeErrors(PLAIN)).toBe(true);
+		expect(
+			onlyGeneratedTypeErrors(".next/types/routes.ts(3,1): error TS1005: x"),
+		).toBe(true);
+	});
+
+	it("is false when a source file is also implicated", () => {
+		// The deciding case: cleaning would not fix the src/ error, and retrying
+		// would hide nothing but waste a full tsc run.
+		expect(onlyGeneratedTypeErrors(`${PLAIN}\n${PRETTY_COLOURED}`)).toBe(false);
+	});
+
+	it("is true for a lone generated syntax error, which masks source errors", () => {
+		// Verified against a real truncated validator: a syntax error in
+		// generated output suppresses semantic diagnostics program-wide, so tsc
+		// reports only this. Recovering is what lets the hidden src/ errors
+		// surface on the retry — the check still fails, it just fails honestly.
+		expect(
+			onlyGeneratedTypeErrors(
+				".next/dev/types/validator.ts(89,22): error TS1005: '}' expected.",
+			),
+		).toBe(true);
+	});
+
+	it("is false for source-only errors", () => {
+		expect(onlyGeneratedTypeErrors(PRETTY_COLOURED)).toBe(false);
+	});
+
+	it("is false when there are no errors at all, so a pass never triggers a clean", () => {
+		expect(onlyGeneratedTypeErrors("")).toBe(false);
+	});
+
+	it("does not match a source path that merely starts with the prefix text", () => {
+		expect(
+			onlyGeneratedTypeErrors(".next/types-helper.ts(1,1): error TS1005: x"),
+		).toBe(false);
+	});
+});
+
+describe("listGeneratedArtifacts / cleanGeneratedArtifacts", () => {
+	let dir;
+	beforeEach(() => {
+		dir = mkdtempSync(join(tmpdir(), "nk-artifacts-"));
+	});
+	afterEach(() => {
+		rmSync(dir, { recursive: true, force: true });
+	});
+
+	const touch = (relative, contents = "x") => {
+		const full = join(dir, relative);
+		mkdirSync(join(full, ".."), { recursive: true });
+		writeFileSync(full, contents);
+	};
+
+	it("finds nothing in a clean directory", () => {
+		expect(listGeneratedArtifacts(dir)).toEqual([]);
+		expect(cleanGeneratedArtifacts(dir)).toEqual([]);
+	});
+
+	it("discovers build-info caches by extension, not by fixed name", () => {
+		// tsBuildInfoFile renames them, and a repo can carry several.
+		touch("tsconfig.tsbuildinfo");
+		touch("tsconfig.slice.tsbuildinfo");
+		expect(
+			listGeneratedArtifacts(dir)
+				.map((a) => a.path)
+				.sort(),
+		).toEqual(["tsconfig.slice.tsbuildinfo", "tsconfig.tsbuildinfo"]);
+	});
+
+	it("removes generated type directories and reports what went", () => {
+		touch(".next/dev/types/validator.ts");
+		touch("tsconfig.tsbuildinfo");
+
+		const removed = cleanGeneratedArtifacts(dir);
+
+		expect(removed).toContain(".next/dev/types");
+		expect(removed).toContain("tsconfig.tsbuildinfo");
+		expect(existsSync(join(dir, ".next/dev/types"))).toBe(false);
+		expect(existsSync(join(dir, "tsconfig.tsbuildinfo"))).toBe(false);
+	});
+
+	it("leaves the rest of .next alone", () => {
+		// Only the type output is regenerated by typegen; blowing away the build
+		// cache would turn a stale-artifact recovery into a cold rebuild.
+		touch(".next/dev/types/validator.ts");
+		touch(".next/cache/webpack/x.pack");
+
+		cleanGeneratedArtifacts(dir);
+
+		expect(existsSync(join(dir, ".next/cache/webpack/x.pack"))).toBe(true);
+	});
+
+	it("is idempotent", () => {
+		touch(".next/types/routes.ts");
+		expect(cleanGeneratedArtifacts(dir)).toEqual([".next/types"]);
+		expect(cleanGeneratedArtifacts(dir)).toEqual([]);
+	});
+});

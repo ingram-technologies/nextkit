@@ -21,6 +21,40 @@ export function run(tool, args = [], opts = {}) {
 	return res.status ?? (res.signal ? 1 : 0);
 }
 
+/**
+ * Like {@link run}, but captures the tool's output instead of inheriting stdio,
+ * so a caller can inspect it before deciding what to print. Returns the exit
+ * code plus the combined output; the caller is responsible for forwarding it.
+ *
+ * Colour is left to the tool: with stdio piped there is no TTY, so tools that
+ * auto-detect print plain text — which is also what makes their output
+ * parseable.
+ */
+export function runCapture(tool, args = [], opts = {}) {
+	const res = spawnSync("bun", ["x", tool, ...args], {
+		encoding: "utf8",
+		...opts,
+	});
+	if (res.error) {
+		if (res.error.code === "ENOENT") {
+			fail("could not run `bun` — is bun installed and on PATH?");
+		}
+		throw res.error;
+	}
+	return {
+		status: res.status ?? (res.signal ? 1 : 0),
+		stdout: res.stdout ?? "",
+		stderr: res.stderr ?? "",
+		output: `${res.stdout ?? ""}${res.stderr ?? ""}`,
+	};
+}
+
+/** Forward a {@link runCapture} result to this process's stdio, unchanged. */
+export function writeThrough({ stdout, stderr }) {
+	if (stdout) process.stdout.write(stdout);
+	if (stderr) process.stderr.write(stderr);
+}
+
 /** Print an `nk:`-prefixed error and exit non-zero. */
 export function fail(message) {
 	console.error(`nk: ${message}`);

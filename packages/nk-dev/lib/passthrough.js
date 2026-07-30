@@ -1,8 +1,9 @@
 import { checkAgentGuideImport } from "./agent-guide.js";
+import { cleanGeneratedArtifacts, onlyGeneratedTypeErrors } from "./artifacts.js";
 import { toolDrift } from "./drift.js";
 import { FORMATTER } from "./formatter.js";
 import { hasKnipConfig, runKnip } from "./knip.js";
-import { run } from "./run.js";
+import { run, runCapture, writeThrough } from "./run.js";
 
 /** `nk lint [...]` — oxlint, with extra args passed through (e.g. `--fix`). */
 export function lint(extraArgs = []) {
@@ -48,11 +49,56 @@ function warnToolDrift() {
 	);
 }
 
-/** `nk type-check` — the house type-check: regenerate Next's types, then tsc. */
+/**
+ * `nk type-check` — the house type-check: regenerate Next's types, then tsc.
+ *
+ * Recovers from damaged generated types. `tsconfig.json` feeds Next's
+ * typed-routes output back into `tsc`, and a killed dev server can leave it
+ * truncated mid-write; `next typegen` does not repair it, so the same syntax
+ * error inside `.next/` survives every re-run and reads as a source defect.
+ * When *every* reported error sits in generated output, the artifacts are
+ * cleaned and the check retried once — see {@link cleanGeneratedArtifacts}.
+ *
+ * The retry matters beyond the confusing message: a syntax error in generated
+ * output suppresses semantic diagnostics for the whole program, so real `src/`
+ * errors are hidden behind it. Recovering surfaces them and still exits
+ * non-zero — it never turns a failing check into a passing one.
+ */
 export function typeCheck() {
 	const typegen = run("next", ["typegen"]);
 	if (typegen !== 0) process.exit(typegen);
+
+	const first = runCapture("tsc", ["--noEmit"]);
+	if (first.status === 0 || !onlyGeneratedTypeErrors(first.output)) {
+		// Either a pass, or errors the caller needs to read and fix themselves.
+		writeThrough(first);
+		process.exit(first.status);
+	}
+
+	const removed = cleanGeneratedArtifacts();
+	console.error(
+		`nk type-check: every error was inside generated types — removed ${removed.join(", ")} and retrying.`,
+	);
+
+	const regen = run("next", ["typegen"]);
+	if (regen !== 0) process.exit(regen);
+	// Retry with inherited stdio: this is the run whose output matters, and it
+	// keeps colour when a human is watching.
 	process.exit(run("tsc", ["--noEmit"]));
+}
+
+/**
+ * `nk clean` — remove build artifacts that tools regenerate from source
+ * (Next's generated types, TypeScript incremental caches). Safe by
+ * construction: whatever owns an artifact rebuilds it on the next run.
+ */
+export function clean() {
+	const removed = cleanGeneratedArtifacts();
+	if (removed.length === 0) {
+		console.log("nk clean: no generated artifacts found.");
+		return;
+	}
+	console.log(`nk clean: removed ${removed.join(", ")}.`);
 }
 
 /** `nk test [...]` — vitest run, with extra args passed through. */
