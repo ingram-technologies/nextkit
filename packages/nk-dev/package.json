@@ -46,12 +46,12 @@
 	},
 	"dependencies": {
 		"@ast-grep/cli": "^0.44.1",
-		"@testing-library/jest-dom": "^6.9.1",
+		"@testing-library/jest-dom": "^6.10.0",
 		"@typescript/native": "npm:typescript@^7.0.2",
 		"jsdom": "^29.1.1",
-		"knip": "^6.27.0",
+		"knip": "^6.31.0",
 		"oxfmt": "^0.59.0",
-		"oxlint": "^1.74.0",
+		"oxlint": "^1.76.0",
 		"typescript": "npm:@typescript/typescript6@^6.0.2",
 		"vitest": "^4.1.10"
 	},
