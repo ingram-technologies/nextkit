@@ -3,6 +3,9 @@ import {
 	article,
 	breadcrumbList,
 	createSeo,
+	dataset,
+	definedTerm,
+	definedTermSet,
 	event,
 	faqPage,
 	localBusiness,
@@ -295,6 +298,29 @@ describe("createSeo", () => {
 		expect(result.offers).toMatchObject({ url: "https://x.test/pricing" });
 	});
 
+	it("resolves paths in dataset() and definedTerm(), including the term set", () => {
+		expect(
+			seo.dataset({
+				name: "Codes",
+				description: "Activity codes",
+				path: "/data",
+			}),
+		).toMatchObject({
+			url: "https://x.test/data",
+			publisher: { name: "Acme" },
+		});
+		expect(
+			seo.definedTerm({
+				name: "62.01",
+				path: "/code/62.01",
+				inDefinedTermSet: { name: "Codes", path: "/" },
+			}),
+		).toMatchObject({
+			url: "https://x.test/code/62.01",
+			inDefinedTermSet: { "@type": "DefinedTermSet", url: "https://x.test/" },
+		});
+	});
+
 	it("resolves a site-relative organization url/logo everywhere the org is injected", () => {
 		const relative = createSeo({
 			baseUrl: "https://x.test",
@@ -310,5 +336,132 @@ describe("createSeo", () => {
 		expect(
 			relative.article({ path: "/blog/x", headline: "X" }).publisher,
 		).toMatchObject({ url: "https://x.test/" });
+	});
+});
+
+describe("extra", () => {
+	it("carries unsupported schema.org properties onto the built node", () => {
+		// Without this, one extra property forces the whole node back to a
+		// hand-written literal.
+		const node = website({
+			name: "Acme",
+			url: "https://acme.test",
+			extra: {
+				alternateName: "ACME",
+				inLanguage: ["en", "fr"],
+				potentialAction: {
+					"@type": "SearchAction",
+					target: "https://acme.test/search?q={q}",
+					"query-input": "required name=q",
+				},
+			},
+		});
+		expect(node).toMatchObject({
+			"@type": "WebSite",
+			name: "Acme",
+			alternateName: "ACME",
+			inLanguage: ["en", "fr"],
+			potentialAction: { "@type": "SearchAction" },
+		});
+	});
+
+	it("wins over the built payload on conflict", () => {
+		expect(
+			article({
+				headline: "H",
+				url: "https://a.test/x",
+				extra: { headline: "Override" },
+			}).headline,
+		).toBe("Override");
+	});
+
+	it("reaches nested organization nodes through publisher", () => {
+		const node = article({
+			headline: "H",
+			url: "https://a.test/x",
+			publisher: { name: "Acme", extra: { foundingDate: "2019" } },
+		});
+		expect(node.publisher).toMatchObject({ foundingDate: "2019" });
+	});
+});
+
+describe("dataset", () => {
+	it("emits distributions and coverage", () => {
+		expect(
+			dataset({
+				name: "Activity codes",
+				description: "A national activity classification.",
+				url: "https://acme.test/data",
+				identifier: "urn:acme:codes:2025",
+				license: "https://creativecommons.org/licenses/by/4.0/",
+				keywords: ["classification"],
+				inLanguage: ["en", "nl"],
+				temporalCoverage: "2008-01-01/2025-12-31",
+				spatialCoverage: "BE",
+				isAccessibleForFree: true,
+				distribution: [
+					{
+						contentUrl: "https://acme.test/d.csv",
+						encodingFormat: "text/csv",
+					},
+				],
+			}),
+		).toEqual({
+			"@context": "https://schema.org",
+			"@type": "Dataset",
+			name: "Activity codes",
+			description: "A national activity classification.",
+			url: "https://acme.test/data",
+			identifier: "urn:acme:codes:2025",
+			license: "https://creativecommons.org/licenses/by/4.0/",
+			keywords: ["classification"],
+			inLanguage: ["en", "nl"],
+			temporalCoverage: "2008-01-01/2025-12-31",
+			spatialCoverage: "BE",
+			isAccessibleForFree: true,
+			distribution: [
+				{
+					"@type": "DataDownload",
+					contentUrl: "https://acme.test/d.csv",
+					encodingFormat: "text/csv",
+				},
+			],
+		});
+	});
+
+	it("keeps isAccessibleForFree: false rather than dropping it", () => {
+		expect(
+			dataset({ name: "D", description: "d", isAccessibleForFree: false }),
+		).toMatchObject({ isAccessibleForFree: false });
+	});
+});
+
+describe("definedTerm", () => {
+	it("accepts the term set as a URL or as a full node", () => {
+		expect(
+			definedTerm({
+				name: "Computer programming",
+				termCode: "62.01",
+				inDefinedTermSet: "https://acme.test/",
+			}),
+		).toMatchObject({ termCode: "62.01", inDefinedTermSet: "https://acme.test/" });
+		expect(
+			definedTerm({
+				name: "Computer programming",
+				inDefinedTermSet: { name: "Activity codes", version: "2025" },
+			}).inDefinedTermSet,
+		).toEqual({
+			"@type": "DefinedTermSet",
+			name: "Activity codes",
+			version: "2025",
+		});
+	});
+
+	it("definedTermSet is a top-level node", () => {
+		expect(definedTermSet({ name: "Activity codes" })).toEqual({
+			"@context": "https://schema.org",
+			"@type": "DefinedTermSet",
+			name: "Activity codes",
+		});
 	});
 });

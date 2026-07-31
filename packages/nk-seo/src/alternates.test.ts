@@ -87,6 +87,71 @@ describe("hreflangAlternates", () => {
 		expect(canonical).toBe("https://acme.test/fr/about");
 	});
 
+	it("prefixDefaultLocale: prefixes every locale and points x-default at the default one", () => {
+		// Sites whose negotiation redirects bare paths have no unprefixed
+		// variant: emitting one would annotate a URL that 3xx-redirects.
+		const { canonical, links } = hreflangAlternates(
+			{
+				baseUrl,
+				locales: ["en", "fr"],
+				strategy: "prefix",
+				defaultLocale: "en",
+				prefixDefaultLocale: true,
+			},
+			"/about",
+		);
+		expect(links).toEqual([
+			{ hrefLang: "en", href: "https://acme.test/en/about" },
+			{ hrefLang: "fr", href: "https://acme.test/fr/about" },
+			{ hrefLang: "x-default", href: "https://acme.test/en/about" },
+		]);
+		expect(canonical).toBe("https://acme.test/en/about");
+	});
+
+	it("prefixDefaultLocale: the default locale's own page canonicalizes to its prefixed URL", () => {
+		const { canonical } = hreflangAlternates(
+			{
+				baseUrl,
+				locales: ["en", "fr"],
+				strategy: "prefix",
+				defaultLocale: "en",
+				prefixDefaultLocale: true,
+			},
+			"/en/about",
+		);
+		expect(canonical).toBe("https://acme.test/en/about");
+	});
+
+	it("prefixDefaultLocale: the root path prefixes without a trailing slash", () => {
+		const { links } = hreflangAlternates(
+			{
+				baseUrl,
+				locales: ["en", "fr"],
+				strategy: "prefix",
+				defaultLocale: "en",
+				prefixDefaultLocale: true,
+			},
+			"/",
+		);
+		expect(links.map((l) => l.href)).toEqual([
+			"https://acme.test/en",
+			"https://acme.test/fr",
+			"https://acme.test/en",
+		]);
+	});
+
+	it("exposes the links keyed by hreflang for Metadata.alternates.languages", () => {
+		const { languages } = hreflangAlternates(
+			{ baseUrl, locales: ["en", "fr"], strategy: "prefix", defaultLocale: "en" },
+			"/about",
+		);
+		expect(languages).toEqual({
+			en: "https://acme.test/about",
+			fr: "https://acme.test/fr/about",
+			"x-default": "https://acme.test/about",
+		});
+	});
+
 	it("prefix strategy: requires defaultLocale", () => {
 		expect(() =>
 			hreflangAlternates({ baseUrl, locales: ["en"], strategy: "prefix" }, "/p"),

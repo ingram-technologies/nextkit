@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createMetadata } from "./metadata.js";
+import { createMetadata, ogImageMetadata } from "./metadata.js";
 
 const pageMetadata = createMetadata({
 	baseUrl: "https://example.test",
@@ -70,6 +70,50 @@ describe("createMetadata", () => {
 			type: "article",
 		});
 		expect(meta.openGraph).toMatchObject({ type: "article" });
+	});
+
+	it("merges per-page alternates over the canonical instead of replacing it", () => {
+		// A localized site needs alternates.languages on every page; without the
+		// escape hatch callers had to spread-and-overwrite the whole object.
+		const meta = pageMetadata({
+			title: "About",
+			description: "d",
+			path: "/about",
+			alternates: { languages: { en: "https://example.test/en/about" } },
+		});
+		expect(meta.alternates).toEqual({
+			canonical: "https://example.test/about",
+			languages: { en: "https://example.test/en/about" },
+		});
+	});
+
+	it("lets a page override the site-wide OpenGraph locale", () => {
+		const meta = pageMetadata({
+			title: "A propos",
+			description: "d",
+			path: "/fr/about",
+			locale: "fr_BE",
+		});
+		expect(meta.openGraph).toMatchObject({ locale: "fr_BE" });
+	});
+});
+
+describe("ogImageMetadata", () => {
+	it("builds an absolute 1200x630 images entry for a file-convention card", () => {
+		expect(
+			ogImageMetadata({
+				baseUrl: "https://example.test",
+				path: "/fr/opengraph-image",
+				alt: "Acme",
+			}),
+		).toEqual([
+			{
+				url: "https://example.test/fr/opengraph-image",
+				width: 1200,
+				height: 630,
+				alt: "Acme",
+			},
+		]);
 	});
 });
 

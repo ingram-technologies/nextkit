@@ -16,6 +16,17 @@ const CONTEXT = "https://schema.org";
 /** A loosely-typed schema.org node. The builders return more precise subtypes. */
 export type JsonLdNode = Record<string, unknown>;
 
+/**
+ * Escape hatch carried by every builder input: properties shallow-merged over
+ * the built payload (they win on conflict). schema.org is far larger than any
+ * builder surface, and without this one extra property — an `inLanguage`, an
+ * `about`, a `potentialAction` — forces the whole node back to a hand-written
+ * literal. Fields passed here are not reflected in the returned node type.
+ */
+export interface WithExtra {
+	extra?: JsonLdNode;
+}
+
 /** A top-level schema.org node: the payload plus its `@context`. */
 export type WithContext<T> = T & { "@context": "https://schema.org" };
 
@@ -38,7 +49,10 @@ export type FaqPageNode = {
 };
 
 /** FAQPage: marks up a list of question/answer pairs for FAQ rich results. */
-export function faqPage(items: FaqItem[]): WithContext<FaqPageNode> {
+export function faqPage(
+	items: FaqItem[],
+	extra?: JsonLdNode,
+): WithContext<FaqPageNode> {
 	return {
 		"@context": CONTEXT,
 		"@type": "FAQPage",
@@ -47,6 +61,7 @@ export function faqPage(items: FaqItem[]): WithContext<FaqPageNode> {
 			name: item.question,
 			acceptedAnswer: { "@type": "Answer", text: item.answer },
 		})),
+		...extra,
 	};
 }
 
@@ -73,6 +88,7 @@ export type BreadcrumbListNode = {
 /** BreadcrumbList: the trail of links Google shows in place of the raw URL. */
 export function breadcrumbList(
 	items: BreadcrumbItem[],
+	extra?: JsonLdNode,
 ): WithContext<BreadcrumbListNode> {
 	return {
 		"@context": CONTEXT,
@@ -83,12 +99,13 @@ export function breadcrumbList(
 			name: item.name,
 			item: item.url,
 		})),
+		...extra,
 	};
 }
 
 // --- Organization ----------------------------------------------------------
 
-export interface OrganizationInput {
+export interface OrganizationInput extends WithExtra {
 	name: string;
 	/** Absolute URL of the organization's site. */
 	url?: string;
@@ -133,6 +150,7 @@ function organizationNode(input: OrganizationInput): OrganizationNode {
 			? { address: { "@type": "PostalAddress", ...input.address } }
 			: {}),
 		...(input.sameAs?.length ? { sameAs: input.sameAs } : {}),
+		...input.extra,
 	};
 }
 
@@ -143,7 +161,7 @@ export function organization(input: OrganizationInput): WithContext<Organization
 
 // --- WebSite ---------------------------------------------------------------
 
-export interface WebsiteInput {
+export interface WebsiteInput extends WithExtra {
 	name: string;
 	/** Absolute URL of the site root. */
 	url: string;
@@ -165,6 +183,7 @@ export function website(input: WebsiteInput): WithContext<WebsiteNode> {
 		name: input.name,
 		url: input.url,
 		...(input.publisher ? { publisher: organizationNode(input.publisher) } : {}),
+		...input.extra,
 	};
 }
 
@@ -223,7 +242,7 @@ function offerNode(offer: OfferInput): OfferNode | AggregateOfferNode {
 	};
 }
 
-export interface SoftwareApplicationInput {
+export interface SoftwareApplicationInput extends WithExtra {
 	name: string;
 	description?: string;
 	/** Absolute URL of the app/marketing page. */
@@ -260,10 +279,23 @@ export function softwareApplication(
 		...(input.url ? { url: input.url } : {}),
 		...(input.description ? { description: input.description } : {}),
 		...(input.offers ? { offers: offerNode(input.offers) } : {}),
+		...input.extra,
 	};
 }
 
 // --- Article ---------------------------------------------------------------
+
+/**
+ * schema.org Article subtypes worth marking up. `TechArticle` is the right node
+ * for API/developer docs (`proficiencyLevel`/`dependencies` via `extra`).
+ */
+export type ArticleType =
+	| "Article"
+	| "BlogPosting"
+	| "NewsArticle"
+	| "ScholarlyArticle"
+	| "TechArticle"
+	| "Report";
 
 export interface ArticleAuthor {
 	name: string;
@@ -271,12 +303,12 @@ export interface ArticleAuthor {
 	url?: string;
 }
 
-export interface ArticleInput {
+export interface ArticleInput extends WithExtra {
 	headline: string;
 	/** Absolute canonical URL of the article. */
 	url: string;
 	description?: string;
-	type?: "Article" | "BlogPosting" | "NewsArticle" | "ScholarlyArticle";
+	type?: ArticleType;
 	datePublished?: string;
 	/** Defaults to `datePublished` when omitted. */
 	dateModified?: string;
@@ -290,7 +322,7 @@ export interface ArticleInput {
 export type ArticleAuthorNode = { "@type": "Person"; name: string; url?: string };
 
 export type ArticleNode = {
-	"@type": "Article" | "BlogPosting" | "NewsArticle" | "ScholarlyArticle";
+	"@type": ArticleType;
 	headline: string;
 	url: string;
 	mainEntityOfPage: string;
@@ -303,7 +335,7 @@ export type ArticleNode = {
 	keywords?: string[];
 };
 
-/** Article (or BlogPosting/NewsArticle/ScholarlyArticle) for editorial pages. */
+/** Article (or one of its {@link ArticleType} subtypes) for editorial pages. */
 export function article(input: ArticleInput): WithContext<ArticleNode> {
 	const dateModified = input.dateModified ?? input.datePublished;
 	return {
@@ -327,12 +359,13 @@ export function article(input: ArticleInput): WithContext<ArticleNode> {
 		...(dateModified ? { dateModified } : {}),
 		...(input.image ? { image: input.image } : {}),
 		...(input.keywords?.length ? { keywords: input.keywords } : {}),
+		...input.extra,
 	};
 }
 
 // --- Person ----------------------------------------------------------------
 
-export interface PersonInput {
+export interface PersonInput extends WithExtra {
 	name: string;
 	/** Absolute URL of the person's page/profile. */
 	url?: string;
@@ -384,6 +417,7 @@ export function person(input: PersonInput): WithContext<PersonNode> {
 		...(input.homeLocation
 			? { homeLocation: { "@type": "Place" as const, name: input.homeLocation } }
 			: {}),
+		...input.extra,
 	};
 }
 
@@ -408,7 +442,7 @@ export interface AggregateRatingInput {
 	reviewCount: string | number;
 }
 
-export interface LocalBusinessInput {
+export interface LocalBusinessInput extends WithExtra {
 	name: string;
 	/** Absolute URL of the business site. */
 	url?: string;
@@ -504,6 +538,7 @@ export function localBusiness(
 				}
 			: {}),
 		...(input.sameAs?.length ? { sameAs: input.sameAs } : {}),
+		...input.extra,
 	};
 }
 
@@ -519,7 +554,7 @@ export interface EventLocationInput {
 	online?: boolean;
 }
 
-export interface EventInput {
+export interface EventInput extends WithExtra {
 	name: string;
 	/** ISO 8601 start, e.g. "2026-09-30" or "2026-09-30T09:00:00+02:00". */
 	startDate: string;
@@ -605,6 +640,187 @@ export function event(input: EventInput): WithContext<EventNode> {
 		...(input.location ? { location: eventLocationNode(input.location) } : {}),
 		...(input.organizer ? { organizer: organizationNode(input.organizer) } : {}),
 		...(input.offers ? { offers: offerNode(input.offers) } : {}),
+		...input.extra,
+	};
+}
+
+// --- Dataset ---------------------------------------------------------------
+
+export interface DataDownloadInput {
+	/** Absolute URL of the file/endpoint. */
+	contentUrl: string;
+	/** IANA media type or a format name, e.g. "text/csv", "application/json". */
+	encodingFormat?: string;
+	name?: string;
+}
+
+export interface DatasetInput extends WithExtra {
+	name: string;
+	description: string;
+	/** Absolute URL of the dataset's landing page. */
+	url?: string;
+	/** Stable identifier(s): DOI, URI, registry code. */
+	identifier?: string | string[];
+	/** License URL, e.g. "https://creativecommons.org/licenses/by/4.0/". */
+	license?: string;
+	keywords?: string[];
+	/** BCP 47 language tag(s) of the dataset's contents. */
+	inLanguage?: string | string[];
+	/** ISO 8601 interval, e.g. "2008-01-01/2025-12-31". */
+	temporalCoverage?: string;
+	/** Place name or ISO country code the data covers. */
+	spatialCoverage?: string;
+	dateModified?: string;
+	/** Downloadable distributions of the data. */
+	distribution?: DataDownloadInput[];
+	/** Google shows a free-access badge; omit rather than guess. */
+	isAccessibleForFree?: boolean;
+	creator?: OrganizationInput;
+	publisher?: OrganizationInput;
+}
+
+export type DataDownloadNode = {
+	"@type": "DataDownload";
+	contentUrl: string;
+	encodingFormat?: string;
+	name?: string;
+};
+
+export type DatasetNode = {
+	"@type": "Dataset";
+	name: string;
+	description: string;
+	url?: string;
+	identifier?: string | string[];
+	license?: string;
+	keywords?: string[];
+	inLanguage?: string | string[];
+	temporalCoverage?: string;
+	spatialCoverage?: string;
+	dateModified?: string;
+	distribution?: DataDownloadNode[];
+	isAccessibleForFree?: boolean;
+	creator?: OrganizationNode;
+	publisher?: OrganizationNode;
+};
+
+/** Dataset: a published data collection, for Google's dataset search. */
+export function dataset(input: DatasetInput): WithContext<DatasetNode> {
+	return {
+		"@context": CONTEXT,
+		"@type": "Dataset",
+		name: input.name,
+		description: input.description,
+		...(input.url ? { url: input.url } : {}),
+		...(input.identifier ? { identifier: input.identifier } : {}),
+		...(input.license ? { license: input.license } : {}),
+		...(input.keywords?.length ? { keywords: input.keywords } : {}),
+		...(input.inLanguage ? { inLanguage: input.inLanguage } : {}),
+		...(input.temporalCoverage ? { temporalCoverage: input.temporalCoverage } : {}),
+		...(input.spatialCoverage ? { spatialCoverage: input.spatialCoverage } : {}),
+		...(input.dateModified ? { dateModified: input.dateModified } : {}),
+		...(input.distribution?.length
+			? {
+					distribution: input.distribution.map((item) => ({
+						"@type": "DataDownload" as const,
+						contentUrl: item.contentUrl,
+						...(item.encodingFormat
+							? { encodingFormat: item.encodingFormat }
+							: {}),
+						...(item.name ? { name: item.name } : {}),
+					})),
+				}
+			: {}),
+		...(input.isAccessibleForFree !== undefined
+			? { isAccessibleForFree: input.isAccessibleForFree }
+			: {}),
+		...(input.creator ? { creator: organizationNode(input.creator) } : {}),
+		...(input.publisher ? { publisher: organizationNode(input.publisher) } : {}),
+		...input.extra,
+	};
+}
+
+// --- DefinedTerm / DefinedTermSet -------------------------------------------
+
+export interface DefinedTermSetInput extends WithExtra {
+	name: string;
+	/** Absolute URL of the set's landing page. */
+	url?: string;
+	description?: string;
+	/** Version/edition of the vocabulary, e.g. "2025". */
+	version?: string;
+	inLanguage?: string | string[];
+}
+
+export type DefinedTermSetNode = {
+	"@type": "DefinedTermSet";
+	name: string;
+	url?: string;
+	description?: string;
+	version?: string;
+	inLanguage?: string | string[];
+};
+
+/** DefinedTermSet node without `@context`, for embedding as inDefinedTermSet. */
+function definedTermSetNode(input: DefinedTermSetInput): DefinedTermSetNode {
+	return {
+		"@type": "DefinedTermSet",
+		name: input.name,
+		...(input.url ? { url: input.url } : {}),
+		...(input.description ? { description: input.description } : {}),
+		...(input.version ? { version: input.version } : {}),
+		...(input.inLanguage ? { inLanguage: input.inLanguage } : {}),
+		...input.extra,
+	};
+}
+
+/** DefinedTermSet: the vocabulary/classification a term belongs to. */
+export function definedTermSet(
+	input: DefinedTermSetInput,
+): WithContext<DefinedTermSetNode> {
+	return { "@context": CONTEXT, ...definedTermSetNode(input) };
+}
+
+export interface DefinedTermInput extends WithExtra {
+	name: string;
+	description?: string;
+	/** Absolute URL of the term's own page. */
+	url?: string;
+	/** The code identifying the term inside its set, e.g. "62.01". */
+	termCode?: string;
+	inLanguage?: string | string[];
+	/** The vocabulary this term belongs to — its absolute URL, or a full set. */
+	inDefinedTermSet?: string | DefinedTermSetInput;
+}
+
+export type DefinedTermNode = {
+	"@type": "DefinedTerm";
+	name: string;
+	description?: string;
+	url?: string;
+	termCode?: string;
+	inLanguage?: string | string[];
+	inDefinedTermSet?: string | DefinedTermSetNode;
+};
+
+/** DefinedTerm: one entry of a controlled vocabulary or classification. */
+export function definedTerm(input: DefinedTermInput): WithContext<DefinedTermNode> {
+	const set =
+		typeof input.inDefinedTermSet === "string"
+			? input.inDefinedTermSet
+			: input.inDefinedTermSet
+				? definedTermSetNode(input.inDefinedTermSet)
+				: undefined;
+	return {
+		"@context": CONTEXT,
+		"@type": "DefinedTerm",
+		name: input.name,
+		...(input.description ? { description: input.description } : {}),
+		...(input.url ? { url: input.url } : {}),
+		...(input.termCode ? { termCode: input.termCode } : {}),
+		...(input.inLanguage ? { inLanguage: input.inLanguage } : {}),
+		...(set ? { inDefinedTermSet: set } : {}),
+		...input.extra,
 	};
 }
 
@@ -716,6 +932,46 @@ export function createSeo(config: SeoConfig) {
 				...(resolvedPublisher
 					? { publisher: resolveOrg(resolvedPublisher) }
 					: {}),
+			});
+		},
+		/** Dataset; `path` is resolved and the configured org becomes publisher. */
+		dataset(
+			input: Omit<DatasetInput, "url" | "publisher"> & {
+				path?: string;
+				publisher?: OrganizationInput;
+			},
+		): WithContext<DatasetNode> {
+			const { path, publisher, ...rest } = input;
+			const resolvedPublisher = publisher ?? config.organization;
+			return dataset({
+				...rest,
+				...(path ? { url: absolute(path) } : {}),
+				...(resolvedPublisher
+					? { publisher: resolveOrg(resolvedPublisher) }
+					: {}),
+			});
+		},
+		/** DefinedTerm; `path` and the term set's `path` are resolved. */
+		definedTerm(
+			input: Omit<DefinedTermInput, "url" | "inDefinedTermSet"> & {
+				path?: string;
+				inDefinedTermSet?:
+					| string
+					| (Omit<DefinedTermSetInput, "url"> & { path?: string });
+			},
+		): WithContext<DefinedTermNode> {
+			const { path, inDefinedTermSet, ...rest } = input;
+			let set: DefinedTermInput["inDefinedTermSet"];
+			if (typeof inDefinedTermSet === "string") {
+				set = absolute(inDefinedTermSet);
+			} else if (inDefinedTermSet) {
+				const { path: setPath, ...setRest } = inDefinedTermSet;
+				set = { ...setRest, ...(setPath ? { url: absolute(setPath) } : {}) };
+			}
+			return definedTerm({
+				...rest,
+				...(path ? { url: absolute(path) } : {}),
+				...(set ? { inDefinedTermSet: set } : {}),
 			});
 		},
 	};

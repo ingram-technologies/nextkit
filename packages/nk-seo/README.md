@@ -5,8 +5,9 @@ keep re-implementing:
 
 1. **`<JsonLd>`** + **typed schema.org builders** — `faqPage`, `breadcrumbList`,
    `article`, `softwareApplication`, `organization`, `website`, `person`,
-   `localBusiness`, `event`, and a `createSeo` factory that resolves site-relative
-   paths and injects your publisher.
+   `localBusiness`, `event`, `dataset`, `definedTerm`/`definedTermSet`, and a
+   `createSeo` factory that resolves site-relative paths and injects your
+   publisher.
 2. **`createMetadata`** — a Next `Metadata` factory: canonical + OpenGraph +
    Twitter card from one title/description/path.
 3. **`createSitemap` / `createRobots`** — `app/sitemap.ts` and `app/robots.ts`
@@ -75,6 +76,53 @@ or an array (e.g. `[organization(org), website(site)]` on the homepage), and
 escapes `<` on serialization so CMS-sourced strings can't break out of the
 `<script>` tag.
 
+### Properties the builders don't cover
+
+schema.org is much larger than any builder surface, so every builder takes an
+`extra` object shallow-merged over the built payload (it wins on conflict).
+Reach for it rather than dropping the whole node back to a literal:
+
+```ts
+website({
+	name: "Acme",
+	url: "https://example.com",
+	extra: {
+		alternateName: "ACME",
+		inLanguage: ["en", "fr"],
+		potentialAction: {
+			"@type": "SearchAction",
+			target: "https://example.com/search?q={search_term_string}",
+			"query-input": "required name=search_term_string",
+		},
+	},
+});
+```
+
+`extra` works on nested inputs too — `publisher: { name: "Acme", extra: {…} }`.
+Values passed this way aren't reflected in the returned node type.
+
+For a node type no builder covers, `<JsonLd data={…} />` takes **any** object or
+array of objects. Hand-written nodes still get the `<` / U+2028 escaping, which
+is the security-relevant half of the package — worth preferring over
+`dangerouslySetInnerHTML` even with no builder involved.
+
+`article` covers `Article`, `BlogPosting`, `NewsArticle`, `ScholarlyArticle`,
+`TechArticle` (the right type for API/developer docs) and `Report` via `type`.
+`dataset` and `definedTerm`/`definedTermSet` mark up data and controlled
+vocabularies:
+
+```ts
+<JsonLd
+	data={seo.definedTerm({
+		name: "Computer programming",
+		termCode: "62.01",
+		path: "/code/62.01",
+		inDefinedTermSet: { name: "Acme classification", path: "/", version: "2025" },
+		extra: { inLanguage: "en" },
+	})}
+/>
+```
+
 ## Page metadata
 
 ```ts
@@ -103,9 +151,25 @@ export const metadata = pageMetadata({
 
 Produces `title`, `description`, a self-referencing `alternates.canonical`,
 `openGraph`, and a `summary_large_image` Twitter card. Pass `noIndex`, `keywords`,
-`type: "article"`, or per-page `openGraph`/`twitter` overrides as needed. With
+`type: "article"`, or per-page `alternates`/`openGraph`/`twitter` overrides as
+needed — each is merged into the generated object and wins on conflict. With
 `titleTemplate` set, `pageMetadata.root()` emits `title.template`, so plain page
 titles render as "Services | Acme" without every page appending the suffix.
+
+On a localized site the per-page `alternates` and `locale` are what make the
+factory usable — `alternates.languages` is what Next renders as
+`<link rel="alternate" hreflang>`, and `og:locale` has to vary per page:
+
+```ts
+import { hreflangAlternates } from "@ingram-tech/nk-seo";
+
+const { languages } = hreflangAlternates(HREFLANG_CONFIG, `/${locale}/about`);
+return pageMetadata({
+	title, description, path: `/${locale}/about`,
+	alternates: { languages },
+	locale: "fr_BE",   // overrides the site-wide `locale`
+});
+```
 
 ## Sitemap & robots
 
@@ -171,6 +235,35 @@ Pass `logo` (absolute URL or data URI) to replace the accent-square mark with
 your logo, and `fonts` + `fontFamily` to render with the brand typeface —
 `fonts` is forwarded to `ImageResponse`, which takes raw TTF/OTF/WOFF data.
 
+### Two ways the generated card silently doesn't reach your pages
+
+Both fail with a green build and no warning; only fetching each page type shows
+them.
+
+**A page's own `openGraph` drops the inherited image.** Next attaches a
+file-convention image to the segment that declares it, and sibling metadata
+objects are *replaced*, not deep-merged — so any page whose `generateMetadata`
+returns an `openGraph` object (i.e. any page setting `og:title`/`og:url`) emits
+no `og:image` at all. The home page, sitting in the same segment as the image
+file, looks perfectly correct throughout. Build the list once and spread it into
+every page:
+
+```ts
+import { ogImageMetadata } from "@ingram-tech/nk-seo";
+
+const images = ogImageMetadata({ baseUrl, path: "/opengraph-image", alt: "Acme" });
+return { title, openGraph: { title, url, images } };
+```
+
+`createMetadata`'s `defaultImage` / per-page `image` already do this — point
+either at the image route and every page it builds carries the card.
+
+**Locale-negotiating middleware eats the image route.** A site that redirects
+any path lacking a locale prefix also redirects `/opengraph-image`, so the card
+URL never resolves. Put the file at `app/[locale]/opengraph-image.tsx` instead:
+it dodges the redirect and gives per-locale cards from `params`. That is the
+better default for any localized site.
+
 The template encodes the Satori rule that trips everyone up: every node with
 more than one child sets `display: flex`, and text nodes are never mixed with
 sibling elements — so the headline stays a plain string and the accent rides on
@@ -219,6 +312,22 @@ import { HreflangLinks } from "@ingram-tech/nk-seo/components";
 />
 ```
 
+Sites that prefix **every** locale — where `/about` redirects to `/en/about`
+and no bare path exists — pass `prefixDefaultLocale`, which prefixes the default
+locale too and points `x-default` at that prefixed URL. Without it the bare path
+is emitted for both `en` and `x-default`, annotating URLs that redirect (Google
+wants every hreflang target to answer 200 directly).
+
+```tsx
+<HreflangLinks
+	baseUrl="https://example.com"
+	locales={["en", "fr", "nl"]}
+	strategy="prefix"
+	defaultLocale="en"
+	prefixDefaultLocale
+/>
+```
+
 Pass `pathname` explicitly if you don't use the `x-pathname` header. When
 neither is available the component **throws** instead of guessing — a silent
 fallback would canonicalize every page to the homepage, the kind of site-wide
@@ -234,5 +343,7 @@ Two rules of the road:
   (possibly `/fr/…`-prefixed) pathname; the query strategy can't see the query
   string server-side, so pass `currentLocale` from your locale negotiation.
 - Building metadata instead of rendering links? The pure `hreflangAlternates`
-  (package root) returns the same `{ canonical, links }` for use in
-  `generateMetadata`.
+  (package root) returns the same links for use in `generateMetadata`:
+  `{ canonical, links, languages }`, where `languages` is already keyed by
+  hreflang for `Metadata.alternates.languages` (or `createMetadata`'s
+  per-page `alternates`).
