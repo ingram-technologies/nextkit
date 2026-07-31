@@ -269,12 +269,16 @@ more than one child sets `display: flex`, and text nodes are never mixed with
 sibling elements — so the headline stays a plain string and the accent rides on
 the mark, not a coloured `<span>` inside the title.
 
-No linter or type-check validates Satori-supported CSS (`ImageResponse` accepts
-all of `React.CSSProperties`; Satori silently drops what it doesn't know), so
-the only real validator is rendering. This package renders its template through
-the real satori + resvg pipeline in its own tests; if a site hand-rolls extra
-cards, give it the same guard — a vitest file (node environment) that renders
-each `opengraph-image.tsx` and asserts a valid PNG comes out.
+Type-check won't help here: `ImageResponse` accepts all of
+`React.CSSProperties` and Satori silently drops what it doesn't know. Two guards
+cover that. `@ingram-tech/nk-dev`'s oxlint plugin ships `nextkit/satori-css`,
+which flags unsupported style properties, `calc()`, and the two structural rules
+in files that import `next/og` or are an `opengraph-image`/`twitter-image`
+convention. And rendering remains the final validator: this package renders its
+template through the real satori + resvg pipeline in its own tests, so a site
+hand-rolling extra cards should add the same guard — a vitest file (node
+environment) that renders each `opengraph-image.tsx` and asserts a valid PNG
+comes out.
 
 ## Hreflang & canonical
 
