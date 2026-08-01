@@ -80,7 +80,10 @@ The package's semver **is** the vocabulary version — there is no per-post
    `generateStaticParams` from `blog.slugs()`, `dynamicParams = false`,
    metadata from the frontmatter via the site's metadata factory, body via
    `PostBody` with the site's element map, JSON-LD via
-   `blogPostArticle`/`blogPostBreadcrumbs`.
+   `blogPostArticle`/`blogPostBreadcrumbs` rendered through `<JsonLd>` (from
+   `nk-blog/render`) — never a hand-rolled `<script type="application/ld+json">`
+   with `JSON.stringify`, which lets a title or FAQ answer containing
+   `</script>` inject markup into the page.
 5. Point the listing page/sitemap at `blog.previews()`/`blog.featured()`;
    delete the generator script and the committed `posts.json`.
 6. Add `rss.xml/route.ts` (`generateRss`, `dynamic = "force-static"`).

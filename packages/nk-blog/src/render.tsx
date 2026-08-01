@@ -79,3 +79,16 @@ export async function PostBody(props: {
 		bespoke: props.bespoke,
 	});
 }
+
+/**
+ * The hardened JSON-LD script tag, re-exported from nk-seo so it sits with the
+ * node builders that feed it (`blogPostArticle`, `blogPostBreadcrumbs`).
+ *
+ * nk-blog hands sites schema *nodes* and left rendering to them, which meant
+ * every site hand-rolled `<script type="application/ld+json"
+ * dangerouslySetInnerHTML={{ __html: JSON.stringify(nodes) }} />` — and a post
+ * title or FAQ answer containing `</script>` then closes the tag and injects
+ * markup into the page. `JsonLd` escapes `<`, so the safe path is now the one
+ * already in reach.
+ */
+export { JsonLd, serializeJsonLd } from "@ingram-tech/nk-seo/components";
