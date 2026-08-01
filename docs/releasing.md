@@ -45,6 +45,18 @@ Trusted Publisher**, add:
 - Repository: `ingram-technologies/nextkit`
 - Workflow filename: `release.yml`
 
+**Immutable OIDC subject claims are fine.** This repo opted in
+(`use_immutable_subject`), so its Actions tokens carry
+`repo:OWNER@OWNER-ID/REPO@REPO-ID:ref:…` instead of the name-only form. npm
+accepts it for both halves of the token's job: trusted-publishing authorization,
+and the provenance attestation — whose certificate records the immutable subject
+verbatim in its Token Subject extension (`1.3.6.1.4.1.57264.1.24`). Confirmed on
+the 2026-08-01 release. npm's docs still don't say which claims they match, but
+they can't be matching `sub` alone: the workflow filename a trusted publisher is
+configured with appears only in `job_workflow_ref`/`workflow_ref`, which are
+name-based and unaffected. Other Ingram repos can opt in without ceremony; any
+repo created after 2026-07-15 already sends the immutable form.
+
 **New packages:** the OIDC release CAN first-publish a brand-new package — no
 local bootstrap needed. Expect npm's new-package quarantine afterwards: for
 ~15 minutes the registry GETs 404 and a republish attempt 403s with "cannot
