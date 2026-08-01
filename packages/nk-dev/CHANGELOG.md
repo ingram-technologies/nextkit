@@ -1,5 +1,101 @@
 # @ingram-tech/nk-dev
 
+## 0.10.0
+
+### Minor Changes
+
+- 2622128: Move the bundled DOM test environment to `jsdom` ^30.0.1, and declare the Node
+  version it actually needs.
+
+  jsdom 30's only breaking change is a raised Node floor:
+  `^22.22.2 || ^24.15.0 || >=26.0.0`. `nk-dev` still advertised `>=20`, which is
+  now a promise it can't keep — installing on Node 20 would succeed and then fail
+  at runtime inside `nk test` with a jsdom error that says nothing about Node.
+  `engines.node` mirrors jsdom's range verbatim rather than approximating it: the
+  range is deliberately gappy (23.x and 24.0–24.14 are excluded), so `>=22.22.2`
+  would let through versions jsdom rejects.
+
+  Sites on Node 24.15+ or 26 are unaffected. The test suite passes untouched
+  across the upgrade.
+
+- 3bdaadf: `nk type-check` now recovers from damaged generated types, and `nk clean`
+  removes regenerable build artifacts.
+
+  `tsconfig.json` feeds Next's typed-routes output back into `tsc`. Killing
+  `next dev` mid-write leaves `.next/dev/types/validator.ts` truncated, and
+  `next typegen` does **not** repair that directory — it writes `.next/types` —
+  so `tsc` reports the same syntax error inside `.next/` on every subsequent run.
+  The error points at generated code, so the natural response is to hunt a type
+  error in `src/` that doesn't exist.
+
+  Worse, a syntax error in generated output suppresses semantic diagnostics
+  program-wide: real `src/` errors are hidden behind it. Confirmed against a
+  truncated validator, where `tsc` reported only the generated file while a
+  planted `src/` type error went unmentioned.
+
+  `type-check` now captures the first `tsc` run and, when **every** reported
+  error sits inside generated type output, cleans the artifacts, regenerates and
+  retries once. A run that also implicates `src/` is passed through untouched:
+  cleaning wouldn't fix those errors, and the retry would only cost a full `tsc`
+  pass. Recovery never turns a failing check into a passing one — it surfaces the
+  errors that were masked and still exits non-zero.
+
+  The artifact registry behind it is shared, and exposed as `nk clean` for manual
+  use: Next's generated types plus TypeScript incremental caches, the latter
+  discovered by extension rather than by fixed name (`tsBuildInfoFile` renames
+  them, and a repo can carry several). Only the generated _type_ output is
+  removed — `.next/cache` is left alone, so recovery doesn't become a cold
+  rebuild.
+
+- cb49779: New oxlint rule `nextkit/satori-css` (warn): validates inline styles in
+  satori-rendered JSX — the properties `next/og` accepts from
+  `React.CSSProperties` but satori silently drops, `calc()`, and the two
+  structural rules satori throws on (a multi-child node needs an explicit
+  `display`, text can't sit beside element siblings). Scoped to files importing
+  `next/og`/`@vercel/og` or named `opengraph-image`/`twitter-image`, and
+  deliberately conservative: conditional children and non-literal styles are left
+  alone. Closes the gap render tests can't see — a dropped property still yields a
+  valid PNG, just the wrong one.
+
+### Patch Changes
+
+- ba5df61: Move the vendored structural-search binary to `@ast-grep/cli` ^0.45.0.
+
+  0.45 deprecates the `sg` command alias, which `nk ast-grep` never used — it
+  resolves the native `ast-grep` binary through `resolveBinaryPath`, so the
+  passthrough is unaffected. Also in this release: ignore files outside
+  `rule_dirs` are no longer consulted during scans.
+
+- 6cf2320: Raise runtime dependency floors to the current patch/minor releases.
+
+  `nk-auth` moves to `jose` ^6.2.6, `nk-billing` to `stripe` ^22.4.0, `nk-i18n` to
+  `intl-messageformat` ^11.2.13, and `nk-dev` to `oxlint` ^1.76.0, `knip` ^6.31.0
+  and `@testing-library/jest-dom` ^6.10.0.
+
+  No API changes. `nk-dev` ships the toolchain as real dependencies, so its bump
+  is what moves a consuming site's linter and dead-code checker — the new `oxlint`
+  reported no findings against this repo.
+
+- 24247fd: Move to `@testing-library/jest-dom` ^7.0.0, and bundle its new peer.
+
+  jest-dom 7 promotes `@testing-library/dom` to a required peer dependency with
+  no `peerDependenciesMeta.optional`. `nk-dev` now depends on it directly rather
+  than leaving every site to satisfy it: `nk-dev` already ships the test
+  toolchain (vitest, jsdom) as real dependencies, and the alternative is an
+  unmet-peer warning on install for any site that doesn't happen to pull
+  `@testing-library/react`.
+
+  The shipped `vitest/setup.ts` still imports cleanly, and 7.0.0 adds
+  `toContainAnyBy*` / `toContainOneBy*` matchers. jest-dom 7 also raises its Node
+  floor to 22, which the jsdom 30 `engines` change already covers.
+
+- 61fc5e0: Move the bundled formatter to `oxfmt` ^0.61.0.
+
+  No source file in this repo reformats across the bump, so a consuming site
+  should see no diff either. 0.61 adds a YAML formatter, but it does not claim
+  `.yml` files on its own — `oxfmt --check .` matches the same set it did before,
+  and `.github/workflows` is untouched.
+
 ## 0.9.0
 
 ### Minor Changes

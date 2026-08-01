@@ -1,6 +1,6 @@
 {
 	"name": "@ingram-tech/nk-auth",
-	"version": "0.13.2",
+	"version": "0.13.3",
 	"description": "The Ingram Better Auth foundation: composable presets (org, dual-shape JWT, active-org hooks, pg pool) for Next.js sites.",
 	"license": "MIT",
 	"type": "module",
