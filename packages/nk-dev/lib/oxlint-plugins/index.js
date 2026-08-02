@@ -7,6 +7,7 @@ import deferredCurrentTarget from "./deferred-current-target.js";
 import lucideIconSuffix from "./lucide-icon-suffix.js";
 import noCryptoRandomUuid from "./no-crypto-random-uuid.js";
 import noRedirectOnlyPage from "./no-redirect-only-page.js";
+import noRedundantNodeCrypto from "./no-redundant-node-crypto.js";
 import redundantUseStateType from "./redundant-usestate-type.js";
 import satoriCss from "./satori-css.js";
 import tNoPositionalArgs from "./t-no-positional-args.js";
@@ -20,6 +21,7 @@ export default {
 		...lucideIconSuffix.rules,
 		...noCryptoRandomUuid.rules,
 		...noRedirectOnlyPage.rules,
+		...noRedundantNodeCrypto.rules,
 		...redundantUseStateType.rules,
 		...satoriCss.rules,
 		...tNoPositionalArgs.rules,

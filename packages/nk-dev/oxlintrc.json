@@ -13,6 +13,7 @@
 		"nextkit/t-requires-values": "error",
 		"nextkit/t-no-positional-args": "error",
 		"nextkit/no-crypto-random-uuid": "warn",
+		"nextkit/no-redundant-node-crypto": "warn",
 		"nextkit/satori-css": "warn",
 		"no-unused-vars": "warn",
 		"typescript/no-non-null-assertion": "error",
