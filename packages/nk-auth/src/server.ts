@@ -92,9 +92,8 @@ export function createAuthHelpers<S extends SessionLike>(
 	 * pre-mutation snapshot; re-read through `auth.api.getSession` directly if
 	 * that ever matters.
 	 */
-	const getSession = cache(
-		async (): Promise<S | null> =>
-			auth.api.getSession({ headers: await headers() }),
+	const getSession = cache(async (): Promise<S | null> =>
+		auth.api.getSession({ headers: await headers() }),
 	);
 
 	/** The authenticated user, or null. */
