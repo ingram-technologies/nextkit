@@ -1,5 +1,46 @@
 # @ingram-tech/nk-dev
 
+## 0.11.0
+
+### Minor Changes
+
+- f2c9d94: New oxlint rule `nextkit/no-redundant-node-crypto` (warn): flags the
+  `node:crypto` imports that are already on the Web Crypto global — `randomUUID`,
+  `getRandomValues`, `subtle` and `webcrypto`. Each pins a module to a Node-only
+  runtime for something it would have had regardless, and `subtle`/`webcrypto`
+  aren't even different objects from `globalThis.crypto.subtle`/`globalThis.crypto`.
+  Catches named imports, and member access through a namespace or default import
+  of the module. The rest of `node:crypto` (`createHash`, `createHmac`,
+  `randomBytes`, `timingSafeEqual`, …) has no drop-in global and is left alone, so
+  the usual fix is trimming one name off an import list.
+
+  This makes fleet-wide the invariant nk-db's id codec already holds by hand — its
+  `id.ts` is pinned to an empty import list by a test whose comment names
+  `node:crypto` for randomness as the tempting one, because a single Node-only
+  import there would make every module that touches an id Node-only.
+
+  Not autofixable: the call sites have to become member expressions on the global,
+  and an import named `crypto` shadows the global it stands in for. Keep an import
+  with a justified disable — `node:crypto`'s `randomUUID` takes a
+  `disableEntropyCache` option that Web Crypto's does not.
+
+- 6c34702: Guard the drizzle migration chain: `nk migrations` and two new `nk doctor` findings.
+
+  Applied migrations are immutable — the runner records `sha256(file)`, so editing
+  one after it has run drifts every database that applied it, and drizzle never
+  looks at the file again to notice. `nk migrations` pins each file's hash in a
+  committed `drizzle/_seal.json` and `nk check` fails on a mismatch, so the edit
+  surfaces in the PR that made it instead of on the next deploy. `--reseal` is the
+  deliberate-squash escape hatch, and its effect is visible in the diff.
+
+  `nk migrations --ddl` (and a `nk doctor` finding) lists the migrations carrying
+  DDL drizzle's snapshot cannot model — functions, triggers, `DEFERRABLE`
+  constraints, grants, roles, extensions, materialized views. Those are outside
+  `db:generate`'s diff basis entirely, so a clean generate does not mean the chain
+  reproduces the database, and anything regenerated from `schema.ts` drops them.
+
+  Both run without a database. `nk doctor` also seals an unsealed chain on `--fix`.
+
 ## 0.10.0
 
 ### Minor Changes
