@@ -253,6 +253,90 @@ because the stock drizzle-kit applier has recurring failure modes worth owning:
 Journal rows are byte-compatible with drizzle's (`sha256` of the raw file, same
 table/schema defaults), so the runner and drizzle tooling can be mixed freely.
 
+### The seal: applied migrations are immutable
+
+The runner records `sha256(file)` per migration, so a file's bytes become
+history the moment any database applies it. Editing one afterwards — a
+formatter sweeping the repo, a "quick fix" to a generated migration — drifts
+every database that already ran it, and nothing in drizzle notices: it has
+already recorded the old hash and will not look at the file again.
+
+`nk migrations` (`@ingram-tech/nk-dev`) pins each file's hash in a committed
+`drizzle/_seal.json`, so the edit fails the PR that made it instead of
+surfacing as a confusing `already exists` on the next deploy. It needs no
+database, so it runs in CI and on a laptop with no `DATABASE_URL`.
+
+```bash
+nk migrations            # verify, then seal newly generated migrations
+nk migrations --check    # verify only — what `nk check` runs
+nk migrations --reseal   # rewrite every hash: the squash escape hatch
+nk migrations --ddl      # list migrations carrying DDL drizzle can't model
+```
+
+Generate a migration, run `nk migrations`, and commit `_seal.json` in the same
+commit as the `.sql` — `nk check` fails on an unsealed migration, because a
+seal that lands later seals whatever the file had already become.
+
+### What `db:generate` does not see
+
+`drizzle-kit generate` diffs `schema.ts` against `drizzle/meta/*_snapshot.json`.
+It never reads the `.sql` files, and the snapshot models a **subset** of
+Postgres: functions, triggers, `DEFERRABLE` constraints, grants, roles,
+extensions and materialized views are all outside it. Two consequences that
+have each cost a production incident in this fleet:
+
+- **A clean `db:generate` proves nothing about the database.** It means
+  `schema.ts` matches the snapshot. A baseline can lose an object (a squash
+  dropping an enum value, say) and `db:generate` reports "no changes" forever
+  after.
+- **Anything regenerated from `schema.ts` drops the unmodelled clauses.** A
+  hand-appended `DEFERRABLE INITIALLY DEFERRED` is invisible to drizzle, so the
+  next generate that touches that constraint re-emits it *without* the clause —
+  and a constraint that was checked at commit starts being checked
+  mid-transaction. Same exposure for every function, trigger and grant.
+
+`nk doctor` states which migrations carry unmodelled DDL rather than leaving it
+to be rediscovered; `nk migrations --ddl` gives the per-file list. Treat that
+list as the inventory a regenerated chain must be checked against **by hand**,
+against a real database. Closing this properly needs a catalog-level diff
+(`pg_class` / `pg_constraint.condeferrable` / `pg_proc` / `pg_trigger` /
+`pg_policy` / grants) between a database built fresh from `drizzle/` and the
+live one. nextkit does not ship that yet.
+
+### Squashing a migration chain
+
+Chains grow without bound, and a long one is a slow test harness and a wall of
+irrelevant history. Squashing is supported — the constraint is that the new
+`0000` must reproduce the live schema *exactly*, including everything drizzle
+can't model. So the baseline body comes from **`pg_dump --schema-only` of
+production**, never from `schema.ts`: a dump cannot structurally lose an object.
+
+1. **Land any baseline cleanup as forward migrations first**, applied to
+   production before the squash. Anything "cleaned up" in the new baseline that
+   production still has becomes permanent drift.
+2. **Regenerate data-seeding migrations from their source** and assert the rows
+   match production. Chart/reference-data repairs later in the chain get
+   dropped by the squash, and are only safe to drop if the source they
+   regenerate from already reflects them.
+3. **Build the new `0000`**: `pg_dump --schema-only` for the body, plus the
+   hand-written bootstrap (extensions, schemas). **Roles are not in a schema
+   dump** — re-add them by hand.
+4. **Repoint the snapshots** so `0000`/`0001` describe the new baseline, and
+   verify `db:generate` emits nothing.
+5. **Gate before shipping**: diff the fresh-from-chain schema against
+   production — every function, trigger, policy, grant, and
+   `condeferrable` flag — and run the full suite. "The tests pass" is not the
+   gate; the tests only cover what a test happens to exercise.
+6. **Reseal and reconcile**: `nk migrations --reseal` (the changed hashes show
+   up in the diff, which is the point), then `nk-pg-migrate --baseline` on every
+   database that ran the old chain — production, demo, and any long-lived
+   branch database. `--baseline` records the new chain without running DDL, so
+   nothing gets rebuilt.
+
+Step 5 is the one that makes the rest safe, and it is the step currently done by
+hand. Until the catalog diff exists, squash rarely and treat the pre-ship
+comparison as mandatory.
+
 ### The nk-auth migration chain
 
 A site is not limited to one chain. The runner takes `migrationsFolder` +

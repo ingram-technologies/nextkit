@@ -3,6 +3,7 @@ import { cleanGeneratedArtifacts, onlyGeneratedTypeErrors } from "./artifacts.js
 import { toolDrift } from "./drift.js";
 import { FORMATTER } from "./formatter.js";
 import { hasKnipConfig, runKnip } from "./knip.js";
+import { checkSeal } from "./migrations.js";
 import { run, runCapture, writeThrough } from "./run.js";
 
 /** `nk lint [...]` — oxlint, with extra args passed through (e.g. `--fix`). */
@@ -33,8 +34,19 @@ export function check() {
 			"  → add `@./node_modules/@ingram-tech/nk-dev/guide.md` to your CLAUDE.md (or run `nk init`).",
 		);
 	}
+	// Applied migrations are immutable. A no-op on sites without a `drizzle/`
+	// journal, so it costs non-database sites nothing.
+	const seal = checkSeal();
+	if (!seal.ok) {
+		console.error(`nk check: ${seal.reason}`);
+		console.error(
+			"  → restore the file and add a new migration, or run `nk migrations` to seal a newly generated one.",
+		);
+	}
 	warnToolDrift();
-	process.exit(lintFailed || fmtFailed || knipFailed || !guide.ok ? 1 : 0);
+	process.exit(
+		lintFailed || fmtFailed || knipFailed || !guide.ok || !seal.ok ? 1 : 0,
+	);
 }
 
 /** Non-fatal: surface superseded deps so drift doesn't silently re-accumulate. */

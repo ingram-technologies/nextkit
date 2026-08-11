@@ -3,7 +3,8 @@
 The nextkit **dev toolchain in one package**. Everything a site needs at
 development time — and nothing that ships to production — lives here:
 
-- the **`nk` CLI** (`nk dev` / `format` / `lint` / `knip` / `ast-grep` / `check` / `type-check` / `test` / `build`, plus `nk doctor`);
+- the **`nk` CLI** (`nk dev` / `format` / `lint` / `knip` / `ast-grep` / `migrations` / `check` / `type-check` / `test` / `build`, plus
+  `nk doctor`);
 - the shared **oxlint + oxfmt**, **TypeScript**, and **Vitest** config;
 - **knip** (unused dependency / export / file detection), bundled and run by `nk check`;
 - the **oxfmt format-on-commit** git hook (`nextkit-format-staged`);
@@ -80,7 +81,8 @@ tsc), so versions stay under each site's control — nk just orchestrates.
   skips files that already exist.
 - **`nk doctor [--fix]`** — report drift from the canonical nk-dev toolchain
   (superseded deps, config `extends`, package.json scripts, the agent-guide
-  import, a stale `.prettierignore`); `--fix` applies the auto-fixable findings.
+  import, a stale `.prettierignore`, an unsealed migration chain and the DDL in
+  it drizzle can't model); `--fix` applies the auto-fixable findings.
 - **`nk dev`** — start the Next dev server on the golden-path local database
   (see [`db-package.md`](https://github.com/ingram-technologies/nextkit/blob/main/docs/db-package.md)):
   - **PGlite** — if `@ingram-tech/nk-db`'s `nk-pglite-dev` bin resolves, hand off
@@ -92,6 +94,14 @@ tsc), so versions stay under each site's control — nk just orchestrates.
   generated (drizzle migrations, `pg_dump` baselines, pglite fixtures).
 - **`nk lint`** — `oxlint`.
 - **`nk knip`** — `knip` (unused dependencies / exports / files).
+- **`nk migrations [--check|--reseal|--ddl]`** — guard the `drizzle/` migration
+  chain, with no database involved. Verifies each file against the hashes in
+  `drizzle/_seal.json` and seals newly generated ones; `--check` verifies
+  without writing (what `nk check` runs); `--reseal` rewrites every hash for a
+  deliberate squash; `--ddl` lists the migrations carrying DDL drizzle's
+  snapshot can't model. Details in
+  [`db-package.md`](https://github.com/ingram-technologies/nextkit/blob/main/docs/db-package.md#the-seal-applied-migrations-are-immutable).
+  A no-op on sites without a migration journal.
 - **`nk ast-grep [...]`** — structural search & rewrite of TS/TSX by AST pattern,
   via the vendored [ast-grep](https://ast-grep.github.io) (args passed through to
   it). For large mechanical refactors — import rewrites, API renames, call-shape
@@ -99,8 +109,8 @@ tsc), so versions stay under each site's control — nk just orchestrates.
   apply → `nk format` + `nk type-check`) and its syntactic-not-semantic limits
   live in the codemod skill, `skills/ts-codemod.md`.
 - **`nk check`** — `oxlint` + `oxfmt --check` + `knip` (only when the repo has a
-  knip config) + the agent-guide import gate. The CI gate; runs every checker and
-  reports them all before failing.
+  knip config) + the agent-guide import gate + the migration seal. The CI gate;
+  runs every checker and reports them all before failing.
 - **`nk type-check`** — `next typegen && tsc --noEmit`.
 - **`nk test [...]`** — `vitest run`, extra args passed through.
 - **`nk build [...]`** — `next build`, extra args passed through.

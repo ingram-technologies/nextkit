@@ -1,6 +1,15 @@
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { SUPERSEDED_DEPS } from "./drift.js";
+import {
+	SEAL_FILE,
+	migrationsFolder,
+	readChain,
+	readSeal,
+	summarizeKinds,
+	unmodelledDdl,
+	writeSeal,
+} from "./migrations.js";
 
 // The canonical script → command mapping for a site on the nk-dev toolchain.
 // The key is matched loosely (`type-check` and `typecheck` are both accepted);
@@ -257,6 +266,62 @@ export function findings(cwd) {
 		});
 	}
 
+	// 9. The migration chain is sealed, and its unmodelled DDL is declared.
+	out.push(...migrationFindings(cwd));
+
+	return out;
+}
+
+/**
+ * Findings over a `drizzle/` chain. Silent on repos without one.
+ *
+ * The seal finding is the cheap half of migration safety: applied migrations
+ * are immutable, and nothing in drizzle notices when one is edited.
+ *
+ * The unmodelled-DDL finding is the honest half. `drizzle-kit generate` diffs
+ * `schema.ts` against `meta/*_snapshot.json`, so any DDL the snapshot can't
+ * model — functions, triggers, `DEFERRABLE` constraints, grants, roles — is
+ * outside the diff basis entirely. A chain carrying it can drift arbitrarily
+ * far from the database while `db:generate` still reports no changes, and
+ * anything regenerated from `schema.ts` drops it. That is a real property of
+ * the repo, so `nk doctor` states it rather than leaving it to be rediscovered.
+ */
+function migrationFindings(cwd) {
+	const out = [];
+	const folder = migrationsFolder(cwd);
+	let chain;
+	try {
+		chain = readChain(cwd, folder);
+	} catch (err) {
+		return [
+			{ id: "migrations:broken-chain", level: "error", message: err.message },
+		];
+	}
+	if (chain === null || chain.length === 0) return out;
+
+	if (readSeal(cwd, folder) === null) {
+		out.push({
+			id: "migrations:unsealed",
+			level: "warn",
+			message: `${chain.length} migration(s) with no ${folder}/${SEAL_FILE} — an edit to an already-applied migration would go unnoticed`,
+			fix: (dir) => {
+				const f = migrationsFolder(dir);
+				writeSeal(dir, f, readChain(dir, f));
+				return `sealed ${chain.length} migration(s) in ${f}/${SEAL_FILE}`;
+			},
+		});
+	}
+
+	const inventory = unmodelledDdl(cwd, folder);
+	if (inventory.length > 0) {
+		const kinds = summarizeKinds(inventory);
+		out.push({
+			id: "migrations:unmodelled-ddl",
+			level: "warn",
+			message: `${inventory.length} of ${chain.length} migration(s) carry DDL drizzle's snapshot cannot model (${kinds.join(", ")}) — \`db:generate\` reporting "no changes" does not mean the chain reproduces the database, and regenerating from schema.ts drops it. Run \`nk migrations --ddl\` for the per-file list.`,
+		});
+	}
+
 	return out;
 }
 
@@ -264,7 +329,8 @@ export function findings(cwd) {
  * `nk doctor [--fix]` — report drift from the canonical nk-dev model (scripts,
  * dependencies, oxlint/tsconfig extends, the CLAUDE.md guide import, stale knip
  * ignores, forbidden schema-applying drizzle-kit scripts, a dead
- * .prettierignore). With `--fix`, apply every auto-fixable finding, then remind
+ * .prettierignore, an unsealed or unmodelled-DDL-carrying migration chain).
+ * With `--fix`, apply every auto-fixable finding, then remind
  * to reinstall.
  */
 export function doctor(args = []) {

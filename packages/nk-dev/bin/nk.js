@@ -5,6 +5,7 @@ import { doctor } from "../lib/doctor.js";
 import { format } from "../lib/format.js";
 import { init } from "../lib/init.js";
 import { knip } from "../lib/knip.js";
+import { migrations } from "../lib/migrations.js";
 import { build, check, clean, lint, test, typeCheck } from "../lib/passthrough.js";
 
 const USAGE = `nk — the nextkit CLI
@@ -22,11 +23,16 @@ Commands:
   format [--check]    Format code with oxfmt. --check verifies without writing.
   lint [...]          Lint with oxlint (extra args passed through, e.g. --fix).
   knip                Find unused dependencies / exports / files with knip.
+  migrations [...]    Guard the drizzle migration chain: verify that no applied
+                      migration's bytes changed, and seal newly generated ones.
+                      --check verifies without writing (CI); --reseal rewrites
+                      every hash (a deliberate squash); --ddl lists the DDL
+                      drizzle's snapshot cannot model.
   ast-grep [...]      Structural search & rewrite of TS/TSX by AST pattern
                       (vendored ast-grep; args passed through). For large
                       mechanical refactors — see the codemod skill.
   check               The CI gate: lint + format verify + knip (when configured)
-                      + the agent-guide import gate.
+                      + the agent-guide import gate + the migration seal.
   type-check          next typegen && tsc --noEmit. Recovers automatically when
                       generated types are damaged (e.g. a killed dev server).
   clean               Remove regenerable build artifacts: Next's generated
@@ -57,6 +63,9 @@ switch (cmd) {
 		break;
 	case "knip":
 		knip(rest);
+		break;
+	case "migrations":
+		migrations(rest);
 		break;
 	case "ast-grep":
 		astGrep(rest);

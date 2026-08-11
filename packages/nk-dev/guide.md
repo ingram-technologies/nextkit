@@ -83,6 +83,21 @@ the UI/page tree, and never expose internal plumbing under `/api/`.
   transaction, before commit. A blind move that touches nothing (an RLS mask, a
   wrong `where`) otherwise reports success, and the drop of the source columns
   in the same migration makes it unrecoverable.
+- **Never edit a migration that has been applied.** The runner records
+  `sha256(file)`, so the bytes are history: editing one drifts every database
+  that already ran it, and drizzle never looks at the file again to notice.
+  Express the change as a **new** migration. `drizzle/_seal.json` pins the
+  hashes and `nk check` fails on a mismatch — if it does, `git checkout` the
+  file rather than resealing. After generating a migration, run **`nk
+  migrations`** and commit `_seal.json` in the same commit as the `.sql`.
+  `nk migrations --reseal` exists only for a deliberate squash, which also
+  requires reconciling every database with `nk-pg-migrate --baseline`.
+- **A clean `db:generate` does not mean the chain matches the database.**
+  drizzle diffs `schema.ts` against `meta/*_snapshot.json`, never against the
+  `.sql` files, and the snapshot can't model functions, triggers, `DEFERRABLE`
+  constraints, grants or roles. Anything regenerated from `schema.ts` drops
+  those clauses silently. `nk migrations --ddl` lists which migrations carry
+  them; verify against a real database before trusting a regenerated chain.
 - **`drizzle-kit` is GENERATE-ONLY — it must never apply schema.** Use it for
   `drizzle-kit generate` (and `generate --custom` for a package-owned/raw SQL
   migration). Applying is always **`nk-pg-migrate`** (the bin from
