@@ -21,6 +21,7 @@ import {
 	baselineMigrations,
 	inspectMigrations,
 	MigrationDriftError,
+	MigrationOrderError,
 	runMigrations,
 } from "./migrate.js";
 
@@ -50,6 +51,13 @@ const main = async (): Promise<void> => {
 		if (s.drift) console.log(`  drift: ${s.drift.reason}`);
 		if (s.pending.length)
 			console.log(`  pending: ${s.pending.map((m) => m.tag).join(", ")}`);
+		if (s.unreachable.length) {
+			console.log(
+				`  UNREACHABLE (the migrator would skip these silently): ${s.unreachable.map((m) => m.tag).join(", ")}`,
+			);
+		}
+		if (s.journalIssues.length)
+			console.log(`  journal: ${s.journalIssues.join("; ")}`);
 		return;
 	}
 
@@ -70,7 +78,7 @@ const main = async (): Promise<void> => {
 };
 
 main().catch((error: unknown) => {
-	if (error instanceof MigrationDriftError) {
+	if (error instanceof MigrationDriftError || error instanceof MigrationOrderError) {
 		console.error(`nk-pg-migrate: ${error.message}`);
 		process.exit(2);
 	}

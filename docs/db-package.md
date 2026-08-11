@@ -246,6 +246,23 @@ because the stock drizzle-kit applier has recurring failure modes worth owning:
   check first and throws a `MigrationDriftError` that explains what happened
   and how to fix it; `baselineMigrations` reconciles a journal whose schema is
   already correct without re-running any DDL.
+- **It refuses to under-apply.** drizzle's migrator selects what to run with
+  `when > max(created_at)` — a high-water mark. A migration whose journal
+  timestamp lands *below* an already-applied one is therefore skipped, not
+  recorded, and reported as success, and the gap is permanent. It isn't drift
+  either: the recorded rows still match the files positionally, so a naive
+  pre-flight passes. Two branches generating migrations and merging in the
+  other order produce exactly this, as does a hand-edited `when`.
+  `inspectMigrations` computes pending as a **set difference on hash** and
+  flags anything the migrator can't reach; `runMigrations` throws
+  `MigrationOrderError` rather than running a partial chain.
+
+  The fix is to raise the stranded entry's `when` in `meta/_journal.json` above
+  the newest applied one (and keep the journal's `when` values strictly
+  increasing — the pre-flight asserts that, plus contiguous `idx`). That edits
+  the journal, not the `.sql`, so the file hash every database recorded — and
+  that [the seal](#the-seal-applied-migrations-are-immutable) pins — is
+  unchanged. Fixed upstream in drizzle 1.0; this runner does not wait for it.
 - **It serializes concurrent deploys** with `pg_advisory_lock` (drizzle's
   migrator takes no lock of its own), so two deploys racing the same cluster
   can't interleave DDL.
@@ -294,6 +311,22 @@ have each cost a production incident in this fleet:
   next generate that touches that constraint re-emits it *without* the clause —
   and a constraint that was checked at commit starts being checked
   mid-transaction. Same exposure for every function, trigger and grant.
+
+**Treat these gaps as permanent.** Triggers and functions
+([#843](https://github.com/drizzle-team/drizzle-orm/issues/843), open since
+2023 with 555 reactions) and deferrable constraints
+([#1429](https://github.com/drizzle-team/drizzle-orm/issues/1429)) are tracked
+and untouched; grants aren't filed at all. The 1.0 release candidate models
+views, roles and policies — and still has no `deferrable` on foreign keys and no
+triggers module. Upgrading does not close the gap, so anything built here is
+infrastructure, not a stopgap.
+
+**Keep generated files purely generated.** Hand-appending unmodelled DDL to a
+file `drizzle-kit generate` produced is what turns the snapshot from an
+incomplete view into a wrong one: the snapshot describes that file's objects,
+minus the clauses you added, and the next regenerate emits them without those
+clauses. Put unmodelled DDL in `drizzle-kit generate --custom` migrations
+instead, which drizzle records but does not claim to model.
 
 `nk doctor` states which migrations carry unmodelled DDL rather than leaving it
 to be rediscovered; `nk migrations --ddl` gives the per-file list. Treat that

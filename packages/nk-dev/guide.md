@@ -98,6 +98,18 @@ the UI/page tree, and never expose internal plumbing under `/api/`.
   constraints, grants or roles. Anything regenerated from `schema.ts` drops
   those clauses silently. `nk migrations --ddl` lists which migrations carry
   them; verify against a real database before trusting a regenerated chain.
+- **Never hand-append unmodelled DDL to a generated migration.** A generated
+  file must stay exactly what `drizzle-kit generate` produced, or the snapshot
+  becomes an active lie about a file drizzle believes it owns — and the next
+  regenerate re-emits those objects without your clauses. Put functions,
+  triggers, `DEFERRABLE`, grants and roles in `drizzle-kit generate --custom`
+  migrations instead.
+- **Merging two branches that both added migrations? Check the journal.**
+  drizzle applies files by `when > max(created_at)`, so a migration whose `when`
+  lands below one already applied is skipped silently and forever.
+  `nk-pg-migrate` refuses to run in that state (`MigrationOrderError`); fix it
+  by raising the stranded entry's `when` in `meta/_journal.json` — never by
+  editing the `.sql`, which would break the hash every database recorded.
 - **`drizzle-kit` is GENERATE-ONLY — it must never apply schema.** Use it for
   `drizzle-kit generate` (and `generate --custom` for a package-owned/raw SQL
   migration). Applying is always **`nk-pg-migrate`** (the bin from

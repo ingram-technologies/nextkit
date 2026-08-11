@@ -1,5 +1,5 @@
-// Migration runner with drift detection — the framework answer to two recurring
-// pains with `drizzle-kit migrate`:
+// Migration runner with drift detection — the framework answer to three
+// recurring pains with `drizzle-kit migrate`:
 //
 //   1. It swallows the real database error and exits 1 opaquely ("applying
 //      migrations..." then nothing). {@link runMigrations} uses drizzle-orm's
@@ -12,6 +12,11 @@
 //      that explains exactly what happened and how to fix it, and
 //      {@link baselineMigrations} reconciles a journal whose schema is already
 //      correct without re-running any DDL.
+//   3. It decides what to apply by `when > max(created_at)`, so a migration
+//      whose journal timestamp lands below an already-applied one is skipped
+//      **silently, permanently, and reported as success**. {@link runMigrations}
+//      computes pending as a set difference on hash instead, and throws a
+//      {@link MigrationOrderError} rather than under-applying.
 //
 // This module is node-only (pg + fs + the drizzle migrator); it is NOT exported
 // from the main entry, so a production bundle that only does runtime queries
@@ -28,6 +33,8 @@ import { type CreatePoolConfig, createPool } from "./pool.js";
 
 /** One migration as recorded in `drizzle/meta/_journal.json` + its file hash. */
 export interface MigrationFileMeta {
+	/** Journal position. */
+	idx: number;
 	/** Journal tag, e.g. `0003_illegal_jack_flag`. */
 	tag: string;
 	/** `sha256(fileContents)` — the exact value drizzle records, so our journal
@@ -90,11 +97,41 @@ export const readJournal = (
 	return journal.entries.map((entry) => {
 		const sql = readFileSync(join(migrationsFolder, `${entry.tag}.sql`), "utf8");
 		return {
+			idx: entry.idx,
 			tag: entry.tag,
 			hash: createHash("sha256").update(sql).digest("hex"),
 			folderMillis: entry.when,
 		};
 	});
+};
+
+/**
+ * Journal integrity, checked on the files alone.
+ *
+ * Both properties the migrator silently depends on: drizzle decides what to
+ * apply by comparing `when` against the newest recorded `created_at` with a
+ * strict `>`, so a `when` that doesn't strictly increase down the journal marks
+ * a migration the migrator can never reach (see {@link MigrationOrderError}),
+ * and a gap or repeat in `idx` means the journal was hand-edited or merged
+ * badly and no longer describes one ordered chain.
+ */
+const journalIssues = (files: MigrationFileMeta[]): string[] => {
+	const issues: string[] = [];
+	for (let i = 1; i < files.length; i++) {
+		const prev = files[i - 1];
+		const cur = files[i];
+		if (!prev || !cur) continue;
+		if (cur.folderMillis <= prev.folderMillis) {
+			issues.push(
+				`${cur.tag} has when=${cur.folderMillis}, not after ${prev.tag}'s ${prev.folderMillis}`,
+			);
+		}
+	}
+	files.forEach((f, i) => {
+		if (f.idx !== i)
+			issues.push(`${f.tag} has idx=${f.idx} at journal position ${i}`);
+	});
+	return issues;
 };
 
 /** A row of the drizzle journal table. */
@@ -108,8 +145,15 @@ export interface MigrationStatus {
 	files: MigrationFileMeta[];
 	/** Rows already in the journal table, oldest first. */
 	recorded: RecordedMigration[];
-	/** Files drizzle's migrator would apply next (folderMillis > max recorded). */
+	/** Files whose hash is not yet in the journal table — everything still to
+	 *  apply, by set difference rather than by timestamp (see {@link unreachable}). */
 	pending: MigrationFileMeta[];
+	/** Pending files drizzle's migrator will never apply because their `when`
+	 *  doesn't beat the newest recorded `created_at`. Empty on a healthy chain. */
+	unreachable: MigrationFileMeta[];
+	/** Ordering defects in `meta/_journal.json` itself (non-increasing `when`,
+	 *  gaps or repeats in `idx`). */
+	journalIssues: string[];
 	/** True when the journal table doesn't line up with the files (see {@link drift}). */
 	drifted: boolean;
 	drift?: MigrationDrift;
@@ -206,9 +250,24 @@ const inspectWith = async (
 	const files = readJournal(folder);
 	const recorded = await readRecorded(db, schema, table);
 	const drift = detectDrift(files, recorded);
+	// Pending is a set difference on hash, NOT `folderMillis > max(created_at)`.
+	// The high-water mark is how drizzle's own migrator decides, and it is why
+	// `unreachable` has to be computed separately: a file below the mark whose
+	// hash was never recorded is not pending-and-waiting, it is pending-forever.
+	const appliedHashes = new Set(recorded.map((r) => r.hash));
+	const pending = files.filter((f) => !appliedHashes.has(f.hash));
 	const maxRecorded = recorded.reduce((m, r) => Math.max(m, r.createdAt), 0);
-	const pending = files.filter((f) => f.folderMillis > maxRecorded);
-	return { files, recorded, pending, drifted: Boolean(drift), drift };
+	const unreachable =
+		recorded.length > 0 ? pending.filter((f) => f.folderMillis <= maxRecorded) : [];
+	return {
+		files,
+		recorded,
+		pending,
+		unreachable,
+		journalIssues: journalIssues(files),
+		drifted: Boolean(drift),
+		drift,
+	};
 };
 
 /** Thrown by {@link runMigrations} when the journal is out of sync with the
@@ -233,6 +292,47 @@ export class MigrationDriftError extends Error {
 	}
 }
 
+/**
+ * Thrown by {@link runMigrations} when the chain contains a migration the
+ * migrator would skip **silently and permanently**.
+ *
+ * drizzle's migrator applies exactly the files whose journal `when` is greater
+ * than the newest `created_at` in the journal table. A file below that mark
+ * that was never recorded — two branches generating migrations and merging in
+ * the other order, or a hand-edited `when` — is not applied, is not recorded,
+ * and is not drift: the recorded rows still match the files positionally, so
+ * the pre-flight passes and the run reports success having done nothing. The
+ * gap then persists for the life of the database.
+ *
+ * The fix is to renumber the stranded entry's `when` in `meta/_journal.json`
+ * past the newest applied migration. That edits the journal, not the `.sql`, so
+ * the file's hash — the thing every database recorded and `nk migrations`
+ * seals — is untouched.
+ */
+export class MigrationOrderError extends Error {
+	readonly status: MigrationStatus;
+	constructor(status: MigrationStatus) {
+		const stranded = status.unreachable.map(
+			(m) => `${m.tag} (when=${m.folderMillis})`,
+		);
+		const newest = status.recorded.reduce((m, r) => Math.max(m, r.createdAt), 0);
+		super(
+			[
+				`migration ordering: ${status.unreachable.length} unapplied migration(s) sit at or below the newest applied timestamp (${newest}), so the migrator would skip them and report success:`,
+				`  ${stranded.join("\n  ")}`,
+				status.journalIssues.length
+					? `  Journal defects: ${status.journalIssues.join("; ")}.`
+					: "",
+				`  Fix: raise each stranded entry's "when" in meta/_journal.json above ${newest} (and keep the journal's "when" values strictly increasing). That changes the journal, not the .sql — the file hash every database recorded stays the same.`,
+			]
+				.filter(Boolean)
+				.join("\n"),
+		);
+		this.name = "MigrationOrderError";
+		this.status = status;
+	}
+}
+
 export interface MigrateResult {
 	/** Tags of the migrations applied by this run (empty when up to date). */
 	applied: string[];
@@ -247,8 +347,10 @@ const MIGRATE_LOCK_ID = 1;
 /**
  * Apply pending migrations with the real drizzle-orm migrator. Runs a drift
  * pre-flight first and throws {@link MigrationDriftError} (not a confusing
- * `already exists`) when the journal is out of sync. Surfaces the actual
- * Postgres error on a failing statement.
+ * `already exists`) when the journal is out of sync, and a
+ * {@link MigrationOrderError} when the chain contains a migration the migrator
+ * would skip silently. Surfaces the actual Postgres error on a failing
+ * statement.
  *
  * Concurrency-safe: the whole run (pre-flight + migrate) happens on one client
  * holding `pg_advisory_lock`, because drizzle's migrator takes no lock of its
@@ -275,6 +377,9 @@ export const runMigrations = async (
 			]);
 			const status = await inspectWith(client, folder, schema, table);
 			if (status.drifted) throw new MigrationDriftError(status);
+			// Refuse rather than silently under-apply: drizzle's migrator would
+			// skip these and report success. See {@link MigrationOrderError}.
+			if (status.unreachable.length > 0) throw new MigrationOrderError(status);
 			if (status.pending.length === 0) return { applied: [] };
 
 			const { drizzle } = await import("drizzle-orm/node-postgres");

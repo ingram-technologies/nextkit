@@ -126,7 +126,19 @@ nk-pg-migrate --baseline   # record the current file chain as applied, no DDL
 Unlike `drizzle-kit migrate` it surfaces the real Postgres error on failure,
 pre-flights journal drift (`MigrationDriftError` with a fix-it message instead
 of a confusing `relation already exists`), and serializes concurrent deploys
-with `pg_advisory_lock`. The same surface is available programmatically:
+with `pg_advisory_lock`.
+
+It also refuses to under-apply. drizzle's migrator picks what to run by
+`when > max(created_at)`, so a migration whose journal timestamp lands below an
+already-applied one is skipped **silently and permanently, reported as
+success** — the shape two branches produce when they generate migrations and
+merge in the other order. This runner computes pending as a set difference on
+hash and throws `MigrationOrderError` naming the stranded migration and the
+timestamp to clear; raising that entry's `when` in `meta/_journal.json` fixes it
+without touching the `.sql`, so the hash every database recorded stays valid.
+`--status` reports the same thing before you deploy.
+
+The same surface is available programmatically:
 `runMigrations` / `inspectMigrations` / `baselineMigrations` from
 `@ingram-tech/nk-db/migrate`.
 

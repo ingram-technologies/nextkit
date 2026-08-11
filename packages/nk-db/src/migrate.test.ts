@@ -8,6 +8,7 @@ import {
 	baselineMigrations,
 	inspectMigrations,
 	MigrationDriftError,
+	MigrationOrderError,
 	readJournal,
 	runMigrations,
 } from "./migrate.js";
@@ -123,6 +124,8 @@ describe("runMigrations", () => {
 		const status = await inspectMigrations(cfg);
 		expect(status.drifted).toBe(false);
 		expect(status.pending).toEqual([]);
+		expect(status.unreachable).toEqual([]);
+		expect(status.journalIssues).toEqual([]);
 		expect(status.recorded).toHaveLength(2);
 	});
 });
@@ -144,6 +147,133 @@ describe("drift detection", () => {
 		expect(status.drift?.recordedNotInFiles).toHaveLength(2);
 
 		await expect(runMigrations(cfg)).rejects.toBeInstanceOf(MigrationDriftError);
+	});
+});
+
+// drizzle's migrator applies exactly the files whose journal `when` beats the
+// newest recorded `created_at`. A file below that mark that was never recorded
+// is skipped, not recorded, and not drift — the run reports success having done
+// nothing, and the gap is permanent. Two branches merging in the other order
+// produce it.
+describe("unreachable migrations (the silent-skip trap)", () => {
+	let outOfOrderDir: string;
+
+	/** Record `tags` as applied, at the timestamps the journal gives them. */
+	const recordApplied = async (folder: string, tags: string[]): Promise<void> => {
+		await q('create schema "drizzle"');
+		await q(
+			'create table "drizzle"."__drizzle_migrations" (id serial primary key, hash text not null, created_at bigint)',
+		);
+		for (const meta of readJournal(folder).filter((m) => tags.includes(m.tag))) {
+			await q(
+				'insert into "drizzle"."__drizzle_migrations" (hash, created_at) values ($1,$2)',
+				[meta.hash, meta.folderMillis],
+			);
+		}
+	};
+
+	beforeAll(() => {
+		outOfOrderDir = mkdtempSync(join(tmpdir(), "nk-migrate-order-"));
+		writeMigrations(outOfOrderDir, [
+			{ tag: "0000_a", when: 1000, sql: "CREATE TABLE a (id int primary key);" },
+			{ tag: "0001_b", when: 2000, sql: "CREATE TABLE b (id int primary key);" },
+			// Generated on a branch cut before 0001_b, merged after it.
+			{ tag: "0002_c", when: 1500, sql: "CREATE TABLE c (id int primary key);" },
+		]);
+	});
+
+	afterAll(() => {
+		rmSync(outOfOrderDir, { recursive: true, force: true });
+	});
+
+	it("reports the stranded migration as pending and refuses to run", async () => {
+		await recordApplied(outOfOrderDir, ["0000_a", "0001_b"]);
+		const cfgOut = { pool, migrationsFolder: outOfOrderDir };
+
+		const status = await inspectMigrations(cfgOut);
+		// Not drift: the recorded rows still match the files positionally, which
+		// is exactly why this used to pass the pre-flight unnoticed.
+		expect(status.drifted).toBe(false);
+		// Pending by set difference on hash — the timestamp rule would say 0.
+		expect(status.pending.map((m) => m.tag)).toEqual(["0002_c"]);
+		expect(status.unreachable.map((m) => m.tag)).toEqual(["0002_c"]);
+		expect(status.journalIssues).toEqual([
+			"0002_c has when=1500, not after 0001_b's 2000",
+		]);
+
+		await expect(runMigrations(cfgOut)).rejects.toBeInstanceOf(MigrationOrderError);
+		// Refusing means refusing: no DDL ran and no row was recorded on the way
+		// out — the failure mode being fixed is a run that records nothing and
+		// still reports success.
+		expect(await tables()).toEqual([]);
+		expect(await q('select 1 from "drizzle"."__drizzle_migrations"')).toHaveLength(
+			2,
+		);
+	});
+
+	it("names the stranded migration and the timestamp to clear", async () => {
+		await recordApplied(outOfOrderDir, ["0000_a", "0001_b"]);
+		const error = await runMigrations({
+			pool,
+			migrationsFolder: outOfOrderDir,
+		}).catch((e: unknown) => e);
+
+		expect(error).toBeInstanceOf(MigrationOrderError);
+		expect((error as Error).message).toContain("0002_c (when=1500)");
+		expect((error as Error).message).toContain("above 2000");
+	});
+
+	// Raising the stranded entry's `when` is the documented fix precisely
+	// because it leaves the .sql — and therefore the hash every database
+	// recorded — untouched.
+	it("clears once the stranded entry's `when` is raised, with the hash unchanged", async () => {
+		const before = readJournal(outOfOrderDir).find((m) => m.tag === "0002_c");
+		writeMigrations(outOfOrderDir, [
+			{ tag: "0000_a", when: 1000, sql: "CREATE TABLE a (id int primary key);" },
+			{ tag: "0001_b", when: 2000, sql: "CREATE TABLE b (id int primary key);" },
+			{ tag: "0002_c", when: 3000, sql: "CREATE TABLE c (id int primary key);" },
+		]);
+		await recordApplied(outOfOrderDir, ["0000_a", "0001_b"]);
+
+		const status = await inspectMigrations({
+			pool,
+			migrationsFolder: outOfOrderDir,
+		});
+		expect(status.unreachable).toEqual([]);
+		expect(status.journalIssues).toEqual([]);
+		expect(status.pending.map((m) => m.tag)).toEqual(["0002_c"]);
+		expect(readJournal(outOfOrderDir).find((m) => m.tag === "0002_c")?.hash).toBe(
+			before?.hash,
+		);
+	});
+
+	it("flags a journal whose idx values skip", async () => {
+		const dirIdx = mkdtempSync(join(tmpdir(), "nk-migrate-idx-"));
+		mkdirSync(join(dirIdx, "meta"), { recursive: true });
+		writeFileSync(join(dirIdx, "0000_a.sql"), "CREATE TABLE a (id int);");
+		writeFileSync(join(dirIdx, "0002_c.sql"), "CREATE TABLE c (id int);");
+		writeFileSync(
+			join(dirIdx, "meta", "_journal.json"),
+			JSON.stringify({
+				version: "7",
+				dialect: "postgresql",
+				entries: [
+					{ idx: 0, when: 1000, tag: "0000_a" },
+					{ idx: 2, when: 2000, tag: "0002_c" },
+				],
+			}),
+		);
+
+		// Create the (empty) journal table first: reading a missing one raises
+		// 42P01, and pg destroys the connection on any query error — on this
+		// file's shared max:1 pool that would strand every later test.
+		await recordApplied(dirIdx, []);
+
+		const status = await inspectMigrations({ pool, migrationsFolder: dirIdx });
+		expect(status.journalIssues).toEqual([
+			"0002_c has idx=2 at journal position 1",
+		]);
+		rmSync(dirIdx, { recursive: true, force: true });
 	});
 });
 
