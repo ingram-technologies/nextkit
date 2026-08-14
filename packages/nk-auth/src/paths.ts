@@ -11,5 +11,9 @@
  *
  * and mount the catch-all at `app/auth/[...all]/route.ts`. OAuth redirect URIs
  * then become `<site>/auth/callback/<provider>` and the JWKS `<site>/auth/jwks`.
+ *
+ * Sign-in pages share this namespace, and a page whose path matches a Better
+ * Auth endpoint shadows it (static segments beat the catch-all) — `nk doctor`
+ * flags such collisions.
  */
 export const authBasePath = "/auth";

@@ -17,7 +17,8 @@ Commands:
                       oxfmt / TypeScript / Vitest config, the format-on-commit
                       hook, and the agent-guide import. Skips files that exist.
   doctor [--fix]      Report drift from the canonical nk-dev toolchain (scripts,
-                      superseded deps, config extends, guide import); --fix applies.
+                      superseded deps, config extends, guide import, auth pages
+                      shadowing Better Auth endpoints); --fix applies.
   dev                 Start the Next dev server (Turbopack). Boots local PGlite
                       first when @ingram-tech/nk-db is installed (no Docker).
   format [--check]    Format code with oxfmt. --check verifies without writing.

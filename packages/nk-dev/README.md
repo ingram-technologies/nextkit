@@ -82,7 +82,9 @@ tsc), so versions stay under each site's control — nk just orchestrates.
 - **`nk doctor [--fix]`** — report drift from the canonical nk-dev toolchain
   (superseded deps, config `extends`, package.json scripts, the agent-guide
   import, a stale `.prettierignore`, an unsealed migration chain and the DDL in
-  it drizzle can't model); `--fix` applies the auto-fixable findings.
+  it drizzle can't model, a page under `app/auth/` shadowing a Better Auth
+  endpoint — static segments beat the `[...all]` catch-all, so such a page
+  silently 405s the endpoint); `--fix` applies the auto-fixable findings.
 - **`nk dev`** — start the Next dev server on the golden-path local database
   (see [`db-package.md`](https://github.com/ingram-technologies/nextkit/blob/main/docs/db-package.md)):
   - **PGlite** — if `@ingram-tech/nk-db`'s `nk-pglite-dev` bin resolves, hand off

@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { authShadowFindings } from "./auth-shadow.js";
 import { SUPERSEDED_DEPS } from "./drift.js";
 import {
 	SEAL_FILE,
@@ -269,6 +270,9 @@ export function findings(cwd) {
 	// 9. The migration chain is sealed, and its unmodelled DDL is declared.
 	out.push(...migrationFindings(cwd));
 
+	// 10. No page/route under app/auth/ shadows a Better Auth endpoint.
+	out.push(...authShadowFindings(cwd));
+
 	return out;
 }
 
@@ -329,7 +333,8 @@ function migrationFindings(cwd) {
  * `nk doctor [--fix]` — report drift from the canonical nk-dev model (scripts,
  * dependencies, oxlint/tsconfig extends, the CLAUDE.md guide import, stale knip
  * ignores, forbidden schema-applying drizzle-kit scripts, a dead
- * .prettierignore, an unsealed or unmodelled-DDL-carrying migration chain).
+ * .prettierignore, an unsealed or unmodelled-DDL-carrying migration chain, a
+ * page under app/auth/ shadowing a Better Auth endpoint).
  * With `--fix`, apply every auto-fixable finding, then remind
  * to reinstall.
  */
