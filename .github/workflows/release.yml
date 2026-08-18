@@ -20,7 +20,12 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
+      # Full history + tags. `changeset tag` decides what to create by looking
+      # at which tags already exist, and the tag-push step below pushes real tag
+      # objects — both are unreliable from the default shallow, tagless clone.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
@@ -44,3 +49,35 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: "true"
+
+      # changesets/action pushes tags only for packages it can parse out of the
+      # publish command's stdout, which it does by grepping for
+      # `New tag: <pkg>@<ver>`. We publish through scripts/publish.ts, because
+      # `changeset publish` cannot resolve bun `workspace:` ranges (see
+      # docs/releasing.md), and its log lines read
+      # `[publish] = @ingram-tech/nk-db@1.5.0 already on npm`. Nothing matches, so
+      # the action's own tag push is a silent no-op — `bun run release` ends with
+      # `changeset tag`, which creates every tag correctly inside the runner, where
+      # they then die with it. The 2026-08-18 release published seven packages and
+      # pushed zero tags this way.
+      #
+      # Pushing here rather than reshaping publish.ts's output keeps the tags from
+      # depending on an undocumented stdout format staying stable.
+      #
+      # Each tag is checked against origin and pushed individually: that makes this
+      # a no-op on runs that only opened the Version Packages PR (no publish, so no
+      # new tags), and stops one already-published tag from failing the whole push
+      # the way `git push --tags` would.
+      - name: Push release tags
+        run: |
+          pushed=0
+          for tag in $(git tag -l '@ingram-tech/*'); do
+            if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1
+            then
+              continue
+            fi
+            echo "pushing $tag"
+            git push origin "refs/tags/$tag"
+            pushed=$((pushed + 1))
+          done
+          echo "pushed $pushed tag(s)"

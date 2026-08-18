@@ -21,7 +21,8 @@ publishing with provenance.
 ## How publishing works (`scripts/publish.ts`)
 
 `bun run release` builds, publishes every `packages/*` whose current version is
-not yet on npm, then tags (`changeset tag`). Publishing does **not** use
+not yet on npm, then tags (`changeset tag`) — locally; pushing those tags is a
+separate workflow step, see [Tagging](#tagging-is-pushed-by-the-workflow-not-by-the-action). Publishing does **not** use
 `changeset publish`:
 
 - `changeset publish` shells out to `npm publish`, which can't resolve bun's
@@ -35,6 +36,42 @@ from each package's `package.json` version — the source of truth — publishes
 with `npm`, and refuses to publish anything still carrying a `workspace:`
 range. It treats npm's "cannot publish over previously published versions" 403
 as already-published, so re-running a release is safe.
+
+## Tagging is pushed by the workflow, not by the action
+
+`changeset tag` runs at the end of `bun run release` and creates the
+`@ingram-tech/<pkg>@<version>` tags — but only inside the runner. Getting them
+to origin is a separate step in [`release.yml`](../.github/workflows/release.yml),
+and it has to be, because **`changesets/action` will not push them for us**: the
+action discovers what to tag by grepping the publish command's stdout for
+`New tag: <pkg>@<ver>`, and `scripts/publish.ts` logs
+`[publish] = @ingram-tech/nk-db@1.5.0 already on npm` instead. Nothing matches, so
+the action's tag push is a silent no-op that fails nothing.
+
+That is not a hypothetical: the 2026-08-18 release published seven packages and
+pushed zero tags, and the gap was only visible by checking origin directly.
+
+The workflow's `Push release tags` step compares each local `@ingram-tech/*` tag
+against origin and pushes the missing ones individually — so it no-ops on runs
+that merely open the Version Packages PR, and one already-published tag cannot
+fail the whole push the way `git push --tags` would. The job also checks out with
+`fetch-depth: 0`, since both `changeset tag`'s "does this tag already exist?"
+check and the pushing of real tag objects are unreliable from a shallow, tagless
+clone.
+
+**If you ever publish outside the workflow** (the manual path at the bottom of
+this page), the tags are yours to push — `changeset tag` leaves them local:
+
+```bash
+git push origin --tags
+```
+
+To confirm a release actually tagged, check origin rather than your own clone,
+which may just be stale:
+
+```bash
+git ls-remote --tags origin | grep '<pkg>@<version>'
+```
 
 ## One-time setup (Trusted Publishing)
 
