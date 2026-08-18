@@ -1,5 +1,15 @@
 # @ingram-tech/nk-i18n
 
+## 0.3.4
+
+### Patch Changes
+
+- 2b21f3a: Routine runtime dependency bumps: `jose` 6.2.9 (nk-auth), `stripe` 22.5.0
+  (nk-billing), `intl-messageformat` 11.2.14 (nk-i18n), and `@wrksz/themes` 1.2.0
+  (nk-themes). No API changes in any of them — the `@wrksz/themes` minor is
+  purely additive (new `./client/use-hydrated` and `./script` subpath exports,
+  neither re-exported by nk-themes today).
+
 ## 0.3.3
 
 ### Patch Changes
