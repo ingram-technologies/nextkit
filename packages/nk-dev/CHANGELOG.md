@@ -1,5 +1,76 @@
 # @ingram-tech/nk-dev
 
+## 0.11.0
+
+### Minor Changes
+
+- f953443: New `nk doctor` check: a page or route under `app/auth/` that shadows a Better
+  Auth endpoint. nextkit sites mount Better Auth at `/auth` through the
+  `[...all]` catch-all, and sign-in pages live in the same namespace — but in the
+  App Router a static segment always beats a catch-all, so a page whose path
+  matches an endpoint silently takes it over: GETs render the page, POSTs to the
+  endpoint return 405, and the auth flow breaks with no build-time signal. The
+  incident class is real — a reset page named `/auth/reset-password` shadows
+  `POST /auth/reset-password`, which is why the convention is to name that page
+  `/auth/set-password`.
+  
+  The check derives the endpoint list textually from the installed better-auth's
+  `dist/api/routes` (`createAuthEndpoint("...")` — no site or dependency code is
+  executed), maps the `app/auth/**` tree to URL paths (`(group)` stripped,
+  `_private` and `@slot` trees skipped, `[param]` as a wildcard), and matches
+  segment-wise with endpoint `:param` wildcards. Core-endpoint collisions are
+  errors; `dist/plugins` collisions are warnings, since only enabled plugins are
+  live and we can't tell which without executing the auth config. Sites without
+  the `[...all]` mount or without better-auth are silently skipped, and a
+  better-auth dist layout we can't grep degrades to a warning, never a hard
+  error.
+  
+  This is a doctor check, not an oxlint rule, because the collision is a property
+  of the route *tree* against a dependency's dist — no single file's AST contains
+  it.
+- f2c9d94: New oxlint rule `nextkit/no-redundant-node-crypto` (warn): flags the
+  `node:crypto` imports that are already on the Web Crypto global — `randomUUID`,
+  `getRandomValues`, `subtle` and `webcrypto`. Each pins a module to a Node-only
+  runtime for something it would have had regardless, and `subtle`/`webcrypto`
+  aren't even different objects from `globalThis.crypto.subtle`/`globalThis.crypto`.
+  Catches named imports, and member access through a namespace or default import
+  of the module. The rest of `node:crypto` (`createHash`, `createHmac`,
+  `randomBytes`, `timingSafeEqual`, …) has no drop-in global and is left alone, so
+  the usual fix is trimming one name off an import list.
+  
+  This makes fleet-wide the invariant nk-db's id codec already holds by hand — its
+  `id.ts` is pinned to an empty import list by a test whose comment names
+  `node:crypto` for randomness as the tempting one, because a single Node-only
+  import there would make every module that touches an id Node-only.
+  
+  Not autofixable: the call sites have to become member expressions on the global,
+  and an import named `crypto` shadows the global it stands in for. Keep an import
+  with a justified disable — `node:crypto`'s `randomUUID` takes a
+  `disableEntropyCache` option that Web Crypto's does not.
+- 6c34702: Guard the drizzle migration chain: `nk migrations` and two new `nk doctor` findings.
+  
+  Applied migrations are immutable — the runner records `sha256(file)`, so editing
+  one after it has run drifts every database that applied it, and drizzle never
+  looks at the file again to notice. `nk migrations` pins each file's hash in a
+  committed `drizzle/_seal.json` and `nk check` fails on a mismatch, so the edit
+  surfaces in the PR that made it instead of on the next deploy. `--reseal` is the
+  deliberate-squash escape hatch, and its effect is visible in the diff.
+  
+  `nk migrations --ddl` (and a `nk doctor` finding) lists the migrations carrying
+  DDL drizzle's snapshot cannot model — functions, triggers, `DEFERRABLE`
+  constraints, grants, roles, extensions, materialized views. Those are outside
+  `db:generate`'s diff basis entirely, so a clean generate does not mean the chain
+  reproduces the database, and anything regenerated from `schema.ts` drops them.
+  
+  Both run without a database. `nk doctor` also seals an unsealed chain on `--fix`.
+
+### Patch Changes
+
+- 2b21f3a: Toolchain bumps, which nk-dev ships as real dependencies and therefore pins for
+  the whole fleet: oxlint 1.78.0, oxfmt 0.63.0, knip 6.32.2, `@ast-grep/cli`
+  0.45.1, `@testing-library/jest-dom` 7.0.1. No new oxlint rule fires on this
+  repo and no formatting changed, so consuming sites should see a silent upgrade.
+
 ## 0.10.0
 
 ### Minor Changes
