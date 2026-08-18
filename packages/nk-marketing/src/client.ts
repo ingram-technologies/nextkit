@@ -53,6 +53,23 @@ export interface MarketingConfig {
 	 * to opt out entirely.
 	 */
 	logSends?: boolean;
+	/**
+	 * Archive the rendered html/text of every broadcast and lifecycle send in
+	 * the log row's `body` column, so an operator surface can preview exactly
+	 * what was sent rather than just its envelope. Forwarded to nk-email's
+	 * `createMailer({ captureBody })`; only meaningful with `logSends` on.
+	 *
+	 * Default `false`, and deliberately not `true`: the column arrives with
+	 * nk-email's `0002_email_log_extras.sql`, so defaulting it on would make
+	 * every send fail to log on a site that has only applied `0001`. Turning it
+	 * on means accepting that stored bodies are personal data that nothing
+	 * expires for you — schedule a purge (recipe in nk-email's README).
+	 *
+	 * Marketing bodies carry no credential, which is why this is a single
+	 * config switch here and a per-send override in nk-email: there is no
+	 * marketing equivalent of a magic-link body you need to keep out.
+	 */
+	captureBody?: boolean;
 }
 
 /** The bare address inside a "Name <addr>" string (or the string itself). */
@@ -73,7 +90,13 @@ export const createMarketing = (config: MarketingConfig) => {
 	// kind:"marketing". With logSends off (or no log table), createMailer without
 	// a db is a pure pass-through to sendEmail — same behaviour as before.
 	const mailer = createMailer(
-		(config.logSends ?? true) ? { db, defaultKind: "marketing" } : {},
+		(config.logSends ?? true)
+			? {
+					db,
+					defaultKind: "marketing",
+					captureBody: config.captureBody ?? false,
+				}
+			: {},
 	);
 
 	/**

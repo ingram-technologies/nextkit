@@ -89,6 +89,35 @@ const result = await marketing.sendLifecycle({
 first so the next run retries) — wrap it best-effort so a mail outage never
 blocks your cron.
 
+## Send history
+
+Every broadcast and lifecycle send is recorded to nk-email's `nk_email_log` as
+`kind: "marketing"`, which is what an operator surface reads. Logging is
+best-effort — a logging failure never blocks a send — and needs nk-email's
+`0001_email_log.sql`. Set `logSends: false` to opt out entirely.
+
+By default a row is the envelope only: recipient, subject, sender, campaign
+key. To archive what was actually sent, so the surface can preview the message
+rather than just prove it left:
+
+```ts
+const marketing = createMarketing({
+	db: pool,
+	baseUrl: "https://example.com",
+	captureBody: true, // needs nk-email's 0002_email_log_extras.sql
+});
+```
+
+`captureBody` is off by default because the `body` column arrives with
+nk-email's **second** migration; defaulting it on would make every send fail to
+log on a site that had applied only the first. Turn it on and stored bodies
+become personal data that nothing expires for you — schedule a purge (recipe in
+nk-email's README).
+
+Unlike nk-email, this is one switch for the whole client rather than a per-send
+override: marketing bodies carry no credential, so there is no equivalent of a
+magic-link body you need to keep out of the archive.
+
 ## Rendering
 
 The built-in renderer produces clean, dependency-free HTML + text. Override it

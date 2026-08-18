@@ -1,4 +1,4 @@
-import { sendEmail } from "@ingram-tech/nk-email";
+import { createMailer, sendEmail } from "@ingram-tech/nk-email";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMarketing } from "./client.js";
 import type { Queryable } from "./db.js";
@@ -13,7 +13,7 @@ vi.mock("@ingram-tech/nk-email", () => {
 	const sendEmail = vi.fn();
 	return {
 		sendEmail,
-		createMailer: () => ({
+		createMailer: vi.fn((_config?: unknown) => ({
 			send: (opts: Record<string, unknown>) => {
 				const {
 					kind: _kind,
@@ -23,7 +23,7 @@ vi.mock("@ingram-tech/nk-email", () => {
 				} = opts;
 				return sendEmail(rest);
 			},
-		}),
+		})),
 		fromAddress: vi.fn(
 			(name: string, localPart = "notifications") =>
 				`${name} <${localPart}@mail.test>`,
@@ -33,6 +33,7 @@ vi.mock("@ingram-tech/nk-email", () => {
 });
 
 const sendMock = vi.mocked(sendEmail);
+const createMailerMock = vi.mocked(createMailer);
 
 interface ContactRow {
 	id: string;
@@ -232,6 +233,7 @@ let marketing: ReturnType<typeof createMarketing>;
 beforeEach(() => {
 	sendMock.mockReset();
 	sendMock.mockResolvedValue(undefined);
+	createMailerMock.mockClear();
 	db = new FakeDb();
 	marketing = createMarketing({ db, baseUrl: "https://acme.test" });
 });
@@ -381,5 +383,38 @@ describe("input validation", () => {
 		await expect(marketing.identify({ email: "not-an-email" })).rejects.toThrow(
 			/invalid email/,
 		);
+	});
+});
+
+describe("send logging configuration", () => {
+	// The mailer config is the whole mechanism: nk-marketing renders the body
+	// but only nk-email can archive it, so a value dropped here is a send that
+	// is logged envelope-only with nothing in the repo to show why.
+	const configFor = (overrides: Partial<Parameters<typeof createMarketing>[0]>) => {
+		createMailerMock.mockClear();
+		createMarketing({ db, baseUrl: "https://acme.test", ...overrides });
+		return createMailerMock.mock.calls[0]?.[0] as
+			| { db?: unknown; defaultKind?: string; captureBody?: boolean }
+			| undefined;
+	};
+
+	it("keeps bodies out of the log unless asked", () => {
+		expect(configFor({})).toMatchObject({
+			defaultKind: "marketing",
+			captureBody: false,
+		});
+	});
+
+	it("forwards captureBody so sends archive their rendered body", () => {
+		expect(configFor({ captureBody: true })).toMatchObject({
+			defaultKind: "marketing",
+			captureBody: true,
+		});
+	});
+
+	it("builds a pass-through mailer when logSends is off", () => {
+		// No db reaches the mailer, so captureBody has nothing to write to and
+		// must not be forwarded as if it did.
+		expect(configFor({ logSends: false, captureBody: true })).toEqual({});
 	});
 });
