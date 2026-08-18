@@ -31,7 +31,7 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
-		"intl-messageformat": "^11.2.13"
+		"intl-messageformat": "^11.2.14"
 	},
 	"devDependencies": {
 		"@ingram-tech/nk-dev": "workspace:*",

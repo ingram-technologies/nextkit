@@ -33,12 +33,12 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
-		"stripe": "^22.4.0",
+		"stripe": "^22.5.0",
 		"zod": "^4.4.3"
 	},
 	"devDependencies": {
 		"@ingram-tech/nk-dev": "workspace:*",
-		"@types/node": "^26.1.2",
+		"@types/node": "^26.2.0",
 		"typescript": "^7.0.2",
 		"vitest": "^4.1.10"
 	}

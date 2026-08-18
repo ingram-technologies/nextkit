@@ -67,7 +67,7 @@
 	"dependencies": {
 		"@ingram-tech/nk-db": "workspace:^",
 		"bcrypt": "^6.0.0",
-		"jose": "^6.2.6",
+		"jose": "^6.2.9",
 		"zod": "^4.4.3"
 	},
 	"peerDependencies": {
@@ -95,12 +95,12 @@
 		"@better-auth/passkey": "^1.6.25",
 		"@ingram-tech/nk-dev": "workspace:*",
 		"@types/bcrypt": "^6.0.0",
-		"@types/node": "^26.1.2",
-		"@types/pg": "^8.20.1",
+		"@types/node": "^26.2.0",
+		"@types/pg": "^8.23.1",
 		"@types/react": "^19.2.18",
 		"better-auth": "^1.6.25",
-		"next": "^16.2.12",
-		"pg": "^8.22.0",
+		"next": "^16.3.1",
+		"pg": "^8.23.0",
 		"react": "^19.2.8",
 		"typescript": "^7.0.2",
 		"vitest": "^4.1.10"

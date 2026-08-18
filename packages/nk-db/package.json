@@ -68,13 +68,13 @@
 		}
 	},
 	"devDependencies": {
-		"@electric-sql/pglite": "^0.5.4",
-		"@electric-sql/pglite-socket": "^0.2.7",
+		"@electric-sql/pglite": "^0.5.5",
+		"@electric-sql/pglite-socket": "^0.2.8",
 		"@ingram-tech/nk-dev": "workspace:*",
-		"@types/node": "^26.1.2",
-		"@types/pg": "^8.20.1",
+		"@types/node": "^26.2.0",
+		"@types/pg": "^8.23.1",
 		"drizzle-orm": "^0.45.2",
-		"pg": "^8.22.0",
+		"pg": "^8.23.0",
 		"typescript": "^7.0.2",
 		"vitest": "^4.1.10"
 	}
