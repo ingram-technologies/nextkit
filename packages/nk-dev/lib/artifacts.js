@@ -17,7 +17,7 @@ const GENERATED_DIRECTORIES = [
 ];
 
 /** Prefixes (posix-normalised) that `tsc` error locations may fall inside. */
-export const TYPE_CHECK_INPUT_PREFIXES = GENERATED_DIRECTORIES.filter(
+const TYPE_CHECK_INPUT_PREFIXES = GENERATED_DIRECTORIES.filter(
 	(entry) => entry.typeCheckInput,
 ).map((entry) => entry.path);
 
