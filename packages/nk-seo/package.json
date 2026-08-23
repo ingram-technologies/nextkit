@@ -28,6 +28,10 @@
 		"./og": {
 			"types": "./dist/og.d.ts",
 			"import": "./dist/og.js"
+		},
+		"./verify": {
+			"types": "./dist/verify.d.ts",
+			"import": "./dist/verify.js"
 		}
 	},
 	"scripts": {
@@ -42,7 +46,8 @@
 		"next": "^16.3.1",
 		"react": "^19.2.8",
 		"typescript": "^7.0.2",
-		"vitest": "^4.1.10"
+		"vitest": "^4.1.10",
+		"@ingram-tech/nk-i18n": "workspace:*"
 	},
 	"peerDependencies": {
 		"next": ">=14.0.0",

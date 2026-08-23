@@ -32,11 +32,18 @@ export interface HreflangConfig {
 	 */
 	prefixDefaultLocale?: boolean;
 	/**
-	 * Locale of the page being rendered. Determines the self-referencing
-	 * canonical: a localized variant that canonicalizes to another URL makes
-	 * Google discard the entire hreflang cluster. For the `"prefix"` strategy it
-	 * is auto-detected from the pathname; for `"query"` the server can't see the
-	 * query string, so pass it (e.g. from your locale negotiation).
+	 * The locale **the URL names**, which is not always the locale that rendered.
+	 * It determines the self-referencing canonical, and a canonical is a claim
+	 * about an address: under `"query"`, `/pricing` canonicalizes to `/pricing`
+	 * even while content negotiation renders it in French for a French visitor,
+	 * because `/pricing` is the negotiating entry point and belongs to no locale.
+	 * Passing the negotiated locale here instead makes the bare path claim to be
+	 * the French URL, and the real French URL then looks like a duplicate.
+	 *
+	 * Leave it unset on a negotiating bare path. Under `"prefix"` it is detected
+	 * from the pathname; under `"query"` the server cannot see the query string,
+	 * so pass it — `hreflangConfigFor(routing)` from
+	 * "@ingram-tech/nk-i18n/next" fills it in correctly.
 	 */
 	currentLocale?: string;
 	/** Optional locale → hreflang tag map, e.g. `{ en: "en-BE", fr: "fr-BE" }`. */
@@ -127,10 +134,19 @@ export function hreflangAlternates(
 	// Self-referencing canonical: the current variant's own URL. Canonicalizing
 	// a localized variant to the bare path makes Google treat the variants as
 	// duplicates and ignore the hreflang annotations entirely.
+	//
+	// Whether the default locale has a URL of its own is strategy-dependent, and
+	// conflating the two is a silent way to delete the default locale from the
+	// cluster. Under `"prefix"` it shares the bare path (unless every locale is
+	// prefixed), so its canonical IS the bare path. Under `"query"` every locale
+	// gets its own `?param=` address and the bare path belongs to none of them:
+	// it is the negotiating entry point that `x-default` names. So `?hl=en` must
+	// canonicalize to `?hl=en`, never to the bare path.
+	const defaultLocaleOwnsBarePath = strategy === "prefix" && !prefixDefaultLocale;
 	const canonical =
 		currentLocale &&
-		(currentLocale !== defaultLocale || prefixDefaultLocale) &&
-		config.locales.includes(currentLocale)
+		config.locales.includes(currentLocale) &&
+		!(defaultLocaleOwnsBarePath && currentLocale === defaultLocale)
 			? hrefFor(currentLocale)
 			: defaultUrl;
 

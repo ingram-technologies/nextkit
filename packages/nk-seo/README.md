@@ -341,13 +341,42 @@ Two rules of the road:
 
 - **One canonical per page.** If your pages already set `alternates.canonical`
   (e.g. via `createMetadata`), render `<HreflangLinks canonical={false} />`.
-- **The canonical must self-reference.** A localized variant that
-  canonicalizes to a different URL makes Google discard the whole hreflang
-  cluster. The prefix strategy auto-detects the current locale from the
-  (possibly `/fr/…`-prefixed) pathname; the query strategy can't see the query
-  string server-side, so pass `currentLocale` from your locale negotiation.
+- **The canonical must self-reference, and it follows the ADDRESS, not the
+  rendered language.** A localized variant that canonicalizes to a different URL
+  makes Google discard the whole hreflang cluster. Under `"query"` the bare path
+  is the negotiating `x-default` and belongs to no locale, so `/pricing`
+  canonicalizes to `/pricing` even while negotiation renders it in French — pass
+  `currentLocale` only when the URL itself names a locale. The prefix strategy
+  auto-detects it from the (possibly `/fr/…`-prefixed) pathname; the query
+  strategy can't see the query string server-side, so
+  [`hreflangConfigFor(routing)`](../nk-i18n/README.md) from
+  `@ingram-tech/nk-i18n/next` is the wiring that gets this right for you.
 - Building metadata instead of rendering links? The pure `hreflangAlternates`
   (package root) returns the same links for use in `generateMetadata`:
   `{ canonical, links, languages }`, where `languages` is already keyed by
   hreflang for `Metadata.alternates.languages` (or `createMetadata`'s
   per-page `alternates`).
+
+## Verifying the cluster (`/verify`)
+
+hreflang is a set of promises about **other** URLs, and nothing local can tell
+you whether they hold. A site can emit a flawless cluster while its middleware
+redirects every URL in it away, or while each variant quietly canonicalizes to
+the default language. Both delete the non-default languages from search, neither
+raises an error, and Search Console reports them as ordinary redirects and
+duplicates months later. Fetch them:
+
+```ts
+import { assertHreflangCluster } from "@ingram-tech/nk-seo/verify";
+import { routing } from "@/lib/i18n/routing";
+
+await assertHreflangCluster(routing, ["/", "/pricing", "/docs/getting-started"]);
+```
+
+It fails on an advertised URL that redirects or isn't 200, a variant that
+canonicalizes elsewhere, a missing or duplicated canonical, a non-reciprocal
+cluster, and an `<html lang>` contradicting the `hreflang` it's advertised under.
+`verifyHreflangCluster` returns the problems instead of throwing.
+
+Run it against a real deployment — it is the only check that sees what a crawler
+sees. A `LocaleRouting` from `@ingram-tech/nk-i18n` is a valid config for it.
