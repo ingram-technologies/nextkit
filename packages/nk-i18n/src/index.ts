@@ -20,3 +20,16 @@ export {
 	type MissingKeysPolicy,
 } from "./config.js";
 export { negotiateAcceptLanguage } from "./negotiate.js";
+export {
+	defineLocaleRouting,
+	LOCALE_PRECEDENCE,
+	type LocaleRouting,
+	type LocaleRoutingConfig,
+	type LocaleSignal,
+	type LocaleSignals,
+	type LocaleStrategy,
+	type LocaleSupplier,
+	type LocaleSuppliers,
+	resolveLocaleFromSignals,
+	resolveLocaleFromSuppliers,
+} from "./routing.js";

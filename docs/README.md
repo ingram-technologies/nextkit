@@ -21,6 +21,11 @@ conventions and the design/decision records.
 - **[transactional-email.md](./transactional-email.md)** — fleet conventions for
   transactional email: registry templates, from-address local parts, the
   dev/unconfigured fallback, send history vs. previews, and imports.
+- **[i18n-routing.md](./i18n-routing.md)** — how a locale is encoded in a URL
+  (`@ingram-tech/nk-i18n`'s `defineLocaleRouting`), the fixed precedence chain
+  that decides a request's locale, why canonicals follow the address rather than
+  the rendered language, and the nk-seo check that proves a site serves the
+  hreflang cluster it advertises.
 - **[forms.md](./forms.md)** — the public contact/signup submission pipeline
   (`@ingram-tech/nk-forms`): the bot gate, validation, escaped notifications, and
   when to use it vs. `@ingram-tech/bot-protection` directly.

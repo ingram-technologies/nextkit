@@ -3,6 +3,12 @@
 	"compilerOptions": {
 		"outDir": "dist",
 		"rootDir": "src",
+		// Override the base's "nodenext": next.ts imports next/headers, whose type
+		// exports don't resolve under NodeNext. Build with "bundler" like a Next
+		// app (same carve-out as nk-seo and nk-auth). Relative imports keep
+		// explicit .js extensions, so the published dist is valid Node ESM.
+		"module": "esnext",
+		"moduleResolution": "bundler",
 		"jsx": "react-jsx",
 		// The client export (client.tsx) renders a provider and reads DOM-free
 		// React context; dom libs keep @types/react happy.

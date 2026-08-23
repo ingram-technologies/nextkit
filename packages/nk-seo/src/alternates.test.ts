@@ -191,3 +191,73 @@ describe("hreflangAlternates", () => {
 		).toThrow(/outside the site origin/);
 	});
 });
+
+describe("hreflangAlternates: canonical follows the address, not the language", () => {
+	const config = { baseUrl, locales: ["en", "fr", "nl"], defaultLocale: "en" };
+
+	it("query strategy: the default locale canonicalizes to its own param URL", () => {
+		// The bare path is the negotiating entry point and belongs to no locale,
+		// so ?hl=en must not canonicalize away to it — that deletes English from
+		// the cluster while leaving the markup looking correct.
+		const { canonical } = hreflangAlternates(
+			{ ...config, currentLocale: "en" },
+			"/pricing",
+		);
+		expect(canonical).toBe("https://acme.test/pricing?hl=en");
+	});
+
+	it("query strategy: a non-default locale canonicalizes to itself", () => {
+		const { canonical } = hreflangAlternates(
+			{ ...config, currentLocale: "fr" },
+			"/pricing",
+		);
+		expect(canonical).toBe("https://acme.test/pricing?hl=fr");
+	});
+
+	it("query strategy: the bare negotiating path canonicalizes to itself", () => {
+		// No currentLocale: the URL names no locale, whatever language rendered.
+		const { canonical } = hreflangAlternates(config, "/pricing");
+		expect(canonical).toBe("https://acme.test/pricing");
+	});
+
+	it("query strategy: x-default stays the bare path", () => {
+		const { languages } = hreflangAlternates(
+			{ ...config, currentLocale: "fr" },
+			"/pricing",
+		);
+		expect(languages["x-default"]).toBe("https://acme.test/pricing");
+		expect(languages.en).toBe("https://acme.test/pricing?hl=en");
+	});
+
+	it("prefix strategy: the default locale still canonicalizes to the bare path", () => {
+		const { canonical } = hreflangAlternates(
+			{ ...config, strategy: "prefix", currentLocale: "en" },
+			"/pricing",
+		);
+		expect(canonical).toBe("https://acme.test/pricing");
+	});
+
+	it("prefix strategy with prefixDefaultLocale: canonical is the prefixed URL", () => {
+		const { canonical } = hreflangAlternates(
+			{
+				...config,
+				strategy: "prefix",
+				prefixDefaultLocale: true,
+				currentLocale: "en",
+			},
+			"/pricing",
+		);
+		expect(canonical).toBe("https://acme.test/en/pricing");
+	});
+
+	it("every advertised URL round-trips to itself as canonical", () => {
+		const { links } = hreflangAlternates(config, "/pricing");
+		for (const [index, locale] of config.locales.entries()) {
+			const { canonical } = hreflangAlternates(
+				{ ...config, currentLocale: locale },
+				"/pricing",
+			);
+			expect(canonical).toBe(links[index]?.href);
+		}
+	});
+});
