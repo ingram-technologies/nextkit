@@ -1,5 +1,11 @@
 # @ingram-tech/nk-dev
 
+## 0.11.1
+
+### Patch Changes
+
+- e5a6f40: `no-crypto-random-uuid` now points at `uuidv7()` from `id758`.
+
 ## 0.11.0
 
 ### Minor Changes
