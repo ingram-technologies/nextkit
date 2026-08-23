@@ -66,10 +66,10 @@ the UI/page tree, and never expose internal plumbing under `/api/`.
   (`uuid("id").primaryKey().default(sql\`uuidv7()\`)`) and Better Auth gets
   `advanced.database.generateId: false` so the DB mints ids; below 18 — and in
   the nk-auth README's canonical example — pass
-  `advanced.database.generateId: uuidGenerateId` (JS-minted UUIDv7 from
-  `@ingram-tech/nk-auth`) instead. Either way, never Better Auth's default JS
+  `advanced.database.generateId: uuidv7` (JS-minted UUIDv7 from `id758`;
+  `@ingram-tech/nk-auth` re-exports it as `uuidGenerateId`) instead. Either way, never Better Auth's default JS
   nanoid. Ids that cross a **public contract** are skinned to `prefix_base58`
-  via `@ingram-tech/nk-db/id` (`createIdRegistry`) — never expose a raw UUID.
+  via `id758` / `@ingram-tech/nk-db/id` (`createIdRegistry`) — never expose a raw UUID.
   External ids you don't mint (Stripe `cus_`, OAuth) stay `text`.
 - **Migrations don't auto-apply on deploy.** Code ships ahead of the prod schema
   unless someone runs the migration against the target DB — a page that reads a
@@ -139,7 +139,7 @@ tool instead). One-off single-file edits: just edit the file.
 
 - `@ingram-tech/nk-email` — Cloudflare email: `sendEmail`, `fromAddress`
 - `@ingram-tech/nk-auth` — Better Auth foundation: presets you spread into your own `betterAuth()` (mounts at `/auth` via `authBasePath`; org / JWT / passkey / pool / client helpers). Don't hand-roll session reads or auth middleware — bind `createAuthHelpers` (`getUser` / `requireUser` / `redirectIfAuthenticated`, from `@ingram-tech/nk-auth/server`) and gate routes with the loop-safe `createAuthMiddleware`
-- `@ingram-tech/nk-db` — Postgres data layer: `createPool` (one TLS-aware pool) + `createQueries` (raw SQL) + `createDb` (Drizzle), the PGlite dev/test harness at `@ingram-tech/nk-db/pglite`, the prefixed-id codec at `@ingram-tech/nk-db/id`, and the drift-aware migration runner at `@ingram-tech/nk-db/migrate`
+- `@ingram-tech/nk-db` — Postgres data layer: `createPool` (one TLS-aware pool) + `createQueries` (raw SQL) + `createDb` (Drizzle), the PGlite dev/test harness at `@ingram-tech/nk-db/pglite`, the prefixed-id codec (the standalone `id758` package) at `@ingram-tech/nk-db/id`, and the drift-aware migration runner at `@ingram-tech/nk-db/migrate`
 - `@ingram-tech/nk-api` — the standard HTTP API seam (Hono + `@hono/zod-openapi`): one `{ error, details? }` envelope, `createApiApp` / `createRouter`, auth + multi-tenant resource-scope middleware, pagination helpers, and an emitted OpenAPI/Swagger doc. Reach for it instead of hand-rolling route handlers
 - `@ingram-tech/nk-billing` — Stripe primitives: subscriptions, a Stripe-side wallet, and an optional Postgres credit ledger behind the `/credits` subpath. Prices resolve at runtime by Stripe `lookup_key` — **never hardcode a price id**, so test and live share one code path
 - `@ingram-tech/bot-protection` — invisible form protection (honeypot + timing + Vercel BotID); the primitive nk-forms builds on, used directly only for non-form endpoints

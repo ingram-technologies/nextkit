@@ -144,19 +144,20 @@ The same surface is available programmatically:
 
 ## Prefixed ids (`@ingram-tech/nk-db/id`)
 
-UUIDv7 minting (`uuidGenerateId`) plus a base58 "skin" for wire ids
-(`team_3nX…` ↔ stored UUID): `toPrefixedId` / `fromPrefixedId` / `base58Id`,
-and `createIdRegistry` for typed per-entity helpers.
+The codec is the standalone [`id758`](https://github.com/ingram-technologies/id758)
+package: `uuidv7()`, `encodeId` / `decodeId` / `mintId`, and `createIdRegistry`
+for typed per-entity helpers. This subpath re-exports all of it, plus the
+pre-extraction names (`uuidGenerateId`, `toPrefixedId`, `fromPrefixedId`,
+`base58Id`) as deprecated aliases, so either import path works.
 
-**This module is isomorphic** — zero imports, randomness from Web Crypto — so a
+**The module is isomorphic** (no imports, randomness from Web Crypto), so a
 Drizzle `schema.ts`, a client component or an edge runtime can all use it. Keep
 it that way: a single `node:crypto` import makes every module that touches an id
 node-only (a test enforces this).
 
-Store the raw `uuid` and skin at the edge. The prefixed id is presentation, not
+Store the raw `uuid` and encode at the edge. The prefixed id is presentation, not
 identity: inside the DB, "which entity is this?" is already carried by the
-column, so storing the prefix duplicates schema metadata into every row and puts
-codec bugs permanently on disk.
+column, so storing the prefix duplicates schema metadata into every row.
 
 **Ids are self-describing, uuids are not.** A prefix names its entity, so
 decoding needs no context — `entityOf(registry, id)` and `decodeAnyId(registry,

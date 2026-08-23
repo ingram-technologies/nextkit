@@ -8,7 +8,7 @@
 // invisible until the table is large, which is exactly when it is expensive to
 // undo.
 //
-// The mint is `uuidGenerateId()` from `@ingram-tech/nk-db/id`, already typed
+// The mint is `uuidv7()` from `id758` (re-exported by `@ingram-tech/nk-db/id`), already typed
 // `Uuid`. Most rows need no mint at all: `uuid("id").primaryKey().default(sql`
 // `uuidv7()`)` lets the database do it, and the app only mints when it needs the
 // id *before* the insert (a client-chosen document PK it must also use as the
@@ -17,7 +17,7 @@
 // Deliberately not autofixable. The right replacement depends on what the value
 // is, and one of the answers is "leave it alone":
 //
-//   - a stored id            -> uuidGenerateId(), or drop it for the column default
+//   - a stored id            -> uuidv7(), or drop it for the column default
 //   - a bearer token / nonce -> keep crypto.randomUUID()
 //
 // v7 is the *wrong* choice for a secret. It spends 48 bits on a millisecond
@@ -77,7 +77,7 @@ const noCryptoRandomUuid = {
 		},
 		messages: {
 			cryptoRandomUuid:
-				"`crypto.randomUUID()` is UUIDv4; stored ids are UUIDv7. Mint with `uuidGenerateId()` from `@ingram-tech/nk-db/id`, or omit the id and let the `uuidv7()` column default apply. If this is a bearer token or nonce, keep v4 and add `// oxlint-disable-next-line nextkit/no-crypto-random-uuid -- <reason>`.",
+				"`crypto.randomUUID()` is UUIDv4; stored ids are UUIDv7. Mint with `uuidv7()` from `id758` (re-exported by `@ingram-tech/nk-db/id`), or omit the id and let the `uuidv7()` column default apply. If this is a bearer token or nonce, keep v4 and add `// oxlint-disable-next-line nextkit/no-crypto-random-uuid -- <reason>`.",
 		},
 	},
 	create(context) {

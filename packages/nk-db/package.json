@@ -51,6 +51,7 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
+		"id758": "^1.0.0",
 		"zod": "^4.4.3"
 	},
 	"peerDependencies": {

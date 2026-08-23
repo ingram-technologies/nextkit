@@ -52,7 +52,7 @@
     },
     "packages/nk-auth": {
       "name": "@ingram-tech/nk-auth",
-      "version": "0.13.3",
+      "version": "0.13.4",
       "dependencies": {
         "@ingram-tech/nk-db": "workspace:^",
         "bcrypt": "^6.0.0",
@@ -89,7 +89,7 @@
     },
     "packages/nk-billing": {
       "name": "@ingram-tech/nk-billing",
-      "version": "0.3.3",
+      "version": "0.3.4",
       "dependencies": {
         "stripe": "^22.5.0",
         "zod": "^4.4.3",
@@ -139,12 +139,13 @@
     },
     "packages/nk-db": {
       "name": "@ingram-tech/nk-db",
-      "version": "1.4.2",
+      "version": "1.5.0",
       "bin": {
         "nk-pglite-dev": "./dist/pglite/dev.js",
         "nk-pg-migrate": "./dist/migrate-bin.js",
       },
       "dependencies": {
+        "id758": "^1.0.0",
         "zod": "^4.4.3",
       },
       "devDependencies": {
@@ -171,7 +172,7 @@
     },
     "packages/nk-dev": {
       "name": "@ingram-tech/nk-dev",
-      "version": "0.10.0",
+      "version": "0.11.0",
       "bin": {
         "nk": "bin/nk.js",
         "nextkit-format-staged": "bin/format-staged.mjs",
@@ -223,7 +224,7 @@
     },
     "packages/nk-i18n": {
       "name": "@ingram-tech/nk-i18n",
-      "version": "0.3.3",
+      "version": "0.3.4",
       "dependencies": {
         "intl-messageformat": "^11.2.14",
       },
@@ -243,7 +244,7 @@
     },
     "packages/nk-marketing": {
       "name": "@ingram-tech/nk-marketing",
-      "version": "0.4.2",
+      "version": "0.5.0",
       "dependencies": {
         "@ingram-tech/nk-email": "workspace:^",
       },
@@ -277,7 +278,7 @@
     },
     "packages/nk-themes": {
       "name": "@ingram-tech/nk-themes",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "dependencies": {
         "@wrksz/themes": "^1.2.0",
       },
@@ -1022,6 +1023,8 @@
     "html-url-attributes": ["html-url-attributes@3.0.1", "", {}, "sha512-ol6UPyBWqsrO6EJySPz2O7ZSr856WDrEzM5zMqp+FJJLGMW35cLYmmZnl0vztAZxRUoNZJFTCohfjuIJ8I4QBQ=="],
 
     "human-id": ["human-id@4.2.0", "", { "bin": { "human-id": "dist/cli.js" } }, "sha512-K3GbkIWqyvvlpfhBPlbEvD97TtqBpAYA4kt+cn2lD2x2HuohzZCibcA2nOlnJT6exqvJLggoB5nv2dNf192nEA=="],
+
+    "id758": ["id758@1.0.0", "", {}, "sha512-DPYg+kFk8tWVCoW0p0+hu6j9GKda5uycX0V3gfb0r3lBBW+rmONd17Z5GKIujUaCl3Pw6Nbn2eCFp3o/QQTOuw=="],
 
     "import-meta-resolve": ["import-meta-resolve@4.2.0", "", {}, "sha512-Iqv2fzaTQN28s/FwZAoFq0ZSs/7hMAHJVX+w8PZl3cY19Pxk6jFFalxQoIfW2826i/fDLXv8IiEZRIT0lDuWcg=="],
 
