@@ -231,14 +231,17 @@
       "devDependencies": {
         "@ingram-tech/nk-dev": "workspace:*",
         "@types/react": "^19.2.18",
+        "next": "^16.3.1",
         "react": "^19.2.8",
         "typescript": "^7.0.2",
         "vitest": "^4.1.10",
       },
       "peerDependencies": {
+        "next": ">=14.0.0",
         "react": "^18.0.0 || ^19.0.0",
       },
       "optionalPeers": [
+        "next",
         "react",
       ],
     },
@@ -260,6 +263,7 @@
       "version": "0.7.0",
       "devDependencies": {
         "@ingram-tech/nk-dev": "workspace:*",
+        "@ingram-tech/nk-i18n": "workspace:*",
         "@types/node": "^26.2.0",
         "@types/react": "^19.2.18",
         "next": "^16.3.1",
