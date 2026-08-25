@@ -1,6 +1,6 @@
-import { sql, type SQL } from "drizzle-orm";
+import { type AnyColumn, sql, type SQL } from "drizzle-orm";
 import { customType } from "drizzle-orm/pg-core";
-import { decodeAnyId, type IdHelper } from "./id.js";
+import { decodeAnyId, type Id, type IdHelper } from "./id.js";
 
 /**
  * Drizzle bindings for the id codec (`@ingram-tech/nk-db/id/drizzle`).
@@ -9,48 +9,65 @@ import { decodeAnyId, type IdHelper } from "./id.js";
  * site's `schema.ts`, so it pulls only `drizzle-orm` and the (isomorphic) codec
  * — never `pg`, the pool, or the RLS helpers that the root export carries.
  *
- * The problem it solves: when a site stores raw `uuid` but exposes prefixed
- * public ids (`inv_…`), any id that reaches a query still skinned blows up with
- * `invalid input syntax for type uuid`. Rather than decoding at every call site
- * and hoping none are missed, decode once at the column.
+ * The invariant these bindings hold: **application code only ever sees public
+ * ids**. A column declared with `idColumn` decodes a public id to its raw uuid
+ * on the way *into* Postgres and encodes the uuid on the way *out*, so a row
+ * read through Drizzle carries `inv_…`, a `where eq(invoices.id, "inv_…")`
+ * just works, and nothing above the schema converts by hand. Raw SQL crosses
+ * the same boundary with `id758_encode` / `id758_decode` in the query (see
+ * `@ingram-tech/nk-db/id/sql`) or with {@link IdColumnBindings.encodedId} /
+ * {@link IdColumnBindings.sqlUuid} here.
  */
 
 type IdColumnBindings<K extends string> = {
 	/**
-	 * A `uuid` column that decodes a public, prefixed id to its raw uuid *before*
-	 * the value reaches Postgres.
+	 * A `uuid` column that speaks public ids. Its TypeScript type is the
+	 * entity's branded `Id<E>`, so an invoice id can't be handed to an account
+	 * column.
 	 *
-	 * Drizzle runs `toDriver` on every JS→driver value: insert/update `SET`
-	 * values **and** WHERE-clause comparison values (`eq`, `inArray`, …), so
-	 * `eq(invoices.id, "inv_…")` is decoded transparently and feeding a skinned id
-	 * into a typed query stops being a failure mode.
+	 * - `toDriver` (insert/update `SET` values **and** WHERE-clause comparison
+	 *   values: `eq`, `inArray`, …) decodes the public id to its uuid. Tolerant:
+	 *   a raw uuid passes through unchanged, so a value minted by the database
+	 *   or by Better Auth's `generateId` still inserts.
+	 * - `fromDriver` (every selected value, including `returning()` and the
+	 *   relational `db.query`) encodes the uuid, so a read yields `inv_…`.
 	 *
 	 * `dataType` is unchanged (`uuid`), so this is a TypeScript-only mapping: no
 	 * DDL, no migration, and `drizzle-kit generate` reports no schema diff.
-	 *
-	 * Decode is tolerant — a raw uuid or a non-id sentinel passes through, so
-	 * adopting it never regresses a working call site. There is intentionally no
-	 * `fromDriver`: reads stay raw uuids. Encoding is the caller's job, because
-	 * (unlike decode) it cannot be inferred from the value — see `entityOf`.
 	 */
-	idColumn: (entity: K) => ReturnType<typeof customType<IdColumnConfig>>;
+	idColumn: <E extends K>(
+		entity: E,
+	) => ReturnType<typeof customType<IdColumnConfig<Id<E>>>>;
 	/**
 	 * A `uuid` column for a **polymorphic** FK — an `entity_id` whose target is
-	 * named by a sibling `*_type` column — where no single-entity decoder applies.
-	 * Decodes a prefixed id of any entity in the registry (ids are
-	 * self-describing).
+	 * named by a sibling `*_type` column — where no single-entity codec applies.
+	 * Decodes a public id of any entity in the registry (ids are
+	 * self-describing) on the way in; reads stay raw uuids, because a column
+	 * cannot see its sibling to know which prefix to put back. Encode such a
+	 * value in the query with {@link IdColumnBindings.encodedId} once the type
+	 * is known, or with `entityOf` in code.
 	 *
-	 * A column cannot see its sibling, so this accepts an id of the *wrong*
-	 * entity. Where both halves are in hand, check them (`entityOf(registry, id)
-	 * === expectedType`) before writing, or the row is silently mislabelled.
+	 * The same blindness means it accepts an id of the *wrong* entity. Where
+	 * both halves are in hand, check them (`entityOf(registry, id) ===
+	 * expectedType`) before writing, or the row is silently mislabelled.
 	 */
-	polymorphicIdColumn: ReturnType<typeof customType<IdColumnConfig>>;
+	polymorphicIdColumn: ReturnType<typeof customType<IdColumnConfig<string>>>;
+	/**
+	 * A raw-SQL selection of a uuid column or expression as the entity's public
+	 * id, for the queries the column layer cannot reach (a `sql` select, an
+	 * aggregate, a polymorphic column whose type this row has resolved):
+	 * `db.select({ id: encodedId("invoice", invoices.id) })`. Emits
+	 * `id758_encode('inv', …)`, so the database must have the functions
+	 * (`@ingram-tech/nk-db/id/sql`).
+	 */
+	encodedId: <E extends K>(entity: E, column: AnyColumn | SQL) => SQL<Id<E>>;
 	/**
 	 * Bind an id into raw SQL as a `uuid`. Raw SQL and RPC args bypass the column
 	 * layer entirely, so this is the sanctioned binding for them:
 	 * `sql\`select f(${sqlUuid(id)})\``. Needs no entity because ids are
-	 * self-describing; a raw uuid (the common case) passes through, and
-	 * null/undefined binds as `null::uuid`.
+	 * self-describing; a raw uuid passes through, and null/undefined binds as
+	 * `null::uuid`. Decodes in JS, so it needs nothing installed in the
+	 * database — the SQL-side alternative is `id758_decode(${id})`.
 	 */
 	sqlUuid: (value: string | null | undefined) => SQL;
 	/**
@@ -61,7 +78,7 @@ type IdColumnBindings<K extends string> = {
 	sqlUuidArray: (values: readonly string[]) => SQL;
 };
 
-type IdColumnConfig = { data: string; driverData: string };
+type IdColumnConfig<TData extends string> = { data: TData; driverData: string };
 
 /**
  * Build the Drizzle id bindings for a site's registry:
@@ -69,11 +86,12 @@ type IdColumnConfig = { data: string; driverData: string };
  * ```ts
  * // ids.ts
  * export const ids = createIdRegistry({ invoice: "inv", account: "acct" });
- * export const { idColumn, polymorphicIdColumn, sqlUuid } = createIdColumns(ids);
+ * export const { idColumn, polymorphicIdColumn, encodedId, sqlUuid } =
+ *   createIdColumns(ids);
  *
  * // schema.ts
  * export const invoices = pgTable("invoices", {
- *   id: idColumn("invoice")().primaryKey(),
+ *   id: idColumn("invoice")().primaryKey(),      // Id<"invoice">, "inv_…" in and out
  *   account_id: idColumn("account")().notNull(),
  * });
  * ```
@@ -87,18 +105,21 @@ export function createIdColumns<K extends string>(
 		sql`${value == null ? null : decodeAny(value)}::uuid`;
 
 	return {
-		idColumn: (entity) =>
-			customType<IdColumnConfig>({
+		idColumn: <E extends K>(entity: E) =>
+			customType<IdColumnConfig<Id<E>>>({
 				dataType: () => "uuid",
 				toDriver: (value) =>
 					typeof value === "string"
 						? (registry[entity].decodeOrNull(value) ?? value)
 						: value,
+				fromDriver: (value) => registry[entity].encode(value) as Id<E>,
 			}),
-		polymorphicIdColumn: customType<IdColumnConfig>({
+		polymorphicIdColumn: customType<IdColumnConfig<string>>({
 			dataType: () => "uuid",
 			toDriver: (value) => (typeof value === "string" ? decodeAny(value) : value),
 		}),
+		encodedId: <E extends K>(entity: E, column: AnyColumn | SQL) =>
+			sql<Id<E>>`id758_encode(${registry[entity].prefix}, ${column})`,
 		sqlUuid,
 		sqlUuidArray: (values) =>
 			sql`array[${sql.join(

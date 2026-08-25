@@ -13,6 +13,7 @@
 		"nextkit/t-requires-values": "error",
 		"nextkit/t-no-positional-args": "error",
 		"nextkit/no-crypto-random-uuid": "warn",
+		"nextkit/no-id-codec-in-app-code": "warn",
 		"nextkit/no-redundant-node-crypto": "warn",
 		"nextkit/satori-css": "warn",
 		"no-unused-vars": "warn",
@@ -36,7 +37,8 @@
 		{
 			"files": ["**/__tests__/**", "**/*.test.*", "**/*.spec.*", "**/test/**"],
 			"rules": {
-				"nextkit/no-crypto-random-uuid": "off"
+				"nextkit/no-crypto-random-uuid": "off",
+				"nextkit/no-id-codec-in-app-code": "off"
 			}
 		}
 	]

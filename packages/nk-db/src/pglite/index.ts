@@ -13,6 +13,7 @@ import { rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import { PGlite, type Extensions } from "@electric-sql/pglite";
 import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
+import { ID758_SQL } from "id758/sql";
 import type { Pool } from "pg";
 import { resetPublicTables } from "./reset.js";
 
@@ -46,6 +47,14 @@ export interface PgliteServerOptions {
 		/** Journal table schema. Default `drizzle`. */
 		schema?: string;
 	}>;
+	/**
+	 * Install the id codec's Postgres functions (`id758_encode` / `id758_decode`,
+	 * see `@ingram-tech/nk-db/id/sql`) before any migration runs. Default `true`:
+	 * the script is idempotent and costs nothing, and having it in dev/test means
+	 * a query can use the functions before — or without — the site journaling
+	 * them. Set `false` to boot exactly what the migrations declare.
+	 */
+	id758?: boolean;
 	/** Override how the primary `migrationsFolder` is applied (e.g. raw-SQL apps).
 	 *  `dependencyMigrations` still run first, before this. */
 	migrate?: (db: PGlite) => Promise<void>;
@@ -140,6 +149,7 @@ export const createPgliteServer = async (
 	// until a --fresh wipe). A custom `migrate` must be idempotent the same way.
 	// Dependency chains (e.g. nk-auth's tables) go first so the app's own
 	// migrations can reference them by FK.
+	if (options.id758 !== false) await db.exec(ID758_SQL);
 	await applyDependencyMigrations(db, options.dependencyMigrations ?? []);
 	await (options.migrate ?? defaultMigrate(migrationsFolder))(db);
 

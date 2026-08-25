@@ -155,43 +155,97 @@ Drizzle `schema.ts`, a client component or an edge runtime can all use it. Keep
 it that way: a single `node:crypto` import makes every module that touches an id
 node-only (a test enforces this).
 
-Store the raw `uuid` and encode at the edge. The prefixed id is presentation, not
-identity: inside the DB, "which entity is this?" is already carried by the
-column, so storing the prefix duplicates schema metadata into every row.
+Store the raw `uuid`; the prefixed id is presentation, not identity. Inside the
+DB, "which entity is this?" is already carried by the column, so storing the
+prefix duplicates schema metadata into every row.
 
-**Ids are self-describing, uuids are not.** A prefix names its entity, so
-decoding needs no context — `entityOf(registry, id)` and `decodeAnyId(registry,
-id)` resolve one from the value alone, which is what makes polymorphic FKs and
-raw-SQL bindings work. The inverse does not hold: encoding always needs to know
-which entity you meant. Automate decode; enforce encode with the `Id<E>` brand.
+**The rule: application code only ever sees public ids.** An id is `inv_…` in
+a URL, a form, a log line, a row read through Drizzle and a value passed to a
+query. The conversion to and from `uuid` happens in exactly two places — the
+column (`idColumn`, below) and the database (`id758_encode` / `id758_decode`,
+below) — and nowhere else. Code that calls `ids.invoice.decode(param)` before a
+query, or `ids.invoice.encode(row.id)` after one, is converting at the wrong
+layer; the `nextkit/no-id-codec-in-app-code` lint flags it. Validate untrusted
+input with `ids.invoice.is(param)` (a 404 on a wrong-entity id) and pass it
+straight through.
 
 ### Drizzle bindings (`@ingram-tech/nk-db/id/drizzle`)
 
-Decode public ids at the **column**, so a skinned id reaching a query stops being
-a failure mode:
+A column declared with `idColumn` is a plain `uuid` in Postgres that speaks
+public ids in TypeScript, typed as the entity's branded `Id<E>`:
 
 ```ts
+// ids.ts
 export const ids = createIdRegistry({ invoice: "inv", account: "acct" });
-export const { idColumn, polymorphicIdColumn, sqlUuid, sqlUuidArray } =
+export const { idColumn, polymorphicIdColumn, encodedId, sqlUuid, sqlUuidArray } =
     createIdColumns(ids);
 
+// schema.ts
 export const invoices = pgTable("invoices", {
-    id: idColumn("invoice")().primaryKey(),      // eq(invoices.id, "inv_…") just works
-    account_id: idColumn("account")().notNull(),
-    entity_id: polymorphicIdColumn(),            // decodes any entity's id
+    id: idColumn("invoice")().primaryKey().default(sql`uuidv7()`), // Id<"invoice">
+    account_id: idColumn("account")().notNull(),                  // Id<"account">
+    entity_id: polymorphicIdColumn(),                             // any entity, raw on read
 });
+
+const [row] = await db.select().from(invoices).where(eq(invoices.id, "inv_…"));
+row.id;         // "inv_…"  — encoded on read
+row.account_id; // "acct_…"
 ```
 
-Drizzle runs `toDriver` on WHERE values (`eq`, `inArray`) as well as insert/update
-`SET`, and `dataType` stays `uuid` — so there is **no DDL and no migration**, and
-`drizzle-kit generate` reports no diff. There is deliberately no `fromDriver`
-(see the encode asymmetry above).
+- `toDriver` runs on insert/update `SET` values **and** WHERE values (`eq`,
+  `inArray`, …) and decodes the public id; a raw uuid (a database default,
+  Better Auth's `generateId`) passes through.
+- `fromDriver` runs on every selected value (`select`, `returning()`, the
+  relational `db.query`) and encodes it.
+- `dataType` stays `uuid`, so there is **no DDL and no migration** and
+  `drizzle-kit generate` reports no diff.
 
-Raw SQL and RPC args bypass the column layer, so bind those with `sqlUuid(id)` /
-`sqlUuidArray(ids)` rather than a bare `${id}::uuid`.
+`polymorphicIdColumn` (an `entity_id` whose target is named by a sibling
+`*_type` column) decodes any registered entity's id on the way in, but reads
+stay raw: a column cannot see its sibling to know which prefix to put back.
+Encode it in the query once the type is known — `encodedId("account",
+invoices.entity_id)` — or with `entityOf` in code.
+
+Raw SQL bypasses the column layer. Bind an incoming id with `sqlUuid(id)` /
+`sqlUuidArray(ids)` (decoded in JS, nothing needed in the database), and select
+a uuid as a public id with `encodedId(entity, column)` — which emits
+`id758_encode(…)` and therefore needs the functions below.
 
 This subpath pulls only `drizzle-orm` and the codec — never `pg` — because it is
 imported by `schema.ts`.
+
+### The codec in Postgres (`@ingram-tech/nk-db/id/sql`)
+
+`id758` ships the codec as plain plpgsql (`IMMUTABLE STRICT PARALLEL SAFE`, no
+extensions, Postgres 14+), so the database itself accepts and produces either
+form — in `psql`, in `createQueries` raw SQL, in an RPC, in an RLS policy:
+
+```sql
+select * from invoices where id = id758_decode('inv_1CGtMb233ezidDvSwDLNBn');
+select id758_encode('inv', id) as id, total from invoices;
+create policy … using (account_id = id758_decode(auth.uid()));
+```
+
+`id758_decode(id)` validates the shape and accepts any prefix; `id758_decode(id,
+prefix)` also requires that prefix; `id758_prefix(id)` names it. An immutable
+call on a bound literal is folded at plan time, so `where id =
+id758_decode($1)` uses the ordinary primary-key index.
+
+The functions are text, not a migration chain: the codec is frozen, so there is
+never a second version to journal, and the script is `create or replace`. The
+PGlite harness installs them on every boot (`id758: false` opts out), so dev and
+test have them for free. Production gets them once, through the site's own
+migrations:
+
+```sh
+bunx drizzle-kit generate --custom --name id758
+```
+
+and paste `id758Migration` (from `@ingram-tech/nk-db/id/sql`, the statements
+joined by `--> statement-breakpoint`) into the generated file. Or, outside any
+journal: `bunx id758 sql | psql "$DATABASE_URL"`. The `id758` bin also converts
+at the shell — `bunx id758 decode inv_…` — for the moments a `psql` session
+without the functions hands you the other form.
 
 ## PGlite dev & test (`@ingram-tech/nk-db/pglite`)
 

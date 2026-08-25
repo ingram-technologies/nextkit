@@ -71,6 +71,16 @@ the UI/page tree, and never expose internal plumbing under `/api/`.
   nanoid. Ids that cross a **public contract** are skinned to `prefix_base58`
   via `id758` / `@ingram-tech/nk-db/id` (`createIdRegistry`) — never expose a raw UUID.
   External ids you don't mint (Stripe `cus_`, OAuth) stay `text`.
+- **Application code only ever sees public ids** (`inv_…`); never convert by
+  hand. Declare id columns with `idColumn(entity)` from
+  `@ingram-tech/nk-db/id/drizzle`: a public id passed to a query is decoded at
+  the column, and a row read back is already encoded (typed `Id<"invoice">`).
+  In raw SQL and `psql`, the database converts: `where id = id758_decode($1)`,
+  `select id758_encode('inv', id)` (functions from `@ingram-tech/nk-db/id/sql`,
+  installed in PGlite automatically and in prod by one custom migration). So no
+  `ids.x.decode(param)` before a query and no `ids.x.encode(row.id)` after one
+  — `nextkit/no-id-codec-in-app-code` flags both; validate input with
+  `ids.x.is(param)` instead. At the shell, `bunx id758 decode inv_…`.
 - **Migrations don't auto-apply on deploy.** Code ships ahead of the prod schema
   unless someone runs the migration against the target DB — a page that reads a
   newly-added column 500s in prod until then. Apply migrations with

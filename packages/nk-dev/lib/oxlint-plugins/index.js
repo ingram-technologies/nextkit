@@ -6,6 +6,7 @@ import baseUi from "./base-ui.js";
 import deferredCurrentTarget from "./deferred-current-target.js";
 import lucideIconSuffix from "./lucide-icon-suffix.js";
 import noCryptoRandomUuid from "./no-crypto-random-uuid.js";
+import noIdCodecInAppCode from "./no-id-codec-in-app-code.js";
 import noRedirectOnlyPage from "./no-redirect-only-page.js";
 import noRedundantNodeCrypto from "./no-redundant-node-crypto.js";
 import redundantUseStateType from "./redundant-usestate-type.js";
@@ -20,6 +21,7 @@ export default {
 		...deferredCurrentTarget.rules,
 		...lucideIconSuffix.rules,
 		...noCryptoRandomUuid.rules,
+		...noIdCodecInAppCode.rules,
 		...noRedirectOnlyPage.rules,
 		...noRedundantNodeCrypto.rules,
 		...redundantUseStateType.rules,

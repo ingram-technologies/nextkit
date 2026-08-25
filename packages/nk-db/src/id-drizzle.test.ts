@@ -5,7 +5,8 @@ import { createIdColumns } from "./id-drizzle.js";
 import { createIdRegistry, uuidGenerateId } from "./id.js";
 
 const ids = createIdRegistry({ invoice: "inv", account: "acct" });
-const { idColumn, polymorphicIdColumn, sqlUuid, sqlUuidArray } = createIdColumns(ids);
+const { idColumn, polymorphicIdColumn, encodedId, sqlUuid, sqlUuidArray } =
+	createIdColumns(ids);
 
 const invoices = pgTable("invoices", {
 	id: idColumn("invoice")(),
@@ -13,10 +14,12 @@ const invoices = pgTable("invoices", {
 	entity_id: polymorphicIdColumn(),
 });
 
-// Reach the column's JS->driver mapping the way Drizzle does when binding a
-// value (for an insert/update SET or a WHERE comparison).
+// Reach the column's JS<->driver mappings the way Drizzle does when binding a
+// value (for an insert/update SET or a WHERE comparison) and when reading one.
 const toDriver = (column: keyof typeof invoices.$inferSelect, value: string) =>
 	getTableColumns(invoices)[column].mapToDriverValue(value);
+const fromDriver = (column: keyof typeof invoices.$inferSelect, value: string) =>
+	getTableColumns(invoices)[column].mapFromDriverValue(value);
 
 /** The SQL + bound params Drizzle would actually send. */
 const compile = (query: SQL) => new PgDialect().sqlToQuery(query);
@@ -44,6 +47,34 @@ describe("createIdColumns", () => {
 		// row; leaving it intact makes it an invalid-uuid error instead.
 		const wrong = ids.account.mint();
 		expect(toDriver("id", wrong)).toBe(wrong);
+	});
+
+	it("encodes a read as the entity's public id", () => {
+		const uuid = uuidGenerateId();
+		expect(fromDriver("id", uuid)).toBe(ids.invoice.encode(uuid));
+		expect(fromDriver("account_id", uuid)).toBe(ids.account.encode(uuid));
+	});
+
+	it("types a read as the entity's branded id", () => {
+		const row: typeof invoices.$inferSelect = {
+			id: ids.invoice.mint(),
+			account_id: ids.account.mint(),
+			entity_id: uuidGenerateId(),
+		};
+		// @ts-expect-error — an account id is not an invoice id
+		const wrong: typeof row.id = ids.account.mint();
+		expect(wrong).toBeDefined();
+	});
+
+	it("leaves a polymorphic read raw: the column cannot know the prefix", () => {
+		const uuid = uuidGenerateId();
+		expect(fromDriver("entity_id", uuid)).toBe(uuid);
+	});
+
+	it("selects a uuid as a public id through id758_encode", () => {
+		const query = compile(encodedId("invoice", invoices.id));
+		expect(query.sql).toBe('id758_encode($1, "invoices"."id")');
+		expect(query.params).toEqual(["inv"]);
 	});
 
 	it("decodes any entity's id in a polymorphic column", () => {

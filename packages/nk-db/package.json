@@ -35,6 +35,10 @@
 			"types": "./dist/id-drizzle.d.ts",
 			"default": "./dist/id-drizzle.js"
 		},
+		"./id/sql": {
+			"types": "./dist/id-sql.d.ts",
+			"default": "./dist/id-sql.js"
+		},
 		"./migrate": {
 			"types": "./dist/migrate.d.ts",
 			"default": "./dist/migrate.js"
@@ -54,7 +58,7 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
-		"id758": "^1.0.0",
+		"id758": "^1.1.0",
 		"zod": "^4.4.3"
 	},
 	"peerDependencies": {
