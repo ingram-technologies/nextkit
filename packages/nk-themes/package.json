@@ -1,6 +1,6 @@
 {
 	"name": "@ingram-tech/nk-themes",
-	"version": "0.2.1",
+	"version": "0.2.2",
 	"description": "Color-mode theming for Next.js sites: a zero-flash cookie-backed <ThemeProvider>, a re-exported useTheme, and a headless <ThemeToggle>, wrapping @wrksz/themes behind one pinned version.",
 	"license": "MIT",
 	"type": "module",

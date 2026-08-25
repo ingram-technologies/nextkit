@@ -1,5 +1,15 @@
 # @ingram-tech/nk-i18n
 
+## 0.4.1
+
+### Patch Changes
+
+- 9262afb: Publish `src/` alongside `dist/`, so the emitted `.js.map` and `.d.ts.map` files
+  resolve. Bundlers no longer warn that "sourcemap points to missing source
+  files", stack traces map back to real TypeScript, and go-to-definition lands on
+  the annotated source instead of a generated `.d.ts`. Tests are excluded from the
+  tarball.
+
 ## 0.4.0
 
 ### Minor Changes
