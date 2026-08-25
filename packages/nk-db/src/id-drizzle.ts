@@ -21,9 +21,7 @@ import { decodeAnyId, type Id, type IdHelper } from "./id.js";
 
 type IdColumnBindings<K extends string> = {
 	/**
-	 * A `uuid` column that speaks public ids. Its TypeScript type is the
-	 * entity's branded `Id<E>`, so an invoice id can't be handed to an account
-	 * column.
+	 * A `uuid` column that speaks public ids.
 	 *
 	 * - `toDriver` (insert/update `SET` values **and** WHERE-clause comparison
 	 *   values: `eq`, `inArray`, …) decodes the public id to its uuid. Tolerant:
@@ -32,12 +30,17 @@ type IdColumnBindings<K extends string> = {
 	 * - `fromDriver` (every selected value, including `returning()` and the
 	 *   relational `db.query`) encodes the uuid, so a read yields `inv_…`.
 	 *
+	 * Typed `string`, not `Id<E>`: Drizzle's `customType` has one `data` type
+	 * for both directions, and the write side genuinely accepts a raw uuid, so
+	 * a branded read type would make every database-minted or client-minted
+	 * uuid a type error at the insert. The read-side guarantee is a runtime one
+	 * (a selected value is always the public id); brand it at the seam where
+	 * it leaves the data layer (`ids.x.is()`, or a typed response schema).
+	 *
 	 * `dataType` is unchanged (`uuid`), so this is a TypeScript-only mapping: no
 	 * DDL, no migration, and `drizzle-kit generate` reports no schema diff.
 	 */
-	idColumn: <E extends K>(
-		entity: E,
-	) => ReturnType<typeof customType<IdColumnConfig<Id<E>>>>;
+	idColumn: (entity: K) => ReturnType<typeof customType<IdColumnConfig<string>>>;
 	/**
 	 * A `uuid` column for a **polymorphic** FK — an `entity_id` whose target is
 	 * named by a sibling `*_type` column — where no single-entity codec applies.
@@ -91,7 +94,7 @@ type IdColumnConfig<TData extends string> = { data: TData; driverData: string };
  *
  * // schema.ts
  * export const invoices = pgTable("invoices", {
- *   id: idColumn("invoice")().primaryKey(),      // Id<"invoice">, "inv_…" in and out
+ *   id: idColumn("invoice")().primaryKey(),      // "inv_…" in and out
  *   account_id: idColumn("account")().notNull(),
  * });
  * ```
@@ -105,14 +108,14 @@ export function createIdColumns<K extends string>(
 		sql`${value == null ? null : decodeAny(value)}::uuid`;
 
 	return {
-		idColumn: <E extends K>(entity: E) =>
-			customType<IdColumnConfig<Id<E>>>({
+		idColumn: (entity) =>
+			customType<IdColumnConfig<string>>({
 				dataType: () => "uuid",
 				toDriver: (value) =>
 					typeof value === "string"
 						? (registry[entity].decodeOrNull(value) ?? value)
 						: value,
-				fromDriver: (value) => registry[entity].encode(value) as Id<E>,
+				fromDriver: (value) => registry[entity].encode(value),
 			}),
 		polymorphicIdColumn: customType<IdColumnConfig<string>>({
 			dataType: () => "uuid",

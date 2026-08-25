@@ -55,15 +55,17 @@ describe("createIdColumns", () => {
 		expect(fromDriver("account_id", uuid)).toBe(ids.account.encode(uuid));
 	});
 
-	it("types a read as the entity's branded id", () => {
-		const row: typeof invoices.$inferSelect = {
-			id: ids.invoice.mint(),
+	it("types the column as string, so a raw uuid is insertable and a read is assignable", () => {
+		// Both forms are legal on the write side at runtime (toDriver is
+		// tolerant), so the type must not reject either; the read side is a
+		// public id at runtime, brand it at the seam.
+		const row: typeof invoices.$inferInsert = {
+			id: uuidGenerateId(),
 			account_id: ids.account.mint(),
 			entity_id: uuidGenerateId(),
 		};
-		// @ts-expect-error — an account id is not an invoice id
-		const wrong: typeof row.id = ids.account.mint();
-		expect(wrong).toBeDefined();
+		const read: string | null = (row as typeof invoices.$inferSelect).id;
+		expect(read).toBe(row.id);
 	});
 
 	it("leaves a polymorphic read raw: the column cannot know the prefix", () => {

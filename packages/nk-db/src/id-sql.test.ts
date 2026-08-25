@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createDb } from "./drizzle.js";
 import { createIdColumns } from "./id-drizzle.js";
 import { ID758_SQL_STATEMENTS, id758Migration } from "./id-sql.js";
-import { createIdRegistry, type Id, uuidv7 } from "./id.js";
+import { createIdRegistry, uuidv7 } from "./id.js";
 import { createTestDb, type TestDb } from "./pglite/index.js";
 
 // The whole point of the id work, end to end: with the functions in the
@@ -92,10 +92,6 @@ describe("idColumn end to end", () => {
 			.values({ account_id: account })
 			.returning();
 		expect(defaulted && ids.invoice.is(defaulted.id)).toBe(true);
-
-		// And the type is the brand.
-		const typed: Id<"invoice"> = inserted.id;
-		expect(typed).toBe(inserted.id);
 	});
 
 	it("agrees with the SQL functions on the same row", async () => {

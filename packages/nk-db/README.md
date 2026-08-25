@@ -172,7 +172,7 @@ straight through.
 ### Drizzle bindings (`@ingram-tech/nk-db/id/drizzle`)
 
 A column declared with `idColumn` is a plain `uuid` in Postgres that speaks
-public ids in TypeScript, typed as the entity's branded `Id<E>`:
+public ids in TypeScript:
 
 ```ts
 // ids.ts
@@ -182,8 +182,8 @@ export const { idColumn, polymorphicIdColumn, encodedId, sqlUuid, sqlUuidArray }
 
 // schema.ts
 export const invoices = pgTable("invoices", {
-    id: idColumn("invoice")().primaryKey().default(sql`uuidv7()`), // Id<"invoice">
-    account_id: idColumn("account")().notNull(),                  // Id<"account">
+    id: idColumn("invoice")().primaryKey().default(sql`uuidv7()`),
+    account_id: idColumn("account")().notNull(),
     entity_id: polymorphicIdColumn(),                             // any entity, raw on read
 });
 
@@ -199,6 +199,11 @@ row.account_id; // "acct_…"
   relational `db.query`) and encodes it.
 - `dataType` stays `uuid`, so there is **no DDL and no migration** and
   `drizzle-kit generate` reports no diff.
+- The column is typed `string`, not `Id<E>`: Drizzle has one type for both
+  directions and the write side accepts a raw uuid, so a branded type would
+  reject every database- or client-minted uuid at the insert. The read side is
+  a public id at runtime; brand it where it leaves the data layer
+  (`ids.invoice.is()`, a typed response schema).
 
 `polymorphicIdColumn` (an `entity_id` whose target is named by a sibling
 `*_type` column) decodes any registered entity's id on the way in, but reads

@@ -33,6 +33,11 @@ export function run(tool, args = [], opts = {}) {
 export function runCapture(tool, args = [], opts = {}) {
 	const res = spawnSync("bun", ["x", tool, ...args], {
 		encoding: "utf8",
+		// Node's default is 1 MiB, after which the child is killed with ENOBUFS
+		// and the caller sees a crash instead of the tool's output. A tsc run
+		// with a few thousand errors is well past that — exactly the run whose
+		// output matters most. 256 MiB is far beyond any real checker output.
+		maxBuffer: 256 * 1024 * 1024,
 		...opts,
 	});
 	if (res.error) {
