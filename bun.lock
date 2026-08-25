@@ -52,7 +52,7 @@
     },
     "packages/nk-auth": {
       "name": "@ingram-tech/nk-auth",
-      "version": "0.13.4",
+      "version": "0.13.5",
       "dependencies": {
         "@ingram-tech/nk-db": "workspace:^",
         "bcrypt": "^6.0.0",
@@ -103,7 +103,7 @@
     },
     "packages/nk-blog": {
       "name": "@ingram-tech/nk-blog",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "dependencies": {
         "@ingram-tech/nk-seo": "workspace:^",
         "@mdx-js/mdx": "^3.1.1",
@@ -139,13 +139,13 @@
     },
     "packages/nk-db": {
       "name": "@ingram-tech/nk-db",
-      "version": "1.5.0",
+      "version": "1.6.0",
       "bin": {
         "nk-pglite-dev": "./dist/pglite/dev.js",
         "nk-pg-migrate": "./dist/migrate-bin.js",
       },
       "dependencies": {
-        "id758": "^1.0.0",
+        "id758": "^1.1.0",
         "zod": "^4.4.3",
       },
       "devDependencies": {
@@ -172,7 +172,7 @@
     },
     "packages/nk-dev": {
       "name": "@ingram-tech/nk-dev",
-      "version": "0.11.0",
+      "version": "0.11.1",
       "bin": {
         "nk": "bin/nk.js",
         "nextkit-format-staged": "bin/format-staged.mjs",
@@ -224,7 +224,7 @@
     },
     "packages/nk-i18n": {
       "name": "@ingram-tech/nk-i18n",
-      "version": "0.3.4",
+      "version": "0.4.0",
       "dependencies": {
         "intl-messageformat": "^11.2.14",
       },
@@ -260,7 +260,7 @@
     },
     "packages/nk-seo": {
       "name": "@ingram-tech/nk-seo",
-      "version": "0.7.0",
+      "version": "0.8.0",
       "devDependencies": {
         "@ingram-tech/nk-dev": "workspace:*",
         "@ingram-tech/nk-i18n": "workspace:*",
@@ -1028,7 +1028,7 @@
 
     "human-id": ["human-id@4.2.0", "", { "bin": { "human-id": "dist/cli.js" } }, "sha512-K3GbkIWqyvvlpfhBPlbEvD97TtqBpAYA4kt+cn2lD2x2HuohzZCibcA2nOlnJT6exqvJLggoB5nv2dNf192nEA=="],
 
-    "id758": ["id758@1.0.0", "", {}, "sha512-DPYg+kFk8tWVCoW0p0+hu6j9GKda5uycX0V3gfb0r3lBBW+rmONd17Z5GKIujUaCl3Pw6Nbn2eCFp3o/QQTOuw=="],
+    "id758": ["id758@1.1.0", "", { "bin": { "id758": "dist/cli.js" } }, "sha512-6HNCYegcI6C+Lca1mez6cvlaDFVoiB/qoXEvCdLo1dGIkYwh+j2HR+mrsCKxadGZfuolFds1mjhLl1gYIaD7SQ=="],
 
     "import-meta-resolve": ["import-meta-resolve@4.2.0", "", {}, "sha512-Iqv2fzaTQN28s/FwZAoFq0ZSs/7hMAHJVX+w8PZl3cY19Pxk6jFFalxQoIfW2826i/fDLXv8IiEZRIT0lDuWcg=="],
 
