@@ -1,5 +1,18 @@
 # @ingram-tech/nk-forms
 
+## 0.2.7
+
+### Patch Changes
+
+- 9262afb: Publish `src/` alongside `dist/`, so the emitted `.js.map` and `.d.ts.map` files
+  resolve. Bundlers no longer warn that "sourcemap points to missing source
+  files", stack traces map back to real TypeScript, and go-to-definition lands on
+  the annotated source instead of a generated `.d.ts`. Tests are excluded from the
+  tarball.
+- Updated dependencies [9262afb]
+  - @ingram-tech/bot-protection@0.4.2
+  - @ingram-tech/nk-email@0.6.1
+
 ## 0.2.6
 
 ### Patch Changes

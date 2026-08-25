@@ -1,6 +1,6 @@
 {
 	"name": "@ingram-tech/nk-blog",
-	"version": "0.1.5",
+	"version": "0.1.6",
 	"description": "File-based blog foundation for Next.js sites: frontmatter schema, build-time reader, limited-MDX rendering, a typed component contract with unstyled defaults, GitHub read/publish, and RSS.",
 	"license": "MIT",
 	"type": "module",

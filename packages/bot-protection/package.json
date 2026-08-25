@@ -1,6 +1,6 @@
 {
 	"name": "@ingram-tech/bot-protection",
-	"version": "0.4.1",
+	"version": "0.4.2",
 	"description": "Invisible, layered bot protection for forms — honeypot + signed timing token + Vercel BotID.",
 	"license": "MIT",
 	"type": "module",
