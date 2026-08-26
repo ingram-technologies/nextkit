@@ -12,7 +12,7 @@ exactly one Better Auth copy in the app.
 | Export (subpath) | For |
 | --- | --- |
 | `authEnv`, `authSecret`, `isConfigured` (`./`) | env validation — `authEnv()` returns the full `{ secret, baseURL, databaseUrl }` bundle; `authSecret()` resolves just the secret (with the prod/dev rule) for sites that derive their own `baseURL` / DB connection |
-| `backendJwtOptions` / `verifyBackendJwt` (`./jwt`) | a JWT for the site's own backend API (custom `audience`) |
+| `backendJwtOptions` / `verifyBackendJwt` (`./jwt`) | a JWT for the site's own backend API (custom `audience`; `ids` mints `sub` as the public user id) |
 | `nkOrganizationDefaults`, `lastActiveOrganizationHooks`, `lastActiveOrganizationUserField` (`./organization`) | org-plugin defaults + active-org restore/persist |
 | `createAuthPool` (`./pool`) | **deprecated** — alias of `createPool` from [`@ingram-tech/nk-db`](../nk-db); inject the site's shared pool instead |
 | `makeEmailSenders`, `makePasskeyOptions`, `passkeyOptionsForBaseUrl`, `uuidGenerateId` (`./`) | email hooks, passkeys (`passkeyOptionsForBaseUrl` derives `rpID`/`origin` from a single base URL), UUID ids |
@@ -268,7 +268,9 @@ Data access lives in [`@ingram-tech/nk-db`](../nk-db), not here. Query over the
 direct `pg` connection and wrap reads/writes in `withRls` / `withRlsTransaction`,
 which set `request.jwt.claims` + `SET LOCAL ROLE` per transaction from the Better
 Auth session — so `auth.uid()` policies fire unchanged, with no JWT minting and
-no REST proxy. See its README for the pattern.
+no REST proxy. See its README for the pattern. Pass `user.id` as it comes from
+the helpers: a public `usr_…` is decoded to the uuid before it reaches the
+claims GUC, so a policy's `auth.uid()` still compares to a `uuid` column.
 
 ## 4. Client
 
@@ -312,8 +314,22 @@ export const {
 	redirectIfAuthenticated,
 	getLinkedProviders, // providerIds linked to the current user
 	hasCredentialAccount, // does the current user have an email/password login?
-} = createAuthHelpers(auth);
+} = createAuthHelpers(auth, {
+	// Session ids in public form (`usr_…`, `org_…`), the same form `idColumn`
+	// reads return, so `row.organization_id === session.activeOrganizationId`
+	// holds. Omit on a site with no public id form.
+	ids: { user: ids.user, organization: ids.organization },
+});
 ```
+
+With `ids`, every read through the helpers presents `user.id`,
+`session.userId` and `session.activeOrganizationId` as public ids; Better Auth
+itself keeps working on raw uuids underneath, and anything read directly from
+`auth.api.*` is raw — the same rule as raw SQL vs `idColumn`. Pass the same
+helper to `backendJwtOptions({ audience, ids: { user } })` and the backend
+JWT's `sub` (and payload `id`) is the public id too. RLS needs nothing: nk-db's
+`withRls*` decode a prefixed `sub` before it reaches `request.jwt.claims`, so
+`auth.uid()` policies hold either way.
 
 ```tsx
 // app/dashboard/page.tsx — gate a protected page (validated, DB-backed).

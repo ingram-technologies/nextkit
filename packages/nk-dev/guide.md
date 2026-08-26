@@ -80,7 +80,10 @@ the UI/page tree, and never expose internal plumbing under `/api/`.
   installed in PGlite automatically and in prod by one custom migration). So no
   `ids.x.decode(param)` before a query and no `ids.x.encode(row.id)` after one
   — `nextkit/no-id-codec-in-app-code` flags both; validate input with
-  `ids.x.is(param)` instead. At the shell, `bunx id758 decode inv_…`.
+  `ids.x.is(param)` instead. Session ids come in the same form from
+  `createAuthHelpers(auth, { ids })` (and `backendJwtOptions({ ids })`), and
+  `withRls*` decode a public `sub` before it reaches `auth.uid()`. At the
+  shell, `bunx id758 decode inv_…`.
 - **Migrations don't auto-apply on deploy.** Code ships ahead of the prod schema
   unless someone runs the migration against the target DB — a page that reads a
   newly-added column 500s in prod until then. Apply migrations with

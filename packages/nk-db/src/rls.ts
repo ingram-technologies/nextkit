@@ -17,6 +17,8 @@
  *      (e.g. `GRANT app_user TO the_connecting_role`).
  */
 
+import { decodeId, prefixOf } from "./id.js";
+
 /**
  * The JWT-style claims to scope a transaction by. `sub` becomes `auth.uid()`;
  * `role` (default `"authenticated"`) is the Postgres role assumed. Any further
@@ -25,8 +27,9 @@
  */
 export interface RlsClaims {
 	/**
-	 * The user id. Becomes the `sub` claim → `auth.uid()`. For policies that cast
-	 * `sub` to `uuid`, this MUST be a valid UUID.
+	 * The user id. Becomes the `sub` claim → `auth.uid()`. Either form: a public
+	 * id (`usr_…`) is decoded to its uuid before it reaches the database (see
+	 * {@link decodeIdClaims}), so `auth.uid()::uuid` policies hold.
 	 */
 	sub: string;
 	/** The Postgres role to assume (the JWT `role` claim). Defaults to `"authenticated"`. */
@@ -69,8 +72,27 @@ export const resolveRlsConfig = (
 ): ResolvedRlsConfig => ({
 	role: options.role ?? claims.role ?? RLS_DEFAULT_ROLE,
 	claimsSetting: options.claimsSetting ?? RLS_CLAIMS_SETTING,
-	claimsJson: JSON.stringify(claims),
+	claimsJson: JSON.stringify(decodeIdClaims(claims)),
 });
+
+/**
+ * The claims as the database expects them: every string claim that is a
+ * public, prefixed id (`usr_…`, `org_…`) is decoded to its uuid, so a policy
+ * written as `user_id = auth.uid()` keeps working when the app passes the
+ * public form — which it does once session ids come through nk-auth's
+ * helpers with a registry. A public id is self-describing, so no registry is
+ * needed here; a raw uuid or any other string passes through unchanged. This
+ * is the database boundary doing the conversion, the same rule as `idColumn`.
+ */
+export const decodeIdClaims = (claims: RlsClaims): RlsClaims => {
+	const out: RlsClaims = { ...claims };
+	for (const [key, value] of Object.entries(claims)) {
+		if (typeof value === "string" && prefixOf(value) !== null) {
+			out[key] = decodeId(value);
+		}
+	}
+	return out;
+};
 
 /**
  * The single parameterized statement that scopes a transaction: writes the

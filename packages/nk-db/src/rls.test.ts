@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createDb, withRlsTransaction } from "./drizzle.js";
+import { encodeId, uuidv7 } from "./id.js";
 import { createTestDb, type TestDb } from "./pglite/index.js";
 import { createQueries, type PoolQueries } from "./queries.js";
 import {
@@ -26,6 +27,32 @@ describe("resolveRlsConfig", () => {
 			resolveRlsConfig({ sub: "u1", role: "service_role" }, { role: "app_user" })
 				.role,
 		).toBe("app_user");
+	});
+
+	it("decodes public ids in claims to their uuids, so auth.uid() policies hold", () => {
+		const user = uuidv7();
+		const org = uuidv7();
+		const config = resolveRlsConfig({
+			sub: encodeId(user, "usr"),
+			org_id: encodeId(org, "org"),
+			plan: "pro",
+			nested: { id: encodeId(org, "org") },
+		});
+		expect(JSON.parse(config.claimsJson)).toEqual({
+			sub: user,
+			org_id: org,
+			plan: "pro",
+			// Only top-level string claims are normalised; nested shapes are the
+			// site's own contract.
+			nested: { id: encodeId(org, "org") },
+		});
+	});
+
+	it("passes a raw uuid sub through unchanged", () => {
+		const user = uuidv7();
+		expect(JSON.parse(resolveRlsConfig({ sub: user }).claimsJson)).toEqual({
+			sub: user,
+		});
 	});
 
 	it("serializes extra claims and honors a custom claims setting", () => {

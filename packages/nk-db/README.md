@@ -73,6 +73,13 @@ ROLE` **per transaction**, so your **existing RLS policies keep working
 unchanged**, wherever the cluster lives. It's pure Postgres and behaves
 identically everywhere.
 
+Claims are normalised at this boundary: any top-level string claim that is a
+public prefixed id (`sub: "usr_…"`, `org_id: "org_…"`) is decoded to its uuid
+before it is written to `request.jwt.claims`, so a policy written as
+`user_id = auth.uid()` holds whether the app passes the raw uuid or the public
+form (which it does once session ids come through nk-auth's helpers with a
+registry). A public id is self-describing, so this needs no registry.
+
 ```ts
 import { withRlsTransaction } from "@ingram-tech/nk-db";
 import { auth } from "@/lib/auth"; // your Better Auth instance

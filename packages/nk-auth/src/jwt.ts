@@ -1,3 +1,4 @@
+import type { IdHelper } from "@ingram-tech/nk-db/id";
 import type { JwtOptions } from "better-auth/plugins/jwt";
 import {
 	createRemoteJWKSet,
@@ -23,12 +24,28 @@ export interface BackendJwtConfig {
 	 * the site mints tokens on demand via `auth.api.signJWT` instead.
 	 */
 	disableSettingJwtHeader?: boolean;
+	/**
+	 * Mint the token's `sub` (and the `id` in its payload) as the user's public
+	 * id rather than the raw uuid, so a backend that also talks to the app sees
+	 * ids in one form. The same helper the site passes to `createAuthHelpers`.
+	 */
+	ids?: { user: IdHelper };
 }
 
 /** `jwt` plugin options for a backend-API token (custom audience). */
 export const backendJwtOptions = (config: BackendJwtConfig): JwtOptions => ({
 	disableSettingJwtHeader: config.disableSettingJwtHeader,
 	jwt: {
+		...(config.ids
+			? {
+					getSubject: ({ user }) =>
+						config.ids?.user.encode(user.id) ?? user.id,
+					definePayload: ({ user }) => ({
+						...user,
+						id: config.ids?.user.encode(user.id) ?? user.id,
+					}),
+				}
+			: {}),
 		audience: config.audience,
 		expirationTime: config.expirationTime,
 	},

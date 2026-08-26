@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createAuthHelpers } from "./server.js";
+import { createIdRegistry, uuidv7 } from "@ingram-tech/nk-db/id";
+import { createAuthHelpers, encodeSessionIds } from "./server.js";
 
 // Request-scoped reads the helpers depend on; reset per test.
 let headerStore = new Headers();
@@ -43,6 +44,63 @@ const helpers = (
 		},
 		options,
 	);
+
+describe("createAuthHelpers with ids", () => {
+	const ids = createIdRegistry({ user: "usr", organization: "org" });
+	const userId = uuidv7();
+	const orgId = uuidv7();
+	const raw = {
+		user: { id: userId, email: "a@b.com" },
+		session: { id: "s1", userId, activeOrganizationId: orgId },
+	};
+	const withIds = () =>
+		createAuthHelpers(
+			{ api: { getSession: async () => raw, listUserAccounts: async () => [] } },
+			{ ids: { user: ids.user, organization: ids.organization } },
+		);
+
+	it("presents user and organization ids in public form", async () => {
+		const session = await withIds().getSession();
+		expect(session?.user.id).toBe(ids.user.encode(userId));
+		expect(session?.session.userId).toBe(ids.user.encode(userId));
+		expect(session?.session.activeOrganizationId).toBe(
+			ids.organization.encode(orgId),
+		);
+		expect((await withIds().getUser())?.id).toBe(ids.user.encode(userId));
+		expect(raw.user.id).toBe(userId); // Better Auth's own object is untouched
+	});
+
+	it("leaves a null active organization alone and needs no organization helper", async () => {
+		const { getSession } = createAuthHelpers(
+			{
+				api: {
+					getSession: async () => ({
+						user: { id: userId },
+						session: { id: "s1", userId, activeOrganizationId: null },
+					}),
+					listUserAccounts: async () => [],
+				},
+			},
+			{ ids: { user: ids.user } },
+		);
+		const session = await getSession();
+		expect(session?.session.activeOrganizationId).toBeNull();
+		expect(session?.session.userId).toBe(ids.user.encode(userId));
+	});
+
+	it("returns raw ids without a registry", async () => {
+		const { getSession } = helpers({
+			...session,
+			user: { id: userId, email: "a@b.com" },
+		});
+		expect((await getSession())?.user.id).toBe(userId);
+	});
+
+	it("encodeSessionIds is idempotent", () => {
+		const once = encodeSessionIds(raw, ids);
+		expect(encodeSessionIds(once, ids)).toEqual(once);
+	});
+});
 
 describe("createAuthHelpers", () => {
 	it("getSession / getUser return the validated values", async () => {
