@@ -1,5 +1,17 @@
 # @ingram-tech/nk-db
 
+## 2.1.0
+
+### Minor Changes
+
+- 9314bf5: `withRls` / `withRlsTransaction` / `resolveRlsConfig` decode public ids in the
+  claims: any top-level string claim that is a prefixed id (`sub: "usr_…"`,
+  `org_id: "org_…"`) is written to `request.jwt.claims` as its uuid, so a policy
+  written as `user_id = auth.uid()` holds whether the app passes the raw uuid or
+  the public form. A public id is self-describing, so no registry is involved; a
+  raw uuid or any other string passes through unchanged. `decodeIdClaims` is
+  exported for callers that build the GUC themselves.
+
 ## 2.0.1
 
 ### Patch Changes

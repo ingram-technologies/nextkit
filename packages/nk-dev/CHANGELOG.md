@@ -1,5 +1,11 @@
 # @ingram-tech/nk-dev
 
+## 0.12.2
+
+### Patch Changes
+
+- 9314bf5: Guide: session ids come in public form from `createAuthHelpers(auth, { ids })`.
+
 ## 0.12.1
 
 ### Patch Changes
