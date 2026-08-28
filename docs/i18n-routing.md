@@ -38,32 +38,52 @@ in 1998 and no browser implemented it.
 So: negotiation is a fine convenience at a front door, and never the addressing
 scheme.
 
+## The cluster shape is fixed
+
+Whichever strategy you pick:
+
+- every locale has its own address, **the default included**;
+- the bare path belongs to **no** locale. It negotiates, and it is `x-default`.
+
+```
+x-default  →  /pricing            negotiates; language varies by visitor
+en         →  /pricing?hl=en      or  /en/pricing
+fr         →  /pricing?hl=fr      or  /fr/pricing
+nl         →  /pricing?hl=nl      or  /nl/pricing
+```
+
+This is not configurable, deliberately. The two shapes it excludes are the ones
+that go wrong:
+
+- **bare path IS the default locale.** A French visitor who follows a bare
+  internal link gets English, and every site that starts with a cookie switcher
+  has bare internal links. This is the bug that made one fleet site fork its
+  middleware rather than adopt the helpers.
+- **bare path redirects on perceived language.** Google tells you not to build
+  this, and it makes `x-default` point at a URL that is not language-neutral.
+
+Offering either as an option is how the fleet drifts, so neither is offered.
+
 ## Strategies
 
-`defineLocaleRouting({ strategy })` picks how a locale is encoded.
+`defineLocaleRouting({ strategy })` picks only the **encoding**.
 
-**`"query"` (default)** — every locale gets `?hl=<locale>`, including the
-default. The bare path negotiates and belongs to no locale: it is `x-default`.
+**`"prefix"`** — `/fr/pricing`. Prefer this for a new site. It is better on
+every SEO axis: a path cannot be folded into another document the way a query
+parameter can (and the URL Parameters tool that used to override that was
+retired in 2022), it survives link-sharing and CMS fields that strip query
+strings, it does not combine with campaign parameters into an open-ended URL
+space, it puts the target-language keyword in the URL, and analytics group by
+pathname for free.
 
-```
-x-default  →  /pricing            negotiates, language varies by visitor
-en         →  /pricing?hl=en
-fr         →  /pricing?hl=fr
-nl         →  /pricing?hl=nl
-```
+`localeProxy` rewrites `/fr/pricing` to `/pricing`, so the app keeps one route
+tree and never learns what a locale is.
 
-Use it when the site wants one shareable address per page and negotiation for
-humans. Google supports parameter-based locale URLs and does not recommend them,
-so accept a slightly thinner margin than prefixes in exchange for not having a
-locale segment to maintain.
-
-The default locale gets its own `?hl=en` **because the bare path is not reliably
-English**. As soon as country is a negotiation signal, the bare path renders
-French to a crawl from France, so labelling it `en` would be false half the time.
-
-**`"prefix"`** — the default locale keeps the bare path, others get `/<locale>/…`
-(`prefixDefaultLocale` prefixes every locale instead). Stronger for ranking,
-since the locale is in the path, at the cost of a routing segment.
+**`"query"` (default)** — `/pricing?hl=fr`. Google supports it and does not
+recommend it. Use it when restructuring routes is not worth it, knowing it is
+the weaker of the two — typically a marketing tree of React components with
+inline `t()` calls, where the win from having addresses at all dwarfs the gap
+between the two encodings.
 
 ## The precedence chain
 
@@ -110,29 +130,46 @@ export const routing = defineLocaleRouting({
 	baseUrl: "https://acme.example",
 	locales: ["en", "fr", "nl"],
 	defaultLocale: "en",
+	strategy: "prefix",
 	countryLocales: { FR: "fr", NL: "nl" }, // no BE: ambiguous
+	hrefLangTags: { en: "en-BE", fr: "fr-BE", nl: "nl-BE" }, // only if content differs
 });
 ```
 
 ```ts
-// proxy.ts — forward, never redirect
+// proxy.ts — the whole middleware side
 export function proxy(request: NextRequest) {
-	const requestHeaders = new Headers(request.headers);
-	forwardUrlLocale(routing, request.nextUrl, requestHeaders);
-	return NextResponse.next({ request: { headers: requestHeaders } });
+	return localeProxy(routing, request);
 }
 ```
 
+`localeProxy` forwards the pathname and URL-locale headers, rewrites a locale
+prefix away, and remembers an explicit choice in the cookie. It never redirects.
+Middleware that does more of its own work passes its headers in and keeps
+editing the response:
+
 ```ts
-// lib/i18n/locale.ts
+const requestHeaders = new Headers(request.headers);
+requestHeaders.set("x-tenant", tenant);
+const response = localeProxy(routing, request, { requestHeaders });
+response.cookies.set(…);
+return response;
+```
+
+```ts
+// lib/i18n/locale.ts — narrowed to your locale union, no cast
 export const resolveLocale = cache(
 	createLocaleResolver(routing, { account: () => getProfile().locale }),
 );
 ```
 
 ```tsx
-// app/layout.tsx
-<HreflangLinks {...(await hreflangConfigFor(routing))} pathname={pathname} />
+// app/layout.tsx — pathname comes from the header localeProxy set
+<html lang={routing.htmlLang(locale)}>
+	<head>
+		<HreflangLinks {...(await hreflangConfigFor(routing))} />
+	</head>
+</html>
 ```
 
 The language switcher must be real `<a href>` links to `routing.urlForLocale(…)`.

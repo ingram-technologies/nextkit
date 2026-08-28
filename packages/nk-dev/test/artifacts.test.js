@@ -1,4 +1,11 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	rmSync,
+	utimesSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -7,6 +14,7 @@ import {
 	errorFiles,
 	listGeneratedArtifacts,
 	onlyGeneratedTypeErrors,
+	staleBuildInfo,
 } from "../lib/artifacts.js";
 
 const PLAIN =
@@ -151,5 +159,24 @@ describe("listGeneratedArtifacts / cleanGeneratedArtifacts", () => {
 		touch(".next/types/routes.ts");
 		expect(cleanGeneratedArtifacts(dir)).toEqual([".next/types"]);
 		expect(cleanGeneratedArtifacts(dir)).toEqual([]);
+	});
+});
+
+describe("staleBuildInfo", () => {
+	it("reports a tsbuildinfo older than the lockfile, and nothing when it is newer", () => {
+		const dir = mkdtempSync(join(tmpdir(), "nk-stale-"));
+		try {
+			writeFileSync(join(dir, "package.json"), "{}");
+			writeFileSync(join(dir, "bun.lock"), "");
+			writeFileSync(join(dir, "tsconfig.tsbuildinfo"), "");
+			const old = new Date(Date.now() - 60_000);
+			utimesSync(join(dir, "tsconfig.tsbuildinfo"), old, old);
+			expect(staleBuildInfo(dir)).toEqual(["tsconfig.tsbuildinfo"]);
+			const later = new Date(Date.now() + 60_000);
+			utimesSync(join(dir, "tsconfig.tsbuildinfo"), later, later);
+			expect(staleBuildInfo(dir)).toEqual([]);
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
 	});
 });

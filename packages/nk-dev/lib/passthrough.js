@@ -1,10 +1,15 @@
 import { checkAgentGuideImport } from "./agent-guide.js";
-import { cleanGeneratedArtifacts, onlyGeneratedTypeErrors } from "./artifacts.js";
+import {
+	cleanGeneratedArtifacts,
+	onlyGeneratedTypeErrors,
+	staleBuildInfo,
+} from "./artifacts.js";
 import { toolDrift } from "./drift.js";
 import { FORMATTER } from "./formatter.js";
 import { hasKnipConfig, runKnip } from "./knip.js";
 import { checkSeal } from "./migrations.js";
 import { run, runCapture, writeThrough } from "./run.js";
+import { readdirSync, rmSync } from "node:fs";
 
 /** `nk lint [...]` — oxlint, with extra args passed through (e.g. `--fix`). */
 export function lint(extraArgs = []) {
@@ -75,8 +80,27 @@ function warnToolDrift() {
  * output suppresses semantic diagnostics for the whole program, so real `src/`
  * errors are hidden behind it. Recovering surfaces them and still exits
  * non-zero — it never turns a failing check into a passing one.
+ *
+ * Starts cold when the dependency tree moved. `tsc --incremental` does not
+ * reliably re-check a program when a dependency's `.d.ts` changes, so a
+ * `.tsbuildinfo` older than the lockfile is a green light that means nothing;
+ * it is dropped (with a note) before the run. `--cold` drops it
+ * unconditionally.
  */
-export function typeCheck() {
+export function typeCheck(extraArgs = []) {
+	const cold = extraArgs.includes("--cold");
+	const stale = cold
+		? cleanBuildInfoOnly()
+		: staleBuildInfo().map((file) => {
+				rmSync(file, { force: true });
+				return file;
+			});
+	if (stale.length > 0) {
+		console.error(
+			`nk type-check: ${cold ? "--cold" : "dependencies changed since the last run"} — removed ${stale.join(", ")}; checking from scratch.`,
+		);
+	}
+
 	const typegen = run("next", ["typegen"]);
 	if (typegen !== 0) process.exit(typegen);
 
@@ -97,6 +121,17 @@ export function typeCheck() {
 	// Retry with inherited stdio: this is the run whose output matters, and it
 	// keeps colour when a human is watching.
 	process.exit(run("tsc", ["--noEmit"]));
+}
+
+/** Delete every `*.tsbuildinfo` in cwd and return the names removed. */
+function cleanBuildInfoOnly() {
+	const removed = [];
+	for (const name of readdirSync(process.cwd())) {
+		if (!name.endsWith(".tsbuildinfo")) continue;
+		rmSync(name, { force: true });
+		removed.push(name);
+	}
+	return removed;
 }
 
 /**

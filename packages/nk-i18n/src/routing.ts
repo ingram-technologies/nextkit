@@ -14,51 +14,64 @@ import { negotiateAcceptLanguage } from "./negotiate.js";
  *
  * A {@link LocaleRouting} is deliberately shaped so it can be handed straight
  * to `hreflangAlternates` as its config: one object owns the locale list, the
- * default, the strategy and the param name, so the advertised URL and the
- * served URL are the same string by construction.
+ * default, the strategy, the param name and the hreflang tags, so the
+ * advertised URL and the served URL are the same string by construction.
  */
 
 /**
- * How a locale is encoded in a URL.
+ * How a locale is encoded in a URL. This is the ONLY thing that varies between
+ * sites; the cluster's shape does not (see {@link LocaleRouting}).
  *
- * - `"query"`: every locale gets `?<param>=<locale>`, and the bare path is a
- *   negotiating entry point that belongs to no locale (it is `x-default`).
- * - `"prefix"`: the default locale lives at the bare path and the rest get
- *   `/<locale>/…`, unless {@link LocaleRoutingConfig.prefixDefaultLocale}.
+ * - `"query"`: `?<param>=<locale>`. No routing work, and the option Google
+ *   supports but does not recommend — parameters can be folded as duplicates
+ *   and there has been no URL Parameters tool to override that since 2022.
+ * - `"prefix"`: `/<locale>/…`. Better on every SEO axis (a path cannot be
+ *   folded into another document, survives link-sharing that strips query
+ *   strings, and puts the target-language keyword in the URL), at the cost of
+ *   a route segment or a middleware rewrite.
+ *
+ * Prefer `"prefix"` for a new site. Use `"query"` when restructuring routes is
+ * not worth it, knowing it is the weaker of the two.
  */
 export type LocaleStrategy = "query" | "prefix";
 
-export interface LocaleRoutingConfig {
+export interface LocaleRoutingConfig<L extends string = string> {
 	/** Absolute site origin, e.g. "https://acme.example". */
 	baseUrl: string;
 	/** Every supported locale, e.g. `["en", "fr", "nl"]`. */
-	locales: readonly string[];
-	/**
-	 * The locale served when no signal says otherwise. Under `"query"` it is
-	 * NOT the owner of the bare path: the bare path negotiates and `x-default`
-	 * points at it, while the default locale gets its own `?<param>=` address
-	 * like every other locale.
-	 */
-	defaultLocale: string;
-	/** Default `"query"`. */
+	locales: readonly L[];
+	/** The locale served when no signal says otherwise. */
+	defaultLocale: L;
+	/** Default `"query"`. See {@link LocaleStrategy}; prefer `"prefix"`. */
 	strategy?: LocaleStrategy;
 	/** Query-param name for the `"query"` strategy. Default `"hl"`. */
 	param?: string;
-	/** `"prefix"` only: prefix the default locale too (`/en/about`). */
-	prefixDefaultLocale?: boolean;
+	/** Remembered-choice cookie. Default `"locale"`. */
+	cookieName?: string;
 	/**
 	 * ISO-3166 alpha-2 country → locale, for the last-resort country signal.
 	 * Omit a country whose language is genuinely ambiguous (Belgium is the
 	 * obvious one: geography tells you nothing about whether a visitor reads
-	 * French or Dutch) so it falls through to {@link defaultLocale} instead of
-	 * guessing. Countries absent from the map are ignored.
+	 * French or Dutch) so it falls through instead of guessing. Countries
+	 * absent from the map are ignored.
 	 */
-	countryLocales?: Readonly<Record<string, string>>;
+	countryLocales?: Readonly<Record<string, L>>;
+	/**
+	 * Optional locale → hreflang tag, e.g. `{ en: "en-BE", fr: "fr-BE" }`. Lives
+	 * here rather than on the SEO config so a site with regional tags does not
+	 * have to build a second object — that second object is exactly the drift
+	 * this package exists to prevent. Also the value to put in `<html lang>`,
+	 * via {@link LocaleRouting.htmlLang}.
+	 *
+	 * Only use region tags when the content genuinely differs by country. They
+	 * fragment the cluster and cut you out of neighbouring markets otherwise.
+	 */
+	hrefLangTags?: Readonly<Partial<Record<L, string>>>;
 }
 
 /**
  * The signals a locale can be decided from, in no particular order — the order
- * is {@link resolveLocaleFromSignals}'s to own, not the caller's.
+ * is {@link LOCALE_PRECEDENCE}'s to own, not the caller's.
  */
 export interface LocaleSignals {
 	/** The locale the URL itself names (the `?hl=` value, or a path prefix). */
@@ -73,25 +86,57 @@ export interface LocaleSignals {
 	country?: string | null | undefined;
 }
 
-export interface LocaleRouting extends Required<
-	Omit<LocaleRoutingConfig, "countryLocales">
-> {
-	countryLocales: Readonly<Record<string, string>>;
-	/** Narrow an arbitrary value (cookie, header, DB column) to a locale. */
-	isLocale: (value: unknown) => boolean;
+/**
+ * The routing definition. Hand it to BOTH your locale resolver and your
+ * hreflang config — a `LocaleRouting` is a valid `HreflangConfig`, so the URL
+ * you advertise and the URL you serve cannot drift.
+ *
+ * **The cluster shape is fixed and not configurable**, whichever strategy you
+ * pick:
+ *
+ * - every locale has its own address (`?hl=en` / `/en/…`), the default
+ *   included;
+ * - the bare path belongs to NO locale. It negotiates, and it is `x-default`.
+ *
+ * The two shapes this deliberately does not offer are the ones that go wrong.
+ * A bare path that IS the default locale serves English to a French visitor who
+ * followed a bare internal link — and every site that starts with a cookie
+ * switcher has bare internal links. A bare path that redirects on perceived
+ * language is what Google tells you not to build, and makes `x-default` point
+ * at a URL that is not language-neutral. Offering either as an option is how
+ * the fleet drifts, so neither is offered.
+ */
+export interface LocaleRouting<L extends string = string> {
+	baseUrl: string;
+	locales: readonly L[];
+	defaultLocale: L;
+	strategy: LocaleStrategy;
+	param: string;
+	cookieName: string;
+	countryLocales: Readonly<Record<string, L>>;
+	hrefLangTags?: Readonly<Partial<Record<string, string>>>;
+	/** Type guard, so sites don't each write their own. */
+	isLocale: (value: unknown) => value is L;
 	/**
-	 * The locale this URL *names*, or `undefined` when it names none (the bare
-	 * negotiating path under `"query"`). This is the value canonical tags must
-	 * follow: a canonical is a statement about an address, not about whichever
-	 * language negotiation happened to render.
+	 * The locale this URL *names*, or `undefined` for the bare path, which names
+	 * none. This is the value canonical tags must follow: a canonical is a
+	 * statement about an address, not about whichever language negotiation
+	 * happened to render.
 	 */
-	localeFromUrl: (url: URL | string) => string | undefined;
+	localeFromUrl: (url: URL | string) => L | undefined;
 	/** The absolute address that always serves `locale`. */
-	urlForLocale: (pathname: string, locale: string) => string;
-	/** The absolute bare address — `x-default` under `"query"`. */
+	urlForLocale: (pathname: string, locale: L) => string;
+	/** The absolute bare address — the negotiating entry point, `x-default`. */
 	bareUrl: (pathname: string) => string;
+	/**
+	 * The app-facing pathname with any locale prefix removed, for the middleware
+	 * rewrite. Identity under `"query"`.
+	 */
+	stripLocale: (pathname: string) => string;
+	/** The `<html lang>` value: the regional tag if one is set, else the locale. */
+	htmlLang: (locale: L) => string;
 	/** Apply the fixed precedence to a set of signals. */
-	resolve: (signals: LocaleSignals) => string;
+	resolve: (signals: LocaleSignals) => L;
 }
 
 /** Resolve `path` against `baseUrl`, refusing anything that escapes the origin. */
@@ -109,10 +154,10 @@ const absolute = (path: string, baseUrl: string): string => {
 /**
  * The one order every Ingram site decides a locale in:
  *
- *   1. the URL (`?hl=fr`) — an address that names a language always wins,
- *      including over a signed-in user's stored preference. A shared link must
- *      show the recipient the language it names, or the link is a lie and the
- *      hreflang annotation pointing at it is too.
+ *   1. the URL (`?hl=fr`, `/fr/…`) — an address that names a language always
+ *      wins, including over a signed-in user's stored preference. A shared link
+ *      must show the recipient the language it names, or the link is a lie and
+ *      the hreflang annotation pointing at it is too.
  *   2. the account's stored preference
  *   3. the remembered-choice cookie
  *   4. `Accept-Language`
@@ -134,8 +179,8 @@ export const LOCALE_PRECEDENCE = [
 
 export type LocaleSignal = (typeof LOCALE_PRECEDENCE)[number];
 
-type RoutingSlice = Pick<
-	LocaleRouting,
+type RoutingSlice<L extends string> = Pick<
+	LocaleRouting<L>,
 	"locales" | "defaultLocale" | "countryLocales" | "isLocale"
 >;
 
@@ -144,11 +189,11 @@ type RoutingSlice = Pick<
  * code and only need narrowing; `acceptLanguage` is a header to negotiate and
  * `country` is an ISO code to look up.
  */
-const normalize = (
+const normalize = <L extends string>(
 	signal: LocaleSignal,
 	raw: string | null | undefined,
-	routing: RoutingSlice,
-): string | undefined => {
+	routing: RoutingSlice<L>,
+): L | undefined => {
 	if (raw === null || raw === undefined || raw === "") return undefined;
 	if (signal === "acceptLanguage") {
 		const negotiated = negotiateAcceptLanguage(raw, routing.locales);
@@ -162,10 +207,10 @@ const normalize = (
 };
 
 /** Apply {@link LOCALE_PRECEDENCE} to already-gathered signal values. */
-export function resolveLocaleFromSignals(
-	routing: RoutingSlice,
+export function resolveLocaleFromSignals<L extends string>(
+	routing: RoutingSlice<L>,
 	signals: LocaleSignals,
-): string {
+): L {
 	for (const signal of LOCALE_PRECEDENCE) {
 		const locale = normalize(signal, signals[signal], routing);
 		if (locale) return locale;
@@ -187,10 +232,10 @@ export type LocaleSuppliers = Partial<Record<LocaleSignal, LocaleSupplier>>;
  * first that yields a locale. Suppliers later in the chain are never called, so
  * a URL that names its language costs no database round trip.
  */
-export async function resolveLocaleFromSuppliers(
-	routing: RoutingSlice,
+export async function resolveLocaleFromSuppliers<L extends string>(
+	routing: RoutingSlice<L>,
 	suppliers: LocaleSuppliers,
-): Promise<string> {
+): Promise<L> {
 	for (const signal of LOCALE_PRECEDENCE) {
 		const supplier = suppliers[signal];
 		if (!supplier) continue;
@@ -200,20 +245,19 @@ export async function resolveLocaleFromSuppliers(
 	return routing.defaultLocale;
 }
 
-/**
- * Build the routing definition. Hand the result to BOTH your locale resolver
- * and your hreflang config — a `LocaleRouting` is a valid `HreflangConfig`, so
- * the URL you advertise and the URL you serve cannot drift.
- */
-export function defineLocaleRouting(config: LocaleRoutingConfig): LocaleRouting {
+/** Build the routing definition. See {@link LocaleRouting}. */
+export function defineLocaleRouting<const L extends string>(
+	config: LocaleRoutingConfig<L>,
+): LocaleRouting<L> {
 	const {
 		baseUrl,
 		locales,
 		defaultLocale,
 		strategy = "query",
 		param = "hl",
-		prefixDefaultLocale = false,
-		countryLocales = {},
+		cookieName = "locale",
+		countryLocales = {} as Readonly<Record<string, L>>,
+		hrefLangTags,
 	} = config;
 
 	if (!locales.includes(defaultLocale)) {
@@ -222,48 +266,56 @@ export function defineLocaleRouting(config: LocaleRoutingConfig): LocaleRouting 
 		);
 	}
 
-	const isLocale = (value: unknown): boolean =>
-		typeof value === "string" && locales.includes(value);
+	const isLocale = (value: unknown): value is L =>
+		typeof value === "string" && (locales as readonly string[]).includes(value);
 
 	const bareUrl = (pathname: string): string => absolute(pathname, baseUrl);
 
-	const urlForLocale = (pathname: string, locale: string): string => {
+	/** The locale segment at the head of `pathname`, if any. */
+	const prefixOf = (pathname: string): L | undefined =>
+		locales.find(
+			(locale) => pathname === `/${locale}` || pathname.startsWith(`/${locale}/`),
+		);
+
+	const stripLocale = (pathname: string): string => {
+		if (strategy !== "prefix") return pathname;
+		const locale = prefixOf(pathname);
+		return locale ? pathname.slice(locale.length + 1) || "/" : pathname;
+	};
+
+	const urlForLocale = (pathname: string, locale: L): string => {
+		const base = stripLocale(pathname);
+		// Every locale gets its own address, the default included: the bare path
+		// is the negotiating entry point and belongs to none of them.
 		if (strategy === "prefix") {
-			if (locale === defaultLocale && !prefixDefaultLocale)
-				return bareUrl(pathname);
-			return absolute(`/${locale}${pathname === "/" ? "" : pathname}`, baseUrl);
+			return absolute(`/${locale}${base === "/" ? "" : base}`, baseUrl);
 		}
-		const bare = bareUrl(pathname);
+		const bare = bareUrl(base);
 		return `${bare}${bare.includes("?") ? "&" : "?"}${param}=${locale}`;
 	};
 
-	const localeFromUrl = (url: URL | string): string | undefined => {
+	const localeFromUrl = (url: URL | string): L | undefined => {
 		const parsed = typeof url === "string" ? new URL(url, baseUrl) : url;
-		if (strategy === "prefix") {
-			const found = locales.find(
-				(locale) =>
-					parsed.pathname === `/${locale}` ||
-					parsed.pathname.startsWith(`/${locale}/`),
-			);
-			if (found) return found;
-			return prefixDefaultLocale ? undefined : defaultLocale;
-		}
+		if (strategy === "prefix") return prefixOf(parsed.pathname);
 		const value = parsed.searchParams.get(param);
-		return isLocale(value) && value !== null ? value : undefined;
+		return isLocale(value) ? value : undefined;
 	};
 
-	const routing: LocaleRouting = {
+	const routing: LocaleRouting<L> = {
 		baseUrl,
 		locales,
 		defaultLocale,
 		strategy,
 		param,
-		prefixDefaultLocale,
+		cookieName,
 		countryLocales,
+		hrefLangTags,
 		isLocale,
 		localeFromUrl,
 		urlForLocale,
 		bareUrl,
+		stripLocale,
+		htmlLang: (locale) => hrefLangTags?.[locale] ?? locale,
 		resolve: (signals) => resolveLocaleFromSignals(routing, signals),
 	};
 	return routing;

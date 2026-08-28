@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, readdirSync, rmSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 /**
@@ -43,6 +43,38 @@ export function listGeneratedArtifacts(cwd = process.cwd()) {
 	}
 
 	return [...present, ...buildInfo];
+}
+
+/**
+ * Files whose change means the dependency tree changed. The lockfile is the
+ * precise signal; `package.json` covers a hand edit not yet installed.
+ */
+const DEPENDENCY_MANIFESTS = [
+	"bun.lock",
+	"bun.lockb",
+	"package-lock.json",
+	"package.json",
+];
+
+/**
+ * TypeScript incremental caches older than the dependency manifests.
+ *
+ * `tsc --incremental` does not reliably notice a dependency's `.d.ts`
+ * changing, so after an upgrade a type-check can pass against the cached
+ * program while a cold run fails — the exact failure a dependency bump exists
+ * to catch. Keying invalidation on the lockfile catches that case without
+ * giving up the cache on every other run.
+ */
+export function staleBuildInfo(cwd = process.cwd()) {
+	const manifests = DEPENDENCY_MANIFESTS.map((name) => join(cwd, name)).filter(
+		(file) => existsSync(file),
+	);
+	if (manifests.length === 0) return [];
+	const newest = Math.max(...manifests.map((file) => statSync(file).mtimeMs));
+	return listGeneratedArtifacts(cwd)
+		.filter((entry) => entry.owner === "tsc")
+		.filter((entry) => statSync(join(cwd, entry.path)).mtimeMs < newest)
+		.map((entry) => entry.path);
 }
 
 /**

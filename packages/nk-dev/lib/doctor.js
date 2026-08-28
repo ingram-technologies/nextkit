@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { authShadowFindings } from "./auth-shadow.js";
 import { SUPERSEDED_DEPS } from "./drift.js";
@@ -252,28 +252,80 @@ export function findings(cwd) {
 		}
 	}
 
-	// 8. .prettierignore is now dead weight (nk no longer formats SQL).
-	const prettierIgnore = resolve(cwd, ".prettierignore");
-	if (existsSync(prettierIgnore)) {
+	// 8. Prettier leftovers are dead weight (nk no longer runs Prettier):
+	//    .prettierignore, any .prettierrc*, and a "prettier" key in package.json.
+	for (const file of prettierFiles(cwd)) {
 		out.push({
-			id: "prettierignore",
+			id: `prettier:${file}`,
+			level: "warn",
+			message: `${file} is unused (nk no longer runs Prettier) — remove it`,
+			fix: (dir) => {
+				rmSync(resolve(dir, file));
+				return `removed ${file}`;
+			},
+		});
+	}
+	if (pkg.prettier !== undefined) {
+		out.push({
+			id: "prettier:package.json",
 			level: "warn",
 			message:
-				".prettierignore is unused (nk no longer runs Prettier) — remove it",
+				'package.json has a "prettier" key (nk no longer runs Prettier) — remove it',
 			fix: (dir) => {
-				rmSync(resolve(dir, ".prettierignore"));
-				return "removed .prettierignore";
+				const p = resolve(dir, "package.json");
+				const j = readJson(p);
+				delete j.prettier;
+				writeJson(p, j);
+				return 'removed "prettier" from package.json';
 			},
 		});
 	}
 
-	// 9. The migration chain is sealed, and its unmodelled DDL is declared.
+	// 9. A `ci` script exists and runs the house gate. Its full contents are
+	//    the site's call (migrations, i18n, email catalogs, build…), so this only
+	//    warns and never writes — but the dep-upgrade flow and pre-push both
+	//    assume `bun run ci` is the one command that proves a change.
+	const ci = scripts["ci"];
+	if (ci === undefined) {
+		out.push({
+			id: "script:ci",
+			level: "warn",
+			message:
+				'missing `ci` script — the one command that proves a change (e.g. "nk check && nk type-check && nk test")',
+		});
+	} else {
+		const missing = ["nk check", "nk type-check"].filter(
+			(cmd) => !ci.includes(cmd) && !ci.includes(`bun run ${cmd.slice(3)}`),
+		);
+		if (missing.length > 0) {
+			out.push({
+				id: "script:ci",
+				level: "warn",
+				message: `\`ci\` script does not run ${missing.map((c) => `\`${c}\``).join(" or ")} — the gate should run both`,
+			});
+		}
+	}
+
+	// 10. The migration chain is sealed, and its unmodelled DDL is declared.
 	out.push(...migrationFindings(cwd));
 
-	// 10. No page/route under app/auth/ shadows a Better Auth endpoint.
+	// 11. No page/route under app/auth/ shadows a Better Auth endpoint.
 	out.push(...authShadowFindings(cwd));
 
 	return out;
+}
+
+/** Prettier config files present in `cwd` (relative names). */
+function prettierFiles(cwd) {
+	let names;
+	try {
+		names = readdirSync(cwd);
+	} catch {
+		return [];
+	}
+	return names.filter(
+		(name) => name === ".prettierignore" || name.startsWith(".prettierrc"),
+	);
 }
 
 /**
@@ -332,8 +384,8 @@ function migrationFindings(cwd) {
 /**
  * `nk doctor [--fix]` — report drift from the canonical nk-dev model (scripts,
  * dependencies, oxlint/tsconfig extends, the CLAUDE.md guide import, stale knip
- * ignores, forbidden schema-applying drizzle-kit scripts, a dead
- * .prettierignore, an unsealed or unmodelled-DDL-carrying migration chain, a
+ * ignores, forbidden schema-applying drizzle-kit scripts, Prettier leftovers,
+ * a missing or thin `ci` script, an unsealed or unmodelled-DDL-carrying migration chain, a
  * page under app/auth/ shadowing a Better Auth endpoint).
  * With `--fix`, apply every auto-fixable finding, then remind
  * to reinstall.

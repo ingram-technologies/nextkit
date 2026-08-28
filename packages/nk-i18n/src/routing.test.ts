@@ -67,16 +67,54 @@ describe("defineLocaleRouting: prefix strategy", () => {
 		strategy: "prefix",
 	});
 
-	it("keeps the default locale on the bare path and prefixes the rest", () => {
-		expect(prefixed.urlForLocale("/about", "en")).toBe("https://acme.test/about");
+	it("gives every locale a prefix, the default included", () => {
+		// The bare path belongs to no locale, so `en` does not get to own it.
+		expect(prefixed.urlForLocale("/about", "en")).toBe(
+			"https://acme.test/en/about",
+		);
 		expect(prefixed.urlForLocale("/about", "fr")).toBe(
 			"https://acme.test/fr/about",
 		);
 	});
 
+	it("treats a bare path as naming no locale, so negotiation decides", () => {
+		// This is the whole point: returning the default locale here would make it
+		// the URL signal, which outranks the cookie, so a visitor who chose French
+		// would snap back to English on the first bare internal link they click.
+		expect(prefixed.localeFromUrl("https://acme.test/about")).toBeUndefined();
+		expect(prefixed.localeFromUrl("https://acme.test/")).toBeUndefined();
+	});
+
 	it("reads the locale back out of the pathname", () => {
 		expect(prefixed.localeFromUrl("https://acme.test/fr/about")).toBe("fr");
-		expect(prefixed.localeFromUrl("https://acme.test/about")).toBe("en");
+		expect(prefixed.localeFromUrl("https://acme.test/en/about")).toBe("en");
+		expect(prefixed.localeFromUrl("https://acme.test/fr")).toBe("fr");
+	});
+
+	it("round-trips every locale through its own address", () => {
+		for (const locale of prefixed.locales) {
+			expect(prefixed.localeFromUrl(prefixed.urlForLocale("/x", locale))).toBe(
+				locale,
+			);
+		}
+	});
+
+	it("strips the prefix for the app-facing rewrite", () => {
+		expect(prefixed.stripLocale("/fr/about")).toBe("/about");
+		expect(prefixed.stripLocale("/fr")).toBe("/");
+		expect(prefixed.stripLocale("/about")).toBe("/about");
+		// A path merely starting with the letters must not be mistaken for one.
+		expect(prefixed.stripLocale("/french-press")).toBe("/french-press");
+	});
+
+	it("does not double-prefix an already-prefixed path", () => {
+		expect(prefixed.urlForLocale("/fr/about", "nl" as "fr")).toBe(
+			"https://acme.test/nl/about",
+		);
+	});
+
+	it("is identity under the query strategy", () => {
+		expect(routing.stripLocale("/about")).toBe("/about");
 	});
 });
 
@@ -171,5 +209,79 @@ describe("resolveLocaleFromSuppliers", () => {
 			account: () => Promise.resolve("nl"),
 		});
 		expect(locale).toBe("nl");
+	});
+});
+
+describe("typing", () => {
+	// Sites used to write their own guard and cast the resolver's result; the
+	// first consumer of this API had `(await resolve()) as Locale` in it, which
+	// is the tell that the types were doing no work.
+	const typed = defineLocaleRouting({
+		baseUrl: "https://acme.test",
+		locales: ["en", "fr"],
+		defaultLocale: "en",
+	});
+
+	it("narrows an unknown value to the site's locale union", () => {
+		const raw: unknown = "fr";
+		if (typed.isLocale(raw)) {
+			const locale: "en" | "fr" = raw;
+			expect(locale).toBe("fr");
+		} else {
+			throw new Error("expected the guard to narrow");
+		}
+	});
+
+	it("returns the union from resolve, not a bare string", () => {
+		const locale: "en" | "fr" = typed.resolve({ cookie: "fr" });
+		expect(locale).toBe("fr");
+	});
+
+	it("narrows localeFromUrl too", () => {
+		const named: "en" | "fr" | undefined = typed.localeFromUrl(
+			"https://acme.test/x?hl=fr",
+		);
+		expect(named).toBe("fr");
+	});
+});
+
+describe("hreflang tags and html lang", () => {
+	const regional = defineLocaleRouting({
+		baseUrl: "https://acme.test",
+		locales: ["en", "fr", "nl"],
+		defaultLocale: "en",
+		hrefLangTags: { en: "en-BE", fr: "fr-BE", nl: "nl-BE" },
+	});
+
+	it("uses the regional tag for <html lang> when one is set", () => {
+		expect(regional.htmlLang("fr")).toBe("fr-BE");
+	});
+
+	it("falls back to the plain locale when no tag is set", () => {
+		expect(routing.htmlLang("fr")).toBe("fr");
+	});
+
+	it("carries the tags on the routing object, so no second config is needed", () => {
+		// A site with regional tags used to build one object for serving and
+		// another for hreflang, which is precisely the drift this prevents.
+		expect(regional.hrefLangTags).toEqual({
+			en: "en-BE",
+			fr: "fr-BE",
+			nl: "nl-BE",
+		});
+	});
+});
+
+describe("cookie name", () => {
+	it("lives on routing, so middleware and resolver cannot disagree", () => {
+		expect(routing.cookieName).toBe("locale");
+		expect(
+			defineLocaleRouting({
+				baseUrl: "https://acme.test",
+				locales: ["en"],
+				defaultLocale: "en",
+				cookieName: "lang",
+			}).cookieName,
+		).toBe("lang");
 	});
 });

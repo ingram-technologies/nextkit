@@ -316,21 +316,12 @@ import { HreflangLinks } from "@ingram-tech/nk-seo/components";
 />
 ```
 
-Sites that prefix **every** locale — where `/about` redirects to `/en/about`
-and no bare path exists — pass `prefixDefaultLocale`, which prefixes the default
-locale too and points `x-default` at that prefixed URL. Without it the bare path
-is emitted for both `en` and `x-default`, annotating URLs that redirect (Google
-wants every hreflang target to answer 200 directly).
-
-```tsx
-<HreflangLinks
-	baseUrl="https://example.com"
-	locales={["en", "fr", "nl"]}
-	strategy="prefix"
-	defaultLocale="en"
-	prefixDefaultLocale
-/>
-```
+The cluster's **shape** is fixed and not configurable: every locale gets its own
+address, the default included, and the bare path belongs to no locale — it is
+the negotiating entry point that `x-default` names. `strategy` picks only the
+encoding. `@ingram-tech/nk-i18n`'s `defineLocaleRouting` produces a valid config
+for this, and `hreflangConfigFor(routing)` fills in `currentLocale` and the
+pathname header correctly; prefer that over assembling a config by hand.
 
 Pass `pathname` explicitly if you don't use the `x-pathname` header. When
 neither is available the component **throws** instead of guessing — a silent
