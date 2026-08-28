@@ -25,21 +25,9 @@ describe("hreflangAlternates", () => {
 		expect(links[0]?.href).toBe("https://acme.test/?lang=en");
 	});
 
-	it("prefix strategy: keeps the default locale bare and prefixes the rest", () => {
-		const { links } = hreflangAlternates(
-			{ baseUrl, locales: ["en", "fr"], strategy: "prefix", defaultLocale: "en" },
-			"/about",
-		);
-		expect(links).toEqual([
-			{ hrefLang: "en", href: "https://acme.test/about" },
-			{ hrefLang: "fr", href: "https://acme.test/fr/about" },
-			{ hrefLang: "x-default", href: "https://acme.test/about" },
-		]);
-	});
-
 	it("prefix strategy: the root path gets bare locale prefixes", () => {
 		const { links } = hreflangAlternates(
-			{ baseUrl, locales: ["en", "fr"], strategy: "prefix", defaultLocale: "en" },
+			{ baseUrl, locales: ["en", "fr"], strategy: "prefix" },
 			"/",
 		);
 		expect(links[1]?.href).toBe("https://acme.test/fr");
@@ -63,99 +51,11 @@ describe("hreflangAlternates", () => {
 				baseUrl: "https://acme.test/",
 				locales: ["en", "fr"],
 				strategy: "prefix",
-				defaultLocale: "en",
 			},
 			"/about",
 		);
 		expect(canonical).toBe("https://acme.test/about");
 		expect(links[1]?.href).toBe("https://acme.test/fr/about");
-	});
-
-	it("prefix strategy: strips an existing locale prefix instead of double-prefixing", () => {
-		// Middleware's x-pathname carries the real (prefixed) path on a localized
-		// route; blindly prepending produced /fr/fr/about + /en/fr/about.
-		const { canonical, links } = hreflangAlternates(
-			{ baseUrl, locales: ["en", "fr"], strategy: "prefix", defaultLocale: "en" },
-			"/fr/about",
-		);
-		expect(links).toEqual([
-			{ hrefLang: "en", href: "https://acme.test/about" },
-			{ hrefLang: "fr", href: "https://acme.test/fr/about" },
-			{ hrefLang: "x-default", href: "https://acme.test/about" },
-		]);
-		// …and the canonical self-references the French variant being rendered.
-		expect(canonical).toBe("https://acme.test/fr/about");
-	});
-
-	it("prefixDefaultLocale: prefixes every locale and points x-default at the default one", () => {
-		// Sites whose negotiation redirects bare paths have no unprefixed
-		// variant: emitting one would annotate a URL that 3xx-redirects.
-		const { canonical, links } = hreflangAlternates(
-			{
-				baseUrl,
-				locales: ["en", "fr"],
-				strategy: "prefix",
-				defaultLocale: "en",
-				prefixDefaultLocale: true,
-			},
-			"/about",
-		);
-		expect(links).toEqual([
-			{ hrefLang: "en", href: "https://acme.test/en/about" },
-			{ hrefLang: "fr", href: "https://acme.test/fr/about" },
-			{ hrefLang: "x-default", href: "https://acme.test/en/about" },
-		]);
-		expect(canonical).toBe("https://acme.test/en/about");
-	});
-
-	it("prefixDefaultLocale: the default locale's own page canonicalizes to its prefixed URL", () => {
-		const { canonical } = hreflangAlternates(
-			{
-				baseUrl,
-				locales: ["en", "fr"],
-				strategy: "prefix",
-				defaultLocale: "en",
-				prefixDefaultLocale: true,
-			},
-			"/en/about",
-		);
-		expect(canonical).toBe("https://acme.test/en/about");
-	});
-
-	it("prefixDefaultLocale: the root path prefixes without a trailing slash", () => {
-		const { links } = hreflangAlternates(
-			{
-				baseUrl,
-				locales: ["en", "fr"],
-				strategy: "prefix",
-				defaultLocale: "en",
-				prefixDefaultLocale: true,
-			},
-			"/",
-		);
-		expect(links.map((l) => l.href)).toEqual([
-			"https://acme.test/en",
-			"https://acme.test/fr",
-			"https://acme.test/en",
-		]);
-	});
-
-	it("exposes the links keyed by hreflang for Metadata.alternates.languages", () => {
-		const { languages } = hreflangAlternates(
-			{ baseUrl, locales: ["en", "fr"], strategy: "prefix", defaultLocale: "en" },
-			"/about",
-		);
-		expect(languages).toEqual({
-			en: "https://acme.test/about",
-			fr: "https://acme.test/fr/about",
-			"x-default": "https://acme.test/about",
-		});
-	});
-
-	it("prefix strategy: requires defaultLocale", () => {
-		expect(() =>
-			hreflangAlternates({ baseUrl, locales: ["en"], strategy: "prefix" }, "/p"),
-		).toThrow(/defaultLocale/);
 	});
 
 	it("query strategy: canonical self-references the variant when currentLocale is passed", () => {
@@ -164,7 +64,6 @@ describe("hreflangAlternates", () => {
 			{
 				baseUrl,
 				locales: ["en", "fr"],
-				defaultLocale: "en",
 				currentLocale: "fr",
 			},
 			"/about",
@@ -192,8 +91,79 @@ describe("hreflangAlternates", () => {
 	});
 });
 
+describe("hreflangAlternates: prefix strategy", () => {
+	const config = {
+		baseUrl,
+		locales: ["en", "fr", "nl"],
+		strategy: "prefix" as const,
+	};
+
+	it("gives every locale its own prefix, the default included", () => {
+		// The bare path belongs to no locale, so `en` does NOT get it.
+		const { links } = hreflangAlternates(config, "/about");
+		expect(links).toEqual([
+			{ hrefLang: "en", href: "https://acme.test/en/about" },
+			{ hrefLang: "fr", href: "https://acme.test/fr/about" },
+			{ hrefLang: "nl", href: "https://acme.test/nl/about" },
+			{ hrefLang: "x-default", href: "https://acme.test/about" },
+		]);
+	});
+
+	it("points x-default at the bare negotiating path", () => {
+		const { languages } = hreflangAlternates(config, "/about");
+		expect(languages["x-default"]).toBe("https://acme.test/about");
+	});
+
+	it("strips an existing locale prefix instead of double-prefixing", () => {
+		const { links, canonical } = hreflangAlternates(config, "/fr/about");
+		expect(links[1]?.href).toBe("https://acme.test/fr/about");
+		expect(links[0]?.href).toBe("https://acme.test/en/about");
+		// The locale is detected from the path, so the canonical self-references.
+		expect(canonical).toBe("https://acme.test/fr/about");
+	});
+
+	it("prefixes the root path without a trailing slash", () => {
+		const { links } = hreflangAlternates(config, "/");
+		expect(links[0]?.href).toBe("https://acme.test/en");
+		expect(links[3]?.href).toBe("https://acme.test/");
+	});
+
+	it("canonicalizes a bare path to itself, naming no locale", () => {
+		expect(hreflangAlternates(config, "/about").canonical).toBe(
+			"https://acme.test/about",
+		);
+	});
+
+	it("emits the same cluster shape as the query strategy", () => {
+		// The encoding differs; the shape must not. Both give every locale its own
+		// address and reserve the bare path for x-default.
+		const asQuery = hreflangAlternates(
+			{ baseUrl, locales: config.locales },
+			"/about",
+		);
+		const asPrefix = hreflangAlternates(config, "/about");
+		expect(asPrefix.links.map((l) => l.hrefLang)).toEqual(
+			asQuery.links.map((l) => l.hrefLang),
+		);
+		expect(asPrefix.languages["x-default"]).toBe(asQuery.languages["x-default"]);
+	});
+
+	it("exposes the links keyed by hreflang for Metadata.alternates.languages", () => {
+		const { languages } = hreflangAlternates(
+			{ ...config, hrefLangTags: { en: "en-BE", fr: "fr-BE", nl: "nl-BE" } },
+			"/about",
+		);
+		expect(languages).toEqual({
+			"en-BE": "https://acme.test/en/about",
+			"fr-BE": "https://acme.test/fr/about",
+			"nl-BE": "https://acme.test/nl/about",
+			"x-default": "https://acme.test/about",
+		});
+	});
+});
+
 describe("hreflangAlternates: canonical follows the address, not the language", () => {
-	const config = { baseUrl, locales: ["en", "fr", "nl"], defaultLocale: "en" };
+	const config = { baseUrl, locales: ["en", "fr", "nl"] };
 
 	it("query strategy: the default locale canonicalizes to its own param URL", () => {
 		// The bare path is the negotiating entry point and belongs to no locale,
@@ -227,27 +197,6 @@ describe("hreflangAlternates: canonical follows the address, not the language", 
 		);
 		expect(languages["x-default"]).toBe("https://acme.test/pricing");
 		expect(languages.en).toBe("https://acme.test/pricing?hl=en");
-	});
-
-	it("prefix strategy: the default locale still canonicalizes to the bare path", () => {
-		const { canonical } = hreflangAlternates(
-			{ ...config, strategy: "prefix", currentLocale: "en" },
-			"/pricing",
-		);
-		expect(canonical).toBe("https://acme.test/pricing");
-	});
-
-	it("prefix strategy with prefixDefaultLocale: canonical is the prefixed URL", () => {
-		const { canonical } = hreflangAlternates(
-			{
-				...config,
-				strategy: "prefix",
-				prefixDefaultLocale: true,
-				currentLocale: "en",
-			},
-			"/pricing",
-		);
-		expect(canonical).toBe("https://acme.test/en/pricing");
 	});
 
 	it("every advertised URL round-trips to itself as canonical", () => {

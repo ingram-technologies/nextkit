@@ -115,11 +115,10 @@ export const resolveLocale = cache(async (): Promise<Locale> => {
 ## Locale URL routing
 
 One definition of how a locale is encoded in a URL, shared by the code that
-**serves** a language and the code that **advertises** it to search engines. When
-those two drift — the classic being middleware that redirects away the very
-`?hl=` URLs hreflang points at — the site tells Google the French page lives at
-an address that doesn't serve French, and Google drops the language. Nothing
-catches that, because neither half can see the other.
+**serves** a language and the code that **advertises** it to search engines.
+When those drift — the classic being middleware that redirects away the very
+URLs hreflang points at — the site tells Google the French page lives at an
+address that doesn't serve French, and Google drops the language.
 
 ```ts
 // lib/i18n/routing.ts
@@ -129,54 +128,89 @@ export const routing = defineLocaleRouting({
 	baseUrl: "https://example.com",
 	locales: ["en", "fr", "nl"],
 	defaultLocale: "en",
-	// strategy: "query" (default) → /pricing?hl=fr, bare path is x-default
-	// strategy: "prefix"          → /fr/pricing, default locale stays bare
+	strategy: "prefix", // or "query" (default)
 	countryLocales: { FR: "fr", NL: "nl" }, // omit BE: geography can't decide
+	hrefLangTags: { en: "en-BE", fr: "fr-BE" }, // only if content differs by country
 });
 ```
 
-**The rule: a URL that names a locale serves that locale, with a 200, to
-everybody.** Never redirect it.
+### The cluster shape is fixed
+
+Whichever strategy you pick: **every locale gets its own address, the default
+included, and the bare path belongs to no locale** — it negotiates, and it is
+`x-default`.
+
+```
+x-default  →  /pricing          negotiates; language varies by visitor
+en         →  /en/pricing       or  /pricing?hl=en
+fr         →  /fr/pricing       or  /fr/pricing?hl=fr
+```
+
+That isn't configurable, on purpose. A bare path that *is* the default locale
+serves English to anyone following a bare internal link, and a bare path that
+redirects on perceived language is what Google tells you not to build. Both are
+available as options in most i18n libraries and both are traps.
+
+`strategy` picks only the encoding. Prefer `"prefix"`: a path can't be folded
+into another document the way a query parameter can, it survives link-sharing
+that strips query strings, and it puts the target-language keyword in the URL.
+Use `"query"` when restructuring routes isn't worth it.
+
+### Middleware
 
 ```ts
-// proxy.ts — forward, never redirect
-import { forwardUrlLocale } from "@ingram-tech/nk-i18n/next";
+// proxy.ts
+import { localeProxy } from "@ingram-tech/nk-i18n/next";
 
 export function proxy(request: NextRequest) {
-	const requestHeaders = new Headers(request.headers);
-	forwardUrlLocale(routing, request.nextUrl, requestHeaders);
-	return NextResponse.next({ request: { headers: requestHeaders } });
+	return localeProxy(routing, request);
 }
 ```
 
-```ts
-// lib/i18n/locale.ts
-import { createLocaleResolver } from "@ingram-tech/nk-i18n/next";
+That forwards the pathname and URL-locale headers, rewrites `/fr/about` to
+`/about` so the app keeps one route tree, and remembers an explicit choice in
+the cookie. **It never redirects.** Middleware that does more of its own work
+passes its headers in and keeps editing the response:
 
+```ts
+const requestHeaders = new Headers(request.headers);
+requestHeaders.set("x-tenant", tenant);
+const response = localeProxy(routing, request, { requestHeaders });
+response.cookies.set(…);
+return response;
+```
+
+### Resolving
+
+```ts
 export const resolveLocale = cache(
 	createLocaleResolver(routing, { account: () => getProfile().locale }),
 );
 ```
 
+Returns your locale union, not `string`, so no guard or cast at the call site.
 The precedence is fixed and not configurable:
 
-1. **the URL** (`?hl=fr`) 2. account setting 3. cookie 4. `Accept-Language`
+1. **the URL** 2. account setting 3. cookie 4. `Accept-Language`
 5. country 6. `defaultLocale`
 
 The URL beating the account setting is the load-bearing part: a shared link must
 show the recipient the language it names, or every localized link the site ships
-is a lie. Suppliers are lazy, so a `?hl=` request never touches the database.
+is a lie. Suppliers are lazy, so a localized address never touches the database.
 
-For hreflang, hand the same object to nk-seo — `hreflangConfigFor` sets
-`currentLocale` from the **URL**, so canonicals follow the address rather than
-whatever language negotiation rendered:
+### hreflang
+
+Hand the same object to nk-seo. `hreflangConfigFor` sets `currentLocale` from
+the **URL**, so canonicals follow the address rather than whatever language
+negotiation rendered, and it passes `hrefLangTags` through so there is no second
+config object to drift:
 
 ```tsx
-// app/layout.tsx
-import { hreflangConfigFor } from "@ingram-tech/nk-i18n/next";
-import { HreflangLinks } from "@ingram-tech/nk-seo/components";
-
-<HreflangLinks {...(await hreflangConfigFor(routing))} pathname={pathname} />;
+<html lang={routing.htmlLang(locale)}>
+	<head>
+		<HreflangLinks {...(await hreflangConfigFor(routing))} />
+	</head>
+</html>
 ```
 
 The language switcher must be real `<a href={routing.urlForLocale(path, loc)}>`
@@ -197,6 +231,6 @@ Prove the site serves what it advertises with `assertHreflangCluster` from
   `LocaleDefinition` / `LocaleRouting` / `LocaleSignals` types.
 - `@ingram-tech/nk-i18n/client` (`"use client"`): `LocaleProvider`, `useLocale`,
   `useT`.
-- `@ingram-tech/nk-i18n/next` (server, needs `next`): `forwardUrlLocale`,
-  `getUrlLocale`, `createLocaleResolver`, `hreflangConfigFor`,
-  `LOCALE_URL_HEADER`.
+- `@ingram-tech/nk-i18n/next` (server, needs `next`): `localeProxy`,
+  `forwardRequestContext`, `getUrlLocale`, `createLocaleResolver`,
+  `hreflangConfigFor`, `LOCALE_URL_HEADER`, `PATHNAME_HEADER`.
