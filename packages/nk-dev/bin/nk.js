@@ -34,8 +34,11 @@ Commands:
                       mechanical refactors — see the codemod skill.
   check               The CI gate: lint + format verify + knip (when configured)
                       + the agent-guide import gate + the migration seal.
-  type-check          next typegen && tsc --noEmit. Recovers automatically when
+  type-check [--cold] next typegen && tsc --noEmit. Recovers automatically when
                       generated types are damaged (e.g. a killed dev server).
+                      Drops the incremental cache when the lockfile changed
+                      since it was written (a stale cache passes against old
+                      .d.ts); --cold always drops it.
   clean               Remove regenerable build artifacts: Next's generated
                       types and TypeScript incremental caches.
   test [...]          vitest run (extra args passed through).
@@ -75,7 +78,7 @@ switch (cmd) {
 		check();
 		break;
 	case "type-check":
-		typeCheck();
+		typeCheck(rest);
 		break;
 	case "clean":
 		clean();
