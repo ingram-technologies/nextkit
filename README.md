@@ -37,15 +37,25 @@ Published as `@ingram-tech/<name>`.
 
 See [docs/](./docs/README.md).
 
-## Stack
+## What the packages bind to
 
-These are the choices the packages are built and tested against, not
-requirements. Next.js + Bun + Vercel, oxlint + oxfmt + Vitest + Playwright,
-Cloudflare (email). For a database or auth: DigitalOcean Managed Postgres reached
-directly via `pg` + Drizzle (`nk-db`), Better Auth (`nk-auth`), and PGlite for
-local dev/test, rather than a hosted REST or auth product. The selection rule is
-EU-first, self-hostable, no per-seat US SaaS; Stripe (`nk-billing`) is the one
-exception.
+Only `nk-seo`, `nk-blog`, `nk-themes`, `nk-i18n` and `nk-auth` peer-depend on
+Next.js; `nk-forms` needs React for its client hook, and nothing else. `nk-email`,
+`nk-db`, `nk-api`, `nk-billing` and `nk-marketing` declare no framework peer at
+all and work outside Next.js. Each package commits to at most one external
+service, so adopting one does not commit you to the others:
+
+- `nk-email` sends through Cloudflare Email Sending.
+- `nk-billing` is Stripe.
+- `nk-db` is any Postgres reachable by `DATABASE_URL` over `pg` (with Drizzle
+  wiring and PGlite for local dev/test), not a hosted REST layer.
+- `nk-auth` is Better Auth.
+- `nk-forms`' third bot-protection layer is Vercel BotID, and degrades to a
+  no-op off Vercel; the honeypot and timing layers run anywhere.
+- `nk-dev` ships oxlint, oxfmt, TypeScript and Vitest config.
+
+The vendor reasoning behind those picks is in
+[docs/philosophy.md](./docs/philosophy.md).
 
 ## Develop
 
