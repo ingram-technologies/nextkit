@@ -16,8 +16,8 @@ exactly one Better Auth copy in the app.
 | `createAuthPool` (`./pool`) | **deprecated** — alias of `createPool` from [`@ingram-tech/nk-db`](../nk-db); inject your app's shared pool instead |
 | `makeEmailSenders`, `makePasskeyOptions`, `passkeyOptionsForBaseUrl`, `uuidGenerateId` (`./`) | email hooks, passkeys (`passkeyOptionsForBaseUrl` derives `rpID`/`origin` from a single base URL), UUID ids |
 | `bcryptPassword` (`./`) | **legacy only** — bcrypt verifier for apps with pre-existing bcrypt hashes. New apps omit it (Better Auth defaults to scrypt). See [Migrating bcrypt passwords to scrypt](#migrating-bcrypt-passwords-to-scrypt) |
-| `createAuthHelpers`, `safeNext` (`./server`) | validated App Router session helpers (`getSession` / `getUser` / `requireSession` / `requireUser` / `redirectIfAuthenticated`), request-memoized via React `cache()`, with automatic `next` + stale-cookie signalling; `safeNext` validates a `?next=` param |
-| `createAuthMiddleware` (`./middleware`) | loop-safe edge middleware: gates unauthenticated users off protected paths, preserves `next`, and clears a stale session cookie so a bad session self-heals |
+| `createAuthHelpers`, `safeNext` (`./server`) | validated App Router session helpers (`getSession` / `getUser` / `requireSession` / `requireUser` / `signInTarget` / `redirectIfAuthenticated`), request-memoized via React `cache()`, with automatic `next` + stale-cookie signalling; `safeNext` validates a `?next=` param |
+| `createAuthMiddleware`, `withAuthPathHeader`, `clearStaleSession` (`./middleware`) | loop-safe edge middleware: gates unauthenticated users off protected paths, preserves `next`, and clears a stale session cookie so a bad session self-heals; the last two are its `next`-header and stale-cookie halves, for a site with its own proxy |
 
 > **Data access + RLS** is owned by [`@ingram-tech/nk-db`](../nk-db); see §3.
 >
@@ -387,9 +387,52 @@ that can touch cookies) deletes the dead Better Auth cookies on the `stale`
 marker and bounces to a clean `/login?next=…`; signing in returns them to
 `next`. `next` for the cookie-less case is filled in by middleware directly; for
 the cookie-present case the guard reads it from the `x-nk-auth-path` header
-middleware injects — so the self-heal (next + clearing) needs the middleware.
-An app that skips middleware still gets validated gating from the server helpers,
-just without automatic `next`/clearing.
+middleware injects.
+
+**Your own proxy.** An app that composes its own proxy (locale routing, tenant
+pinning, …) keeps validated gating from the server helpers, but the guards can
+only preserve `next` if something sets that header. Both halves of the
+middleware are exported on their own so a custom proxy adopts them without the
+optimistic gate; outside production the guards warn once when the header is
+missing, and `nk doctor` flags the shape.
+
+```ts
+// proxy.ts — a site with its own proxy
+import { clearStaleSession, withAuthPathHeader } from "@ingram-tech/nk-auth/middleware";
+import { localeProxy } from "@ingram-tech/nk-i18n/next";
+
+export function proxy(request: NextRequest) {
+	const stale = clearStaleSession(request, { signInPath: "/login" });
+	if (stale) return stale; // dead cookie cleared, `next` kept
+	const requestHeaders = new Headers(request.headers);
+	withAuthPathHeader(request, requestHeaders); // guards can now build `next`
+	return localeProxy(routing, request, { requestHeaders });
+}
+```
+
+(`createAuthMiddleware`'s middleware takes the same `{ requestHeaders }` option
+when you want the gate too.)
+
+**Your own guard.** A wrapper that layers something over `getUser()` (a profile
+lookup, say) redirects to `await signInTarget()`, the same URL `requireUser`
+would have used, with `next` and `stale` filled in:
+
+```ts
+const { getUser, signInTarget } = createAuthHelpers(auth);
+export async function requireProfile() {
+	const user = await getUser();
+	if (!user) redirect(await signInTarget());
+	return loadProfile(user.id);
+}
+```
+
+**Your own param.** Both `createAuthHelpers` and `createAuthMiddleware` take
+`nextParam` (default `next`) and `isSafeNext` (default `safeNext`, internal
+paths only). A site that already ships `?redirectTo=` with a trusted-origin
+allow-list passes `{ nextParam: "redirectTo", isSafeNext: isTrustedRedirect }`
+to both, and its sign-in page keeps validating with the same function. Whatever
+`isSafeNext` admits is where sign-in will send the user, so keep it as strict as
+`safeNext` on everything except the origins you own.
 
 ## 6. Passwords: change, set, and reset
 

@@ -24,12 +24,108 @@
  *    `${signInPath}?stale=1`; middleware (the only pre-render place that can set
  *    cookies) deletes the dead Better Auth cookies and bounces to a clean
  *    sign-in URL, so a bad session self-heals instead of failing every request.
+ *
+ * Both halves are also exported on their own — {@link withAuthPathHeader} and
+ * {@link clearStaleSession} — for a site whose proxy composes several concerns
+ * (locale routing, tenant pinning, …) and does not want the optimistic gate.
+ * Without the header the server guards cannot preserve `next` at all, and they
+ * say so (a one-time warning outside production); wiring one line into your own
+ * proxy is enough to fix that.
  */
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
-import { NK_AUTH_PATH_HEADER, safeNextParam } from "./gating-internals.js";
+import {
+	NK_AUTH_PATH_HEADER,
+	type NextParamOptions,
+	signInUrl,
+} from "./gating-internals.js";
 
-export interface AuthMiddlewareConfig {
+export type { NextParamOptions } from "./gating-internals.js";
+
+/**
+ * Forward the requested path + query to the app as the `x-nk-auth-path` request
+ * header, so a server guard can build `next` when it redirects to sign-in. The
+ * one line a custom proxy needs for `next` preservation:
+ *
+ *   const requestHeaders = new Headers(request.headers);
+ *   withAuthPathHeader(request, requestHeaders);
+ *   return localeProxy(routing, request, { requestHeaders });
+ *
+ * Set, never passed through: the header is ours to mint, so a client that sends
+ * one of its own can't choose where sign-in returns to.
+ */
+export function withAuthPathHeader(
+	request: NextRequest,
+	requestHeaders: Headers,
+): void {
+	requestHeaders.set(
+		NK_AUTH_PATH_HEADER,
+		request.nextUrl.pathname + request.nextUrl.search,
+	);
+}
+
+export interface StaleSessionConfig {
+	/** The sign-in path the server guards redirect to. Default `/login`. */
+	signInPath?: string;
+	/** Cookie-name fragment of the cookies to clear. Default `better-auth`. */
+	sessionCookiePrefix?: string;
+}
+
+/**
+ * The stale-session handshake, on its own for a custom proxy. The validated
+ * guard sends a present-but-invalid session to `${signInPath}?stale=1&next=…`;
+ * this clears the dead Better Auth cookies (only middleware can, pre-render) and
+ * returns a redirect to the same URL minus `stale`, which keeps `next`. Returns
+ * null on every other request, so a proxy can short-circuit on it:
+ *
+ *   const stale = clearStaleSession(request, { signInPath: "/login" });
+ *   if (stale) return stale;
+ *
+ * After the redirect the cookie is gone, so the handshake can't re-arm.
+ */
+export function clearStaleSession(
+	request: NextRequest,
+	config: StaleSessionConfig = {},
+): NextResponse | null {
+	const signInPath = config.signInPath ?? "/login";
+	const cookiePrefix = config.sessionCookiePrefix ?? "better-auth";
+	if (
+		request.nextUrl.pathname !== signInPath ||
+		request.nextUrl.searchParams.get("stale") !== "1"
+	) {
+		return null;
+	}
+	const to = request.nextUrl.clone();
+	to.searchParams.delete("stale");
+	const res = NextResponse.redirect(to);
+	for (const cookie of request.cookies.getAll()) {
+		if (cookie.name.includes(cookiePrefix)) {
+			// `__Secure-`/`__Host-` cookies: browsers reject the deletion
+			// Set-Cookie unless it carries the Secure attribute itself, so a
+			// bare delete() would silently leave the dead cookie in place on
+			// HTTPS and re-run this handshake on every visit.
+			res.cookies.delete({
+				name: cookie.name,
+				path: "/",
+				secure:
+					cookie.name.startsWith("__Secure-") ||
+					cookie.name.startsWith("__Host-"),
+			});
+		}
+	}
+	return res;
+}
+
+export interface AuthMiddlewareOptions {
+	/**
+	 * Headers to forward to the app, if the middleware has its own to add. A
+	 * fresh copy of the request's headers is used when omitted; pass your own
+	 * when you also set things like a tenant or locale header.
+	 */
+	requestHeaders?: Headers;
+}
+
+export interface AuthMiddlewareConfig extends NextParamOptions {
 	/**
 	 * Path prefixes that require a session. A request without a session cookie
 	 * to any of these is redirected to `signInPath`. Matched with `startsWith`.
@@ -86,34 +182,19 @@ export function createAuthMiddleware(config: AuthMiddlewareConfig) {
 		);
 	}
 
-	return function middleware(request: NextRequest): NextResponse {
+	return function middleware(
+		request: NextRequest,
+		options: AuthMiddlewareOptions = {},
+	): NextResponse {
 		const path = request.nextUrl.pathname;
 
-		// 1. Stale-session handshake. The validated guard sends an invalid session
-		//    to `${signInPath}?stale=1&next=…`. Clear the dead Better Auth cookies
-		//    (only middleware can, pre-render) and bounce to a clean sign-in URL
-		//    that keeps `next`. After this the cookie is gone, so it can't re-arm.
-		if (path === signInPath && request.nextUrl.searchParams.get("stale") === "1") {
-			const to = request.nextUrl.clone();
-			to.searchParams.delete("stale");
-			const res = NextResponse.redirect(to);
-			for (const cookie of request.cookies.getAll()) {
-				if (cookie.name.includes(cookiePrefix)) {
-					// `__Secure-`/`__Host-` cookies: browsers reject the deletion
-					// Set-Cookie unless it carries the Secure attribute itself, so a
-					// bare delete() would silently leave the dead cookie in place on
-					// HTTPS and re-run this handshake on every visit.
-					res.cookies.delete({
-						name: cookie.name,
-						path: "/",
-						secure:
-							cookie.name.startsWith("__Secure-") ||
-							cookie.name.startsWith("__Host-"),
-					});
-				}
-			}
-			return res;
-		}
+		// 1. Stale-session handshake: clear the dead cookies and bounce to a clean
+		//    sign-in URL that keeps `next`.
+		const stale = clearStaleSession(request, {
+			signInPath,
+			sessionCookiePrefix: cookiePrefix,
+		});
+		if (stale) return stale;
 
 		const hasSessionCookie = !!getSessionCookie(request);
 
@@ -123,9 +204,14 @@ export function createAuthMiddleware(config: AuthMiddlewareConfig) {
 			const original = request.nextUrl.pathname + request.nextUrl.search;
 			const to = request.nextUrl.clone();
 			to.pathname = signInPath;
-			to.search = "";
-			const next = safeNextParam(original);
-			if (next) to.searchParams.set("next", next);
+			to.search = new URL(
+				signInUrl(signInPath, {
+					next: original,
+					nextParam: config.nextParam,
+					isSafeNext: config.isSafeNext,
+				}),
+				request.nextUrl,
+			).search;
 			return NextResponse.redirect(to);
 		}
 
@@ -143,8 +229,8 @@ export function createAuthMiddleware(config: AuthMiddlewareConfig) {
 
 		// 4. Pass through, injecting the requested path so server guards can build
 		//    `next` for the cookie-present-but-invalid case.
-		const requestHeaders = new Headers(request.headers);
-		requestHeaders.set(NK_AUTH_PATH_HEADER, path + request.nextUrl.search);
+		const requestHeaders = options.requestHeaders ?? new Headers(request.headers);
+		withAuthPathHeader(request, requestHeaders);
 		return NextResponse.next({ request: { headers: requestHeaders } });
 	};
 }

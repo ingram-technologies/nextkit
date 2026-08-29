@@ -28,7 +28,11 @@ import type { IdHelper } from "@ingram-tech/nk-db/id";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
-import { NK_AUTH_PATH_HEADER, signInUrl } from "./gating-internals.js";
+import {
+	NK_AUTH_PATH_HEADER,
+	type NextParamOptions,
+	signInUrl,
+} from "./gating-internals.js";
 import { CREDENTIAL_PROVIDER_ID } from "./password.js";
 
 /**
@@ -37,6 +41,7 @@ import { CREDENTIAL_PROVIDER_ID } from "./password.js";
  * `?next=` so it can't become an open redirect.
  */
 export { safeNextParam as safeNext } from "./gating-internals.js";
+export type { NextParamOptions } from "./gating-internals.js";
 
 /** The shape we need from a session: anything carrying a `user`. */
 interface SessionLike {
@@ -75,7 +80,7 @@ export interface SessionIds {
 	organization?: IdHelper;
 }
 
-export interface AuthHelpersOptions {
+export interface AuthHelpersOptions extends NextParamOptions {
 	/** Where guards send unauthenticated users. Default `/login`. */
 	signInPath?: string;
 	/**
@@ -163,17 +168,46 @@ export function createAuthHelpers<S extends SessionLike>(
 		return session?.user ?? null;
 	}
 
+	// The missing-header warning fires once per helpers instance, not once per
+	// request: it is a wiring mistake, and a wiring mistake does not get less
+	// wrong the second time.
+	let warnedMissingHeader = false;
+
 	/**
 	 * The sign-in redirect for a request with no valid session: keep the
 	 * requested path as `next` (from the middleware-injected header), and flag
 	 * `stale=1` when a session cookie is present-but-invalid so the middleware
 	 * clears it. The two reads are request-scoped and cached by Next.
+	 *
+	 * Exported for a site that wraps the guards in its own (a profile lookup on
+	 * top of `getUser()`, say): `redirect(await signInTarget())` gets `next` and
+	 * `stale` right without re-deriving either.
+	 *
+	 * `next` depends on the `x-nk-auth-path` header, which only middleware can
+	 * set. When it is absent the destination is silently lost — the user signs in
+	 * and lands on the default page instead of the one they asked for — so
+	 * outside production this says so once, naming the two ways to wire it.
 	 */
 	async function signInTarget(): Promise<string> {
 		const [h, c] = await Promise.all([headers(), cookies()]);
 		const next = h.get(NK_AUTH_PATH_HEADER);
+		if (
+			next === null &&
+			!warnedMissingHeader &&
+			process.env.NODE_ENV !== "production"
+		) {
+			warnedMissingHeader = true;
+			console.warn(
+				`@ingram-tech/nk-auth: \`next\` not preserved — no ${NK_AUTH_PATH_HEADER} request header. Mount createAuthMiddleware, or call withAuthPathHeader(request, requestHeaders) from "@ingram-tech/nk-auth/middleware" in your own proxy.`,
+			);
+		}
 		const stale = c.getAll().some((ck) => ck.name.includes(cookiePrefix));
-		return signInUrl(signInPath, { next, stale });
+		return signInUrl(signInPath, {
+			next,
+			stale,
+			nextParam: options.nextParam,
+			isSafeNext: options.isSafeNext,
+		});
 	}
 
 	/**
@@ -238,6 +272,7 @@ export function createAuthHelpers<S extends SessionLike>(
 		getUser,
 		requireSession,
 		requireUser,
+		signInTarget,
 		redirectIfAuthenticated,
 		getLinkedProviders,
 		hasCredentialAccount,

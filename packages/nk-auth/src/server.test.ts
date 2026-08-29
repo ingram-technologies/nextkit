@@ -117,10 +117,44 @@ describe("createAuthHelpers", () => {
 		expect(await helpers(session).requireUser()).toBe(session.user);
 	});
 
-	it("requireUser redirects to the bare sign-in path when truly signed out", async () => {
-		await expect(helpers(null).requireUser()).rejects.toMatchObject({
-			to: "/login",
+	it("requireUser redirects to the bare sign-in path when truly signed out, and says next was lost", async () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const h = helpers(null);
+		await expect(h.requireUser()).rejects.toMatchObject({ to: "/login" });
+		await expect(h.requireUser()).rejects.toMatchObject({ to: "/login" });
+		// No x-nk-auth-path header: a wiring mistake, reported once per instance.
+		expect(warn).toHaveBeenCalledTimes(1);
+		expect(warn.mock.calls[0]?.[0]).toMatch(/withAuthPathHeader/);
+		warn.mockRestore();
+	});
+
+	it("does not warn when the header is present", async () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		headerStore = new Headers({ "x-nk-auth-path": "/memory" });
+		await expect(helpers(null).requireUser()).rejects.toBeDefined();
+		expect(warn).not.toHaveBeenCalled();
+		warn.mockRestore();
+	});
+
+	it("signInTarget is exported for a site's own guard wrapper", async () => {
+		headerStore = new Headers({ "x-nk-auth-path": "/memory?tab=a" });
+		cookieList = [{ name: "better-auth.session_token", value: "dead" }];
+		await expect(helpers(null).signInTarget()).resolves.toBe(
+			"/login?next=%2Fmemory%3Ftab%3Da&stale=1",
+		);
+	});
+
+	it("honors a custom nextParam and isSafeNext", async () => {
+		headerStore = new Headers({ "x-nk-auth-path": "/memory" });
+		const h = helpers(null, {
+			nextParam: "redirectTo",
+			isSafeNext: (v) => (v === "/memory" ? "/memory" : null),
 		});
+		await expect(h.signInTarget()).resolves.toBe("/login?redirectTo=%2Fmemory");
+		headerStore = new Headers({ "x-nk-auth-path": "/other" });
+		await expect(
+			helpers(null, { isSafeNext: () => null }).signInTarget(),
+		).resolves.toBe("/login");
 	});
 
 	it("requireUser preserves the requested path as next (from the injected header)", async () => {

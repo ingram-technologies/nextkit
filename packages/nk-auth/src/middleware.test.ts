@@ -1,6 +1,10 @@
 import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createAuthMiddleware } from "./middleware.js";
+import {
+	clearStaleSession,
+	createAuthMiddleware,
+	withAuthPathHeader,
+} from "./middleware.js";
 
 // Control the optimistic cookie-presence check without coupling to better-auth's
 // cookie-name internals: the middleware's logic is what we're testing.
@@ -127,5 +131,70 @@ describe("createAuthMiddleware — request behavior", () => {
 		cookiePresent = false;
 		// "/app" must not gate "/application".
 		expect(loc(mw(req("/application")))).toBeNull();
+	});
+});
+
+describe("createAuthMiddleware — the two halves, composed and standalone", () => {
+	const mw = createAuthMiddleware({ protectedPaths: ["/app"], signInPath: "/login" });
+
+	it("forwards the requested path + query to the app on pass-through", () => {
+		cookiePresent = true;
+		const res = mw(req("/app/settings?tab=a"));
+		expect(res.headers.get("x-middleware-request-x-nk-auth-path")).toBe(
+			"/app/settings?tab=a",
+		);
+	});
+
+	it("forwards the caller's own requestHeaders alongside the auth path", () => {
+		cookiePresent = true;
+		const request = req("/app");
+		const requestHeaders = new Headers(request.headers);
+		requestHeaders.set("x-tenant", "acme");
+		const res = mw(request, { requestHeaders });
+		expect(res.headers.get("x-middleware-request-x-tenant")).toBe("acme");
+		expect(res.headers.get("x-middleware-request-x-nk-auth-path")).toBe("/app");
+	});
+
+	it("withAuthPathHeader sets the header, overriding a client-sent one", () => {
+		const request = new NextRequest(new URL("https://example.com/app?x=1"), {
+			headers: { "x-nk-auth-path": "/evil" },
+		});
+		const requestHeaders = new Headers(request.headers);
+		withAuthPathHeader(request, requestHeaders);
+		expect(requestHeaders.get("x-nk-auth-path")).toBe("/app?x=1");
+	});
+
+	it("clearStaleSession is null off the handshake and clears on it", () => {
+		expect(clearStaleSession(req("/login"))).toBeNull();
+		expect(clearStaleSession(req("/app?stale=1"))).toBeNull();
+		expect(
+			clearStaleSession(req("/signin?stale=1"), { signInPath: "/login" }),
+		).toBeNull();
+		const res = clearStaleSession(
+			req("/login?stale=1&next=/app", {
+				cookie: "better-auth.session_token=dead",
+			}),
+		);
+		const url = res ? loc(res) : null;
+		expect(url?.pathname).toBe("/login");
+		expect(url?.searchParams.get("stale")).toBeNull();
+		expect(url?.searchParams.get("next")).toBe("/app");
+		expect(
+			res?.headers
+				.getSetCookie()
+				.some((c) => c.startsWith("better-auth.session_token=")),
+		).toBe(true);
+	});
+
+	it("honors a custom nextParam and isSafeNext on the cookie-less redirect", () => {
+		cookiePresent = false;
+		const custom = createAuthMiddleware({
+			protectedPaths: ["/app"],
+			nextParam: "redirectTo",
+			isSafeNext: (v) => (v.startsWith("/app") ? v : null),
+		});
+		const url = loc(custom(req("/app/x")));
+		expect(url?.searchParams.get("redirectTo")).toBe("/app/x");
+		expect(url?.searchParams.get("next")).toBeNull();
 	});
 });
