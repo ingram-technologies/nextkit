@@ -1,5 +1,14 @@
 # @ingram-tech/nk-dev
 
+## 0.14.0
+
+### Minor Changes
+
+- 50efdf8: `nk doctor` warns when a site binds `createAuthHelpers` but nothing sets the
+  `x-nk-auth-path` header (neither `createAuthMiddleware` nor
+  `withAuthPathHeader`): the guards' `?next=` is lost silently in that shape.
+  `guide.md` names the composable nk-auth middleware pieces.
+
 ## 0.13.1
 
 ### Patch Changes
