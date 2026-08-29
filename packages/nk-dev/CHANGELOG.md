@@ -1,5 +1,30 @@
 # @ingram-tech/nk-dev
 
+## 0.13.1
+
+### Patch Changes
+
+- 32ee4ca: Update `guide.md` for nk-forms 0.3.0, which absorbed `@ingram-tech/bot-protection`.
+  The shipped guide still listed bot-protection in its package roster as "the
+  primitive nk-forms builds on" and told agents to import `checkBot` / `verifyHuman`
+  from it for non-form endpoints. That package no longer exists; both layers are
+  exported from the `@ingram-tech/nk-forms` root.
+  
+  The repo was corrected when the packages merged, but that changeset bumped only
+  nk-forms, so the fix never reached npm — agents on nk-dev 0.13.0 were reading the
+  old roster. `guide.md` describes packages other than its own, so a change to any
+  package's public surface needs a nk-dev changeset alongside it.
+- 798b39d: Rewrite the READMEs for an outside reader. These packages are published under an
+  open-source licence, but the prose addressed the reader as if they worked here:
+  "the Ingram billing foundation", "every Ingram API looks the same", "the one
+  shared email client for Ingram sites", "the fleet-uniform view". That framing is
+  gone, along with the pose it came with — unsourceable claims ("the one SEO
+  safeguard everyone forgets on Vercel"), negation-reframes, bold scattered on
+  non-key phrases, and roughly forty mid-sentence em-dashes.
+  
+  Documented failure modes, gotchas and code examples are unchanged. No API,
+  identifier, env var or technical claim was touched.
+
 ## 0.13.0
 
 ### Minor Changes

@@ -1,5 +1,22 @@
 # @ingram-tech/nk-blog
 
+## 0.1.9
+
+### Patch Changes
+
+- 798b39d: Rewrite the READMEs for an outside reader. These packages are published under an
+  open-source licence, but the prose addressed the reader as if they worked here:
+  "the Ingram billing foundation", "every Ingram API looks the same", "the one
+  shared email client for Ingram sites", "the fleet-uniform view". That framing is
+  gone, along with the pose it came with — unsourceable claims ("the one SEO
+  safeguard everyone forgets on Vercel"), negation-reframes, bold scattered on
+  non-key phrases, and roughly forty mid-sentence em-dashes.
+  
+  Documented failure modes, gotchas and code examples are unchanged. No API,
+  identifier, env var or technical claim was touched.
+- Updated dependencies [798b39d]
+  - @ingram-tech/nk-seo@0.10.1
+
 ## 0.1.8
 
 ### Patch Changes
