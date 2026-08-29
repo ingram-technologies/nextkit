@@ -184,6 +184,11 @@ export function createLocaleResolver<L extends string>(
  *
  *   <HreflangLinks {...(await hreflangConfigFor(routing))} />
  *
+ * That header is empty on statically rendered routes, where the component
+ * throws. Sites with static pages should instead pass `routing` to
+ * `createMetadata({ hreflang })` and `urlLocale: await getUrlLocale(routing)`
+ * per dynamic page — the same cluster, from metadata, no header needed.
+ *
  * Going through here is what keeps the advertised URLs and the served URLs the
  * same strings, and what keeps canonicals following the address instead of the
  * rendered language.

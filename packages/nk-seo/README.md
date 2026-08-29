@@ -156,20 +156,34 @@ needed — each is merged into the generated object and wins on conflict. With
 `titleTemplate` set, `pageMetadata.root()` emits `title.template`, so plain page
 titles render as "Services | Acme" without every page appending the suffix.
 
-On a localized site the per-page `alternates` and `locale` are what make the
-factory usable — `alternates.languages` is what Next renders as
-`<link rel="alternate" hreflang>`, and `og:locale` has to vary per page:
+On a localized site give the factory the locale cluster once and every page
+emits its `alternates.languages` (what Next renders as
+`<link rel="alternate" hreflang>`, `x-default` included) and a canonical that
+follows the address. `@ingram-tech/nk-i18n`'s routing object fits as-is:
 
 ```ts
-import { hreflangAlternates } from "@ingram-tech/nk-seo";
-
-const { languages } = hreflangAlternates(HREFLANG_CONFIG, `/${locale}/about`);
-return pageMetadata({
-	title, description, path: `/${locale}/about`,
-	alternates: { languages },
-	locale: "fr_BE",   // overrides the site-wide `locale`
+export const pageMetadata = createMetadata({
+	baseUrl: routing.baseUrl,
+	siteName: "Acme",
+	hreflang: routing, // or { locales, strategy, param, hrefLangTags }
 });
+
+// A dynamic page: the URL locale makes the canonical self-reference /fr/about.
+return pageMetadata({
+	title, description, path: "/about",
+	urlLocale: await getUrlLocale(routing), // from "@ingram-tech/nk-i18n/next"
+	locale: "fr_BE",                        // og:locale, overrides the site-wide one
+});
+
+// A static page (`force-static`): one document for every visitor, so no
+// `urlLocale` — it canonicalizes to the bare, x-default address.
+return pageMetadata({ title, description, path: `/posts/${slug}` });
 ```
+
+This is the wiring to prefer over `<HreflangLinks>`: it needs no request
+header, so it works on statically rendered routes, and there is nothing to
+forget in middleware. Reach for the component, or the pure `hreflangAlternates`,
+only on pages that don't go through `pageMetadata`.
 
 ## Sitemap & robots
 
@@ -295,9 +309,14 @@ return NextResponse.next({ request: { headers: requestHeaders } });
 ```
 
 Copying `req.headers` first also overwrites any client-spoofed `x-pathname`.
-Note that reading the header (`headers()`) opts the page into dynamic
-rendering — pass `pathname` explicitly (e.g. from route params) on pages that
-must stay static.
+Reading the header (`headers()`) opts the page into dynamic rendering, and on a
+route that is already static (`force-static`, no request-time reads) the header
+is simply empty — so a `<HreflangLinks>` in the root layout **throws under any
+static page**. Sites with static routes should emit hreflang from metadata
+instead (`createMetadata({ hreflang })`, above), which needs no header at all;
+short of that, pass `pathname` explicitly from route params on the page itself
+(React hoists `<link>` into `<head>` from anywhere in the tree) and keep the
+header-reading instance out of layouts that static routes share.
 
 ```tsx
 import { HreflangLinks } from "@ingram-tech/nk-seo/components";
@@ -342,11 +361,11 @@ Two rules of the road:
   strategy can't see the query string server-side, so
   [`hreflangConfigFor(routing)`](../nk-i18n/README.md) from
   `@ingram-tech/nk-i18n/next` is the wiring that gets this right for you.
-- Building metadata instead of rendering links? The pure `hreflangAlternates`
-  (package root) returns the same links for use in `generateMetadata`:
+- Building metadata instead of rendering links? `createMetadata({ hreflang })`
+  does it on every page; the pure `hreflangAlternates` (package root) returns
+  the same links for a hand-rolled `generateMetadata`:
   `{ canonical, links, languages }`, where `languages` is already keyed by
-  hreflang for `Metadata.alternates.languages` (or `createMetadata`'s
-  per-page `alternates`).
+  hreflang for `Metadata.alternates.languages`.
 
 ## Verifying the cluster (`/verify`)
 

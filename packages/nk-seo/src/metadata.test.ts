@@ -98,6 +98,84 @@ describe("createMetadata", () => {
 	});
 });
 
+describe("createMetadata with hreflang", () => {
+	// Static routes (`force-static`) have no request header for <HreflangLinks>
+	// to read; emitting the cluster from metadata is what works everywhere.
+	const localized = createMetadata({
+		baseUrl: "https://example.test",
+		siteName: "Acme",
+		hreflang: {
+			locales: ["en", "fr"],
+			strategy: "prefix",
+			hrefLangTags: { en: "en-BE", fr: "fr-BE" },
+		},
+	});
+
+	it("emits the locale cluster and a bare canonical for the bare path", () => {
+		const meta = localized({ title: "T", description: "D", path: "/about" });
+		expect(meta.alternates).toEqual({
+			canonical: "https://example.test/about",
+			languages: {
+				"en-BE": "https://example.test/en/about",
+				"fr-BE": "https://example.test/fr/about",
+				"x-default": "https://example.test/about",
+			},
+		});
+		expect(meta.openGraph?.url).toBe("https://example.test/about");
+	});
+
+	it("canonicalizes to the localized address when urlLocale names one", () => {
+		// The app sees the stripped path (/about) but the URL was /fr/about.
+		const meta = localized({
+			title: "T",
+			description: "D",
+			path: "/about",
+			urlLocale: "fr",
+		});
+		expect(meta.alternates?.canonical).toBe("https://example.test/fr/about");
+		expect(meta.openGraph?.url).toBe("https://example.test/fr/about");
+	});
+
+	it("does not double-prefix a path that already names its locale", () => {
+		const meta = localized({ title: "T", description: "D", path: "/fr/about" });
+		expect(meta.alternates?.canonical).toBe("https://example.test/fr/about");
+		expect(meta.alternates?.languages?.["fr-BE"]).toBe(
+			"https://example.test/fr/about",
+		);
+	});
+
+	it("accepts the nk-i18n routing object shape, extra fields included", () => {
+		const routingLike = {
+			baseUrl: "https://example.test",
+			locales: ["en", "fr"] as const,
+			strategy: "query" as const,
+			param: "hl",
+			hrefLangTags: undefined,
+			cookieName: "locale",
+		};
+		const meta = createMetadata({
+			baseUrl: routingLike.baseUrl,
+			siteName: "Acme",
+			hreflang: routingLike,
+		})({ title: "T", description: "D", path: "/pricing" });
+		expect(meta.alternates?.languages).toEqual({
+			en: "https://example.test/pricing?hl=en",
+			fr: "https://example.test/pricing?hl=fr",
+			"x-default": "https://example.test/pricing",
+		});
+	});
+
+	it("lets per-page alternates still win over the generated cluster", () => {
+		const meta = localized({
+			title: "T",
+			description: "D",
+			path: "/about",
+			alternates: { canonical: "https://example.test/elsewhere" },
+		});
+		expect(meta.alternates?.canonical).toBe("https://example.test/elsewhere");
+	});
+});
+
 describe("ogImageMetadata", () => {
 	it("builds an absolute 1200x630 images entry for a file-convention card", () => {
 		expect(

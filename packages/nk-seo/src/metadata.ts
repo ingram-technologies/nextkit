@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { hreflangAlternates, type HreflangConfig } from "./alternates.js";
 import { absoluteUrl } from "./url.js";
 
 /**
@@ -27,6 +28,15 @@ export interface MetadataSiteConfig {
 	twitterSite?: string;
 	/** Twitter `@handle` for `creator`. */
 	twitterCreator?: string;
+	/**
+	 * Locale cluster for the site. When set, every `pageMetadata()` call emits
+	 * the per-locale `alternates.languages` (plus `x-default`) and a canonical
+	 * that follows the address — the same links `<HreflangLinks>` renders, but
+	 * from metadata, so it works on statically rendered routes too (there is no
+	 * request header to read there) and needs no middleware wiring.
+	 * `@ingram-tech/nk-i18n`'s routing object fits directly: `hreflang: routing`.
+	 */
+	hreflang?: Omit<HreflangConfig, "baseUrl" | "currentLocale">;
 }
 
 /** Per-page inputs for the bound `pageMetadata` function. */
@@ -46,10 +56,20 @@ export interface PageMetadataInput {
 	 */
 	locale?: string;
 	/**
+	 * With `site.hreflang` set: the locale **the URL names** (not the one that
+	 * rendered), so the canonical self-references the localized address. Get it
+	 * from `getUrlLocale(routing)` (`@ingram-tech/nk-i18n/next`) on dynamic
+	 * pages; leave it unset on the bare path and on static routes, which serve
+	 * one document for every visitor and so canonicalize to the bare, `x-default`
+	 * address. Under the prefix strategy a `/fr/…`-prefixed `path` implies it.
+	 */
+	urlLocale?: string;
+	/**
 	 * Merged into the generated `alternates` (wins on conflict). The reason it
 	 * exists: `alternates.languages` is per-page on a localized site, and
-	 * spreading the result to bolt it on drops the rest of the object.
-	 * `hreflangAlternates()` returns a ready-made `languages` map.
+	 * spreading the result to bolt it on drops the rest of the object. Prefer
+	 * `site.hreflang`, which fills it in on every page; `hreflangAlternates()`
+	 * returns a ready-made `languages` map for the hand-rolled case.
 	 */
 	alternates?: Partial<NonNullable<Metadata["alternates"]>>;
 	/** Merged into the generated `openGraph` (wins on conflict). */
@@ -95,7 +115,19 @@ export function createMetadata(site: MetadataSiteConfig) {
 	function pageMetadata(input: PageMetadataInput): Metadata {
 		const imagePath = input.image ?? site.defaultImage;
 		const imageUrl = imagePath ? absolute(imagePath) : undefined;
-		const url = absolute(input.path);
+		// With a locale cluster the canonical is the current variant's own address
+		// (and og:url must agree with it); otherwise the path as given.
+		const hreflang = site.hreflang
+			? hreflangAlternates(
+					{
+						...site.hreflang,
+						baseUrl: site.baseUrl,
+						currentLocale: input.urlLocale,
+					},
+					input.path,
+				)
+			: undefined;
+		const url = hreflang?.canonical ?? absolute(input.path);
 		const locale = input.locale ?? site.locale;
 
 		return {
@@ -103,7 +135,11 @@ export function createMetadata(site: MetadataSiteConfig) {
 			title: input.title,
 			description: input.description,
 			...(input.keywords ? { keywords: input.keywords } : {}),
-			alternates: { canonical: url, ...input.alternates },
+			alternates: {
+				canonical: url,
+				...(hreflang ? { languages: hreflang.languages } : {}),
+				...input.alternates,
+			},
 			// noindex but follow: keep link equity flowing through the page. Use a
 			// full robots override in the page's own metadata for nofollow too.
 			...(input.noIndex ? { robots: { index: false, follow: true } } : {}),

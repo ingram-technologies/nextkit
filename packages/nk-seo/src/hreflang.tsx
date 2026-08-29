@@ -13,9 +13,12 @@ export interface HreflangLinksProps extends HreflangConfig {
 	 * return NextResponse.next({ request: { headers: requestHeaders } });
 	 * ```
 	 *
-	 * Pass explicitly if you don't use that header (e.g. from route params) —
-	 * also the only way to keep the page statically renderable, since reading
-	 * `headers()` opts the page into dynamic rendering.
+	 * Pass explicitly if you don't use that header (e.g. from route params).
+	 * On a statically rendered route the header is empty (and reading it would
+	 * otherwise opt the page into dynamic rendering), so a header-reading
+	 * instance cannot sit in a layout shared with static pages — prefer
+	 * `createMetadata({ hreflang })`, which emits the same cluster from metadata
+	 * without any request header.
 	 */
 	pathname?: string;
 	/**

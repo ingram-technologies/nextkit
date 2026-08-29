@@ -200,10 +200,22 @@ is a lie. Suppliers are lazy, so a localized address never touches the database.
 
 ### hreflang
 
-Hand the same object to nk-seo. `hreflangConfigFor` sets `currentLocale` from
-the **URL**, so canonicals follow the address rather than whatever language
-negotiation rendered, and it passes `hrefLangTags` through so there is no second
-config object to drift:
+Hand the same object to nk-seo so there is no second config to drift. The
+preferred wiring is metadata — it needs no request header, so it also works on
+statically rendered routes:
+
+```ts
+export const pageMetadata = createMetadata({ baseUrl: routing.baseUrl, siteName, hreflang: routing });
+// dynamic page: canonical follows the URL's locale, not the rendered one
+pageMetadata({ title, description, path, urlLocale: await getUrlLocale(routing) });
+// static page: no urlLocale — one document for everyone, bare canonical
+pageMetadata({ title, description, path });
+```
+
+Pages that don't go through `pageMetadata` can render the component instead;
+`hreflangConfigFor` sets `currentLocale` from the **URL** for it. It reads the
+pathname header `localeProxy` set, which is empty on static routes, so don't
+put it in a layout static pages share:
 
 ```tsx
 <html lang={routing.htmlLang(locale)}>
