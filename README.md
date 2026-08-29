@@ -1,18 +1,18 @@
 # nextkit
 
-Shared foundation for [Ingram Technologies](https://ingram.tech)' Next.js
-websites: configuration, libraries, and conventions, as independently versioned
-packages.
+Configuration, libraries, and conventions for Next.js sites, as independently
+versioned packages. Built and maintained by
+[Ingram Technologies](https://ingram.tech).
 
 > **Prime directive:** a nextkit site is indistinguishable from a normal Next.js
 > site, beyond its dependencies. nextkit does not wrap or replace Next.js.
 
 ## Why
 
-We run many Next.js sites with the same needs (email, newsletters, bot
-protection, linting, testing, code style), which were being re-implemented per
-site and drifting apart. Each concern now lives in one package that sites
-consume by version.
+nextkit was extracted from several Next.js sites that kept re-implementing the
+same concerns: email, newsletters, bot protection, linting, testing, code style.
+Each concern is now one package with its own version, so a site adopts only what
+it needs and upgrades each piece on its own schedule.
 
 Reasoning in full: [docs/philosophy.md](./docs/philosophy.md).
 
@@ -27,7 +27,7 @@ Published as `@ingram-tech/<name>`.
 | [`nk-forms`](./packages/nk-forms) | Public contact/signup submission pipeline: bot protection (honeypot + signed timing token + Vercel BotID), `handleFormSubmission`, escaped notification emails, and a headless client hook |
 | [`nk-db`](./packages/nk-db) | Postgres data layer: shared `pg` pool, raw-SQL helpers, Drizzle wiring, PGlite (no-Docker) dev/test harness |
 | [`nk-auth`](./packages/nk-auth) | Better Auth foundation: composable presets a site spreads into its own `betterAuth()` |
-| [`nk-billing`](./packages/nk-billing) | Stripe primitives (client, customers, prices, currency, checkout, subscriptions, webhooks) + Stripe-side wallet + injection-based Postgres credit ledger |
+| [`nk-billing`](./packages/nk-billing) | Stripe helpers (client, customers, prices, currency, checkout, subscriptions, webhooks) + Stripe-side wallet + injection-based Postgres credit ledger |
 | [`nk-api`](./packages/nk-api) | Typed API toolkit: Hono + zod-openapi router, auth/scope guards, cursor pagination, and a typed client, mounted into a Next.js route |
 | [`nk-i18n`](./packages/nk-i18n) | i18n: `intl-messageformat` formatting, Accept-Language negotiation, and React client helpers |
 | [`nk-marketing`](./packages/nk-marketing) | Postgres-backed marketing & lifecycle email: contacts + consent, newsletter audiences (broadcast), and idempotent triggered campaigns, with RFC 8058 one-click unsubscribe |
@@ -39,11 +39,12 @@ See [docs/](./docs/README.md).
 
 ## Stack
 
-Next.js + Bun + Vercel, oxlint + oxfmt + Vitest + Playwright, Cloudflare (email).
-When a site needs a database or auth: a shared DigitalOcean Managed Postgres
-cluster reached directly via `pg` + Drizzle (`nk-db`), Better Auth (`nk-auth`),
-and PGlite for local dev/test, rather than a hosted REST or auth product.
-EU-first, self-hostable, no per-seat US SaaS. Stripe (`nk-billing`) is the one
+These are the choices the packages are built and tested against, not
+requirements. Next.js + Bun + Vercel, oxlint + oxfmt + Vitest + Playwright,
+Cloudflare (email). For a database or auth: DigitalOcean Managed Postgres reached
+directly via `pg` + Drizzle (`nk-db`), Better Auth (`nk-auth`), and PGlite for
+local dev/test, rather than a hosted REST or auth product. The selection rule is
+EU-first, self-hostable, no per-seat US SaaS; Stripe (`nk-billing`) is the one
 exception.
 
 ## Develop

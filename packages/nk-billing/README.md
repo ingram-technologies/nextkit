@@ -1,10 +1,9 @@
 # @ingram-tech/nk-billing
 
-The Ingram billing foundation: composable **Stripe primitives** every site was
-re-implementing, plus an optional **Postgres credit ledger** for usage metering.
-One account-agnostic toolkit, not a billing framework that owns your flows —
-you keep your routes, your schema, and your pricing; nk-billing removes the
-boilerplate in between.
+Composable Stripe helpers for checkout, customers, prices, currency,
+subscriptions and webhooks, plus an optional Postgres credit ledger for usage
+metering. It owns no routes and no pricing model: you keep your routes, your
+schema, and your prices.
 
 > Part of [nextkit](../../README.md). Stateless Stripe helpers are the main
 > entry; the database-backed credit ledger lives behind the `/credits` subpath so
@@ -21,8 +20,8 @@ you use the credit ledger.
 
 ## Env contract
 
-Single-mode (most sites): `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`.
-Dual-mode (a merchant-of-record running test beside live, e.g. cloud):
+Single-mode: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`.
+Dual-mode (a merchant-of-record running test beside live):
 `STRIPE_SECRET_KEY_{TEST,LIVE}`, `STRIPE_WEBHOOK_SECRET_{TEST,LIVE}`.
 Optional `STRIPE_API_VERSION` to pin ahead of an SDK bump.
 
@@ -77,7 +76,7 @@ export async function POST(request: Request) {
 
 ## Credit ledger & tenancy
 
-The ledger takes the DB connection by **injection** and leaves isolation to you —
+The ledger takes the DB connection by injection and leaves isolation to you:
 wrap each call in `withTenant(orgId, db => spendCredits(db, …))` under RLS, or a
 plain transaction under app-layer filtering. It owns two tables; apply the
 `migrations/*.sql` files in order (Drizzle-composable fragments) and add your
@@ -88,8 +87,8 @@ Two semantics to know before wiring it up:
 - **Entitlement gates the balance.** `spendCredits` requires an active
   subscription or a live trial *before* it looks at credits: a one-time credit
   pack bought by a tenant with no subscription and an expired trial is not
-  spendable. If your site sells packs standalone, gate pack checkout on
-  entitlement — or pass `activeStatuses` semantics that match your model.
+  spendable. If you sell packs standalone, gate pack checkout on entitlement, or
+  pass `activeStatuses` semantics that match your model.
 - **Webhook ordering.** Pass `event.created` as `eventCreated` to
   `recordSubscriptionStatus` (and apply `0002_billing_status_order.sql`) so a
   delayed, older `customer.subscription.updated` can't overwrite the status a

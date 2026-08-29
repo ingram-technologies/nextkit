@@ -1,13 +1,13 @@
 # @ingram-tech/nk-marketing
 
-Postgres-backed **marketing & lifecycle email**: contacts and consent,
-newsletter audiences/subscriptions (broadcast), and **idempotent triggered
-campaigns** (post-signup drips). RFC 8058 one-click unsubscribe throughout.
-Sends via [`@ingram-tech/nk-email`](../nk-email).
+Postgres-backed marketing and lifecycle email: contacts and consent, newsletter
+audiences/subscriptions (broadcast), and idempotent triggered campaigns
+(post-signup drips). RFC 8058 one-click unsubscribe throughout. Sends via
+[`@ingram-tech/nk-email`](../nk-email).
 
-It **owns its tables** and ships the migration; you inject an
-`@ingram-tech/nk-db` pool (or any `pg` client) and a base URL. It defines its own
-row types and never reaches into your schema.
+It owns its tables and ships the migration; you inject an `@ingram-tech/nk-db`
+pool (or any `pg` client) and a base URL. It defines its own row types and never
+reaches into your schema.
 
 ## Install
 
@@ -19,8 +19,8 @@ bun add @ingram-tech/nk-marketing @ingram-tech/nk-email
 
 The migration lives in the package. Fold `migrations/0001_marketing.sql` into
 your `drizzle/` pipeline (or apply it directly). It creates `marketing_contacts`,
-`marketing_audiences`, `marketing_subscriptions`, and `marketing_deliveries` —
-no RLS (reach them through your app role, like nk-billing).
+`marketing_audiences`, `marketing_subscriptions`, and `marketing_deliveries`, with
+no RLS: reach them through your app role, as with nk-billing.
 
 ## 2. Wire it up
 
@@ -60,13 +60,13 @@ contact is excluded automatically.
 ## Lifecycle / triggered campaigns
 
 For "send your first invoice 1 month after signup if they haven't yet" and
-similar drips. **The division of labour:**
+similar drips. The division of labour:
 
 - **Your app owns the trigger.** A daily cron queries *your* schema for due
-  contacts (signed up 30+ days ago, no invoice sent, etc.) — that condition
+  contacts (signed up 30+ days ago, no invoice sent, etc.); that condition
   depends on your tables, so it stays with you.
 - **nk-marketing owns the cross-cutting parts.** For each due contact you call
-  `sendLifecycle`, which suppresses global opt-outs, sends **at most once** per
+  `sendLifecycle`, which suppresses global opt-outs, sends at most once per
   `campaignKey` per contact (claimed before send), attaches one-click
   unsubscribe, and renders.
 
@@ -85,15 +85,15 @@ const result = await marketing.sendLifecycle({
 // result.status: "sent" | "duplicate" | "suppressed"
 ```
 
-`sendLifecycle` throws only if the underlying send fails (releasing its claim
-first so the next run retries) — wrap it best-effort so a mail outage never
-blocks your cron.
+`sendLifecycle` throws only if the underlying send fails, releasing its claim
+first so the next run retries. Wrap it best-effort so a mail outage never blocks
+your cron.
 
 ## Send history
 
 Every broadcast and lifecycle send is recorded to nk-email's `nk_email_log` as
 `kind: "marketing"`, which is what an operator surface reads. Logging is
-best-effort — a logging failure never blocks a send — and needs nk-email's
+best-effort (a logging failure never blocks a send) and needs nk-email's
 `0001_email_log.sql`. Set `logSends: false` to opt out entirely.
 
 By default a row is the envelope only: recipient, subject, sender, campaign
@@ -109,9 +109,9 @@ const marketing = createMarketing({
 ```
 
 `captureBody` is off by default because the `body` column arrives with
-nk-email's **second** migration; defaulting it on would make every send fail to
-log on a site that had applied only the first. Turn it on and stored bodies
-become personal data that nothing expires for you — schedule a purge (recipe in
+nk-email's second migration; defaulting it on would make every send fail to log
+on a site that had applied only the first. Turn it on and stored bodies become
+personal data that nothing expires for you, so schedule a purge (recipe in
 nk-email's README).
 
 Unlike nk-email, this is one switch for the whole client rather than a per-send
@@ -120,7 +120,7 @@ magic-link body you need to keep out of the archive.
 
 ## Rendering
 
-The built-in renderer produces clean, dependency-free HTML + text. Override it
-with `createMarketing({ render })` to use your own template (e.g. React Email).
+The built-in renderer produces dependency-free HTML + text. Override it with
+`createMarketing({ render })` to use your own template (e.g. React Email).
 
 Requires `@ingram-tech/nk-email`'s env (`CLOUDFLARE_*`, `EMAIL_FROM_DOMAIN`).

@@ -1,12 +1,12 @@
 # @ingram-tech/nk-blog
 
-File-based blogs for Next.js sites: one frontmatter contract, a build-time
-reader, `.md`/limited-`.mdx` rendering, a typed component vocabulary with
-unstyled defaults, GitHub read/publish for automated publishers, and RSS.
+File-based blogs for Next.js: one frontmatter contract, a build-time reader,
+`.md`/limited-`.mdx` rendering, a typed component vocabulary with unstyled
+defaults, GitHub read/publish for automated publishers, and RSS.
 
-**The files are the index.** Posts are `content/blog/<slug>.md` (or `.mdx`,
-or `<slug>/index.mdx` folders) with YAML frontmatter. There is no generated
-`posts.json`, no metadata-extraction script, and nothing to drift.
+The files are the index. Posts are `content/blog/<slug>.md` (or `.mdx`, or
+`<slug>/index.mdx` folders) with YAML frontmatter. There is no generated
+`posts.json` and no metadata-extraction script.
 
 ## Entry points
 
@@ -31,7 +31,7 @@ export const blog = createBlog({
 ```
 
 ```tsx
-// src/lib/blog-components.tsx — the site's entire vocabulary obligation
+// src/lib/blog-components.tsx — the site's component vocabulary
 import { defineBlogComponents } from "@ingram-tech/nk-blog";
 import { unstyled } from "@ingram-tech/nk-blog/unstyled";
 
@@ -68,11 +68,11 @@ export default async function Post({ params }: PageProps<"/blog/[slug]">) {
   else. `render` enforces this in the AST (`remarkLimitedMdx`): no ESM, no
   `{…}` expressions, literal props only. Automated publishers emit `.md` (pure
   data) and validate `.mdx` with `validateLimitedMdx` before committing.
-- **Tier-2 (bespoke) posts** are folders with human-reviewed `components.tsx`,
-  passed via `bespoke` — which relaxes enforcement, because a human merged it.
+- **Tier-2 posts** are folders with a human-reviewed `components.tsx`, passed
+  via `bespoke`, which relaxes the AST enforcement.
 - **No pixels in this package.** The unstyled defaults carry semantics and
-  behavior only and accept no visual props beyond `className`. Want variation?
-  Replace the component in your registry — never add props here.
+  behavior only and accept no visual props beyond `className`. For variation,
+  replace the component in your registry; never add props here.
 - **Build-time only.** `fsSource` runs under `generateStaticParams` /
   `dynamicParams = false`; serverless functions must not read post files at
   request time (output tracing won't include them).

@@ -1,10 +1,9 @@
 # nextkit docs
 
-Developer-facing documentation, written by and for AI agents (and humans). Start
-with the philosophy, then dip into specifics as needed. Per-package **usage**
-docs live in each package's own `packages/*/README.md` (linked from the
-[root README](../README.md) table); the docs here carry the cross-cutting
-conventions and the design/decision records.
+Developer-facing documentation, written by and for AI agents (and humans).
+Per-package **usage** docs live in each package's own `packages/*/README.md`
+(linked from the [root README](../README.md) table); the docs here carry the
+cross-cutting conventions and the design/decision records.
 
 **Foundations**
 
@@ -12,13 +11,13 @@ conventions and the design/decision records.
 - **[architecture.md](./architecture.md)** — repo layout, packages, how
   consumption works.
 - **[ai-docs-convention.md](./ai-docs-convention.md)** — the `docs/` pattern
-  itself, to replicate in every repo.
+  itself.
 
 **Working here**
 
 - **[code-style.md](./code-style.md)** — house code-quality rules.
 - **[testing.md](./testing.md)** — testing stack and conventions.
-- **[transactional-email.md](./transactional-email.md)** — fleet conventions for
+- **[transactional-email.md](./transactional-email.md)** — conventions for
   transactional email: registry templates, from-address local parts, the
   dev/unconfigured fallback, send history vs. previews, and imports.
 - **[i18n-routing.md](./i18n-routing.md)** — how a locale is encoded in a URL

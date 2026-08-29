@@ -1,31 +1,30 @@
 # @ingram-tech/nk-forms
 
-The contact/signup **submission pipeline** for Ingram's Next.js sites: bot
-protection, validation, rate-limit hook, and escaped email notifications behind
-one server handler and one client hook.
+A submission pipeline for public contact and signup forms: bot protection,
+validation, a rate-limit hook, and escaped email notifications behind one server
+handler and one client hook.
 
 It owns the bot-protection layers and builds on
-[`@ingram-tech/nk-email`](../nk-email) for sending + `escapeHtml`. It is for the
-"validate a public submission and notify a human / subscribe an address" shape,
-and deliberately does **not** try to own Stripe checkout or auth flows; for bot
-detection somewhere that isn't a public form, call `verifyHuman` or `checkBot`
-directly (see [Bot protection](#bot-protection)).
+[`@ingram-tech/nk-email`](../nk-email) for sending and `escapeHtml`. It covers
+the "validate a public submission and notify a human / subscribe an address"
+shape, and does not try to own Stripe checkout or auth flows. For bot detection
+somewhere that isn't a public form, call `verifyHuman` or `checkBot` directly
+(see [Bot protection](#bot-protection)).
 
 ## What it gives you
 
 - `handleFormSubmission(request, options)` — the fixed pipeline: rate-limit →
   parse → bot gate → validate → deliver → uniform response. Bot hits and honest
-  submissions return the **same** 200 body, so a bot never learns it was
-  dropped. Returns a web-standard `Response` (no `next` dependency).
+  submissions return the same 200 body, so a bot never learns it was dropped.
+  Returns a web-standard `Response` (no `next` dependency).
 - `renderNotificationEmail({ heading, fields, message, footer })` — builds
-  `{ html, text }` with **every** value escaped. Use it so escaping is the
-  default, not a per-site coin flip.
+  `{ html, text }` with every value escaped.
 - `mintFormToken()` — a ready-made GET handler for the signed timing token.
 - `useFormSubmit(endpoint)` / re-exported `useBotProtection` + `HoneypotInput`
   from `@ingram-tech/nk-forms/react`.
 
-You still own your **schema** (a Zod schema — accepted structurally, no Zod
-version pin), your **fields/branding**, and your **delivery** (`onSubmit`).
+You still own your schema (a Zod schema, accepted structurally, so no Zod
+version pin), your fields and branding, and your delivery (`onSubmit`).
 
 ## Route
 
@@ -69,8 +68,8 @@ export const POST = (request: Request) =>
 	});
 ```
 
-Add a rate limiter by passing `rateLimit: () => ({ ok, retryAfterMs })` — plug in
-whatever store you already use; nk-forms owns none.
+Add a rate limiter by passing `rateLimit: () => ({ ok, retryAfterMs })`, backed
+by whatever store you already use. nk-forms owns none.
 
 ## Client
 
@@ -110,8 +109,8 @@ Three invisible layers, no CAPTCHA, run cheapest-first by `verifyHuman` (which
 3. **Vercel BotID** — optional, invisible server check. Degrades to a no-op when
    `botid` isn't installed or you're off Vercel.
 
-A failure means **silently drop**: respond 200 without acting, so spam tools
-never learn which layer caught them and a real user never sees an error.
+A failure means silently drop: respond 200 without acting, so spam tools never
+learn which layer caught them and a real user never sees an error.
 
 ### Using the layers directly
 

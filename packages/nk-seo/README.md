@@ -1,7 +1,6 @@
 # @ingram-tech/nk-seo
 
-SEO primitives for Next.js sites, factored out of the patterns Next.js sites
-keep re-implementing:
+SEO primitives for Next.js:
 
 1. **`<JsonLd>`** + **typed schema.org builders** — `faqPage`, `breadcrumbList`,
    `article`, `softwareApplication`, `organization`, `website`, `person`,
@@ -19,7 +18,7 @@ keep re-implementing:
    alternates (query-param or path-prefix strategy).
 
 The package root (`@ingram-tech/nk-seo`) is **pure** — builders and the metadata
-factory, no React — so `sitemap.ts` and route handlers can import it freely. The
+factory, no React, so `sitemap.ts` and route handlers can import it freely. The
 components live at `@ingram-tech/nk-seo/components`.
 
 ## Install
@@ -28,9 +27,9 @@ components live at `@ingram-tech/nk-seo/components`.
 bun add @ingram-tech/nk-seo
 ```
 
-`next` and `react` are optional peers — the package root is runtime-free of
-both; the `/components` and `/og` entries need them (`/og` uses `next/og` and
-the React JSX runtime).
+`next` and `react` are optional peers. The package root is runtime-free of both;
+the `/components` and `/og` entries need them (`/og` uses `next/og` and the
+React JSX runtime).
 
 ## Structured data
 
@@ -64,11 +63,10 @@ const seo = createSeo({
 <JsonLd data={seo.breadcrumbs([{ name: "Home", path: "/" }, { name: "Blog", path: "/blog" }, { name: title, path: `/blog/${slug}` }])} />
 ```
 
-`createSeo` resolves **nested** URL fields too — the organization's `url`/`logo`
-and `offers.url` may be site-relative, as in the example above. Already have
-absolute URLs and don't want the factory? The standalone builders (`faqPage`,
-`article`, `breadcrumbList`, …) take absolute URLs directly (they resolve
-nothing).
+`createSeo` resolves **nested** URL fields too: the organization's `url`/`logo`
+and `offers.url` may be site-relative, as in the example above. The standalone
+builders (`faqPage`, `article`, `breadcrumbList`, …) take absolute URLs directly
+and resolve nothing.
 
 Every builder returns a typed node (`FaqPageNode`, `ArticleNode`, …), so the
 shape survives past the call site. `<JsonLd data={...} />` accepts a single node
@@ -103,8 +101,8 @@ Values passed this way aren't reflected in the returned node type.
 
 For a node type no builder covers, `<JsonLd data={…} />` takes **any** object or
 array of objects. Hand-written nodes still get the `<` / U+2028 escaping, which
-is the security-relevant half of the package — worth preferring over
-`dangerouslySetInnerHTML` even with no builder involved.
+is worth preferring over `dangerouslySetInnerHTML` even with no builder
+involved.
 
 `article` covers `Article`, `BlogPosting`, `NewsArticle`, `ScholarlyArticle`,
 `TechArticle` (the right type for API/developer docs) and `Report` via `type`.
@@ -218,9 +216,9 @@ export default () =>
 	});
 ```
 
-When `isProduction` is false the whole site is disallowed — the one SEO
-safeguard everyone forgets on Vercel, where preview and branch deployments are
-otherwise crawlable and compete with the production domain for the same content.
+When `isProduction` is false the whole site is disallowed. Without it, Vercel
+preview and branch deployments are crawlable and compete with the production
+domain for the same content.
 
 ## Open Graph image
 
@@ -246,8 +244,8 @@ export default () =>
 ```
 
 Pass `logo` (absolute URL or data URI) to replace the accent-square mark with
-your logo, and `fonts` + `fontFamily` to render with the brand typeface —
-`fonts` is forwarded to `ImageResponse`, which takes raw TTF/OTF/WOFF data.
+your logo, and `fonts` + `fontFamily` to render with your own typeface. `fonts`
+is forwarded to `ImageResponse`, which takes raw TTF/OTF/WOFF data.
 
 ### Two ways the generated card silently doesn't reach your pages
 
@@ -275,13 +273,12 @@ either at the image route and every page it builds carries the card.
 **Locale-negotiating middleware eats the image route.** A site that redirects
 any path lacking a locale prefix also redirects `/opengraph-image`, so the card
 URL never resolves. Put the file at `app/[locale]/opengraph-image.tsx` instead:
-it dodges the redirect and gives per-locale cards from `params`. That is the
-better default for any localized site.
+it dodges the redirect and gives per-locale cards from `params`.
 
-The template encodes the Satori rule that trips everyone up: every node with
-more than one child sets `display: flex`, and text nodes are never mixed with
-sibling elements — so the headline stays a plain string and the accent rides on
-the mark, not a coloured `<span>` inside the title.
+The template follows the two Satori structural rules: every node with more than
+one child sets `display: flex`, and text nodes are never mixed with sibling
+elements. That is why the headline stays a plain string and the accent rides on
+the mark rather than a coloured `<span>` inside the title.
 
 Type-check won't help here: `ImageResponse` accepts all of
 `React.CSSProperties` and Satori silently drops what it doesn't know. Two guards
@@ -290,7 +287,7 @@ which flags unsupported style properties, `calc()`, and the two structural rules
 in files that import `next/og` or are an `opengraph-image`/`twitter-image`
 convention. And rendering remains the final validator: this package renders its
 template through the real satori + resvg pipeline in its own tests, so a site
-hand-rolling extra cards should add the same guard — a vitest file (node
+hand-rolling extra cards should add the same guard: a vitest file (node
 environment) that renders each `opengraph-image.tsx` and asserts a valid PNG
 comes out.
 
@@ -347,7 +344,7 @@ neither is available the component **throws** instead of guessing — a silent
 fallback would canonicalize every page to the homepage, the kind of site-wide
 SEO bug nobody notices for months.
 
-Two rules of the road:
+Two rules:
 
 - **One canonical per page.** If your pages already set `alternates.canonical`
   (e.g. via `createMetadata`), render `<HreflangLinks canonical={false} />`.
@@ -370,9 +367,9 @@ Two rules of the road:
 ## Verifying the cluster (`/verify`)
 
 hreflang is a set of promises about **other** URLs, and nothing local can tell
-you whether they hold. A site can emit a flawless cluster while its middleware
-redirects every URL in it away, or while each variant quietly canonicalizes to
-the default language. Both delete the non-default languages from search, neither
+you whether they hold. A site can emit a correct cluster while its middleware
+redirects every URL in it away, or while each variant canonicalizes to the
+default language. Both delete the non-default languages from search, neither
 raises an error, and Search Console reports them as ordinary redirects and
 duplicates months later. Fetch them:
 
@@ -388,5 +385,6 @@ canonicalizes elsewhere, a missing or duplicated canonical, a non-reciprocal
 cluster, and an `<html lang>` contradicting the `hreflang` it's advertised under.
 `verifyHreflangCluster` returns the problems instead of throwing.
 
-Run it against a real deployment — it is the only check that sees what a crawler
-sees. A `LocaleRouting` from `@ingram-tech/nk-i18n` is a valid config for it.
+Run it against a real deployment: it is the only check here that sees what a
+crawler sees. A `LocaleRouting` from `@ingram-tech/nk-i18n` is a valid config
+for it.

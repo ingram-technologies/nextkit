@@ -1,32 +1,28 @@
 # @ingram-tech/nk-auth
 
-The Ingram **[Better Auth](https://better-auth.com) foundation**: a toolkit of
-composable presets each Ingram Next.js site spreads into its *own*
-`betterAuth()` call. It is **not** a `betterAuth()` wrapper — the site stays
-plain Better Auth (prime directive), keeping full plugin type inference. Import
-only what you need from focused subpaths.
+Composable [Better Auth](https://better-auth.com) presets for Next.js apps, spread
+into your *own* `betterAuth()` call. This is not a `betterAuth()` wrapper: your app
+stays plain Better Auth, so plugin type inference survives. Import only what you
+need from focused subpaths.
 
-`better-auth`, `pg`, `@better-auth/passkey` are **peer dependencies** so there's
+`better-auth`, `pg`, `@better-auth/passkey` are peer dependencies, so there is
 exactly one Better Auth copy in the app.
 
 | Export (subpath) | For |
 | --- | --- |
-| `authEnv`, `authSecret`, `isConfigured` (`./`) | env validation — `authEnv()` returns the full `{ secret, baseURL, databaseUrl }` bundle; `authSecret()` resolves just the secret (with the prod/dev rule) for sites that derive their own `baseURL` / DB connection |
-| `backendJwtOptions` / `verifyBackendJwt` (`./jwt`) | a JWT for the site's own backend API (custom `audience`; `ids` mints `sub` as the public user id) |
+| `authEnv`, `authSecret`, `isConfigured` (`./`) | env validation — `authEnv()` returns the full `{ secret, baseURL, databaseUrl }` bundle; `authSecret()` resolves just the secret (with the prod/dev rule) for apps that derive their own `baseURL` / DB connection |
+| `backendJwtOptions` / `verifyBackendJwt` (`./jwt`) | a JWT for your own backend API (custom `audience`; `ids` mints `sub` as the public user id) |
 | `nkOrganizationDefaults`, `lastActiveOrganizationHooks`, `lastActiveOrganizationUserField` (`./organization`) | org-plugin defaults + active-org restore/persist |
-| `createAuthPool` (`./pool`) | **deprecated** — alias of `createPool` from [`@ingram-tech/nk-db`](../nk-db); inject the site's shared pool instead |
+| `createAuthPool` (`./pool`) | **deprecated** — alias of `createPool` from [`@ingram-tech/nk-db`](../nk-db); inject your app's shared pool instead |
 | `makeEmailSenders`, `makePasskeyOptions`, `passkeyOptionsForBaseUrl`, `uuidGenerateId` (`./`) | email hooks, passkeys (`passkeyOptionsForBaseUrl` derives `rpID`/`origin` from a single base URL), UUID ids |
-| `bcryptPassword` (`./`) | **legacy only** — bcrypt verifier for sites with pre-existing bcrypt hashes. New sites omit it (Better Auth defaults to scrypt). See [Migrating bcrypt passwords to scrypt](#migrating-bcrypt-passwords-to-scrypt) |
+| `bcryptPassword` (`./`) | **legacy only** — bcrypt verifier for apps with pre-existing bcrypt hashes. New apps omit it (Better Auth defaults to scrypt). See [Migrating bcrypt passwords to scrypt](#migrating-bcrypt-passwords-to-scrypt) |
 | `createAuthHelpers`, `safeNext` (`./server`) | validated App Router session helpers (`getSession` / `getUser` / `requireSession` / `requireUser` / `redirectIfAuthenticated`), request-memoized via React `cache()`, with automatic `next` + stale-cookie signalling; `safeNext` validates a `?next=` param |
 | `createAuthMiddleware` (`./middleware`) | loop-safe edge middleware: gates unauthenticated users off protected paths, preserves `next`, and clears a stale session cookie so a bad session self-heals |
 
-> **Data access + RLS** is owned by [`@ingram-tech/nk-db`](../nk-db): query over a
-> direct `pg` connection and enforce per-request Row Level Security with
-> `withRls` / `withRlsTransaction` (claims taken from the Better Auth session — no
-> JWT minting, no REST proxy).
+> **Data access + RLS** is owned by [`@ingram-tech/nk-db`](../nk-db); see §3.
 >
-> **Backend-JWT + org sites** (a backend API plus the org plugin): compose the
-> site's shared nk-db pool, `backendJwtOptions({ audience })`,
+> **Backend-JWT + org sites** (a backend API plus the org plugin): compose your
+> app's shared nk-db pool, `backendJwtOptions({ audience })`,
 > `nkOrganizationDefaults`, and `lastActiveOrganizationHooks(pool)` in your
 > `betterAuth()`; verify backend tokens with `verifyBackendJwt`. Keep
 > app-specific bits (SSO restrictions, permissions/roles, connectors) in the app.
@@ -49,7 +45,7 @@ Outside production, `BETTER_AUTH_SECRET` falls back to a well-known insecure
 placeholder, so local dev and tests run without setting it (a warning is logged).
 In production it stays required — a missing secret throws at startup.
 
-If your site derives its own `baseURL` and opens its own database connection, it
+If your app derives its own `baseURL` and opens its own database connection, it
 may not want `authEnv()`'s all-or-nothing bundle (which also requires
 `BETTER_AUTH_URL` and `DATABASE_URL`). Take just the secret — same prod/dev rule —
 with `authSecret()`:
@@ -116,14 +112,14 @@ const db = await createTestDb({
 });
 ```
 
-**Upgrading better-auth** never means hand-writing a migration in your site: a
+**Upgrading better-auth** never means hand-writing a migration in your app: a
 schema-changing upgrade ships as a new file in nk-auth's chain, so you bump the
 dependency and your next migrate applies it. Reconcile the shipped schema against
-a pinned `better-auth` with `npx @better-auth/cli generate` (a nextkit-maintainer
-task, done once here — not per site).
+a pinned `better-auth` with `npx @better-auth/cli generate` (a maintainer task,
+done once in this package).
 
-> **Adopting from the old copy-in model?** Earlier docs told sites to `cp` the
-> baseline into their own `drizzle/` chain. If you already did, keep that file
+> **Adopting from the old copy-in model?** Earlier versions told you to `cp` the
+> baseline into your own `drizzle/` chain. If you already did, keep that file
 > (deleting an applied migration causes journal drift) and just add the auth-chain
 > invocation above: its DDL is all `… if not exists`, so it no-ops against your
 > existing tables and simply records the nk-auth journal. New auth migrations then
@@ -131,10 +127,8 @@ task, done once here — not per site).
 
 ## 2. Configure the server
 
-This package is **not** a `betterAuth()` wrapper — your site calls `betterAuth`
-itself and spreads in our presets. That keeps full Better Auth type inference at
-the call site (so `auth.api.*` stays typed) and keeps the site plain Better Auth,
-per the prime directive.
+Your app calls `betterAuth` itself and spreads in the presets, which keeps full
+Better Auth type inference at the call site, so `auth.api.*` stays typed.
 
 ```ts
 // lib/auth.ts
@@ -166,13 +160,13 @@ export const auth = betterAuth({
 	basePath: authBasePath, // mount at /auth, not the framework default /api/auth
 	advanced: { database: { generateId: uuidGenerateId } }, // UUIDv7 ids
 	// ^ stored as hyphenated UUIDv7 (uuid columns / RLS policies stay valid).
-	// To show those same ids as prefixed base58 on the wire/UI — `team_…`,
-	// matching the Ingram Cloud API's `agt_`/`smt_` ids — skin them with
+	// To show those same ids as prefixed base58 on the wire/UI — `team_…`, the
+	// way an API exposes prefixed ids like `agt_`/`smt_` — skin them with
 	// `toPrefixedId(uuid, "team")` / recover with `fromPrefixedId`. `base58Id`
-	// mints a fresh one directly for text-id sites. All from `@ingram-tech/nk-auth`.
+	// mints a fresh one directly for text-id apps. All from `@ingram-tech/nk-auth`.
 	emailAndPassword: {
 		enabled: true,
-		// Better Auth hashes with scrypt by default. Only sites carrying
+		// Better Auth hashes with scrypt by default. Only apps carrying
 		// pre-existing bcrypt hashes set `password: bcryptPassword` (legacy).
 		sendResetPassword: email.sendResetPassword,
 	},
@@ -232,11 +226,11 @@ has any stored preference.
 mail a user ever gets from you; a bare `<a href=url>url</a>` reads as phishing
 and trains people to distrust your domain. Take the
 [`registry`](https://github.com/ingram-technologies/registry) email components
-(`shadcn add email-verification email-password-reset`) — they accept `heading` /
-`body` / `ctaLabel` / `preview` overrides precisely so you can pass translated
-copy — or write your own. Send auth links from the default `notifications` local
-part (`fromAddress("Example")`) — **not** `no-reply`: this is the mail users are
-most likely to reply to, and dropping that reply is hostile. See
+(`shadcn add email-verification email-password-reset`), which accept `heading` /
+`body` / `ctaLabel` / `preview` overrides so you can pass translated copy, or
+write your own. Send auth links from the default `notifications` local part
+(`fromAddress("Example")`), **not** `no-reply`: this is the mail users are most
+likely to reply to, and dropping that reply is hostile. See
 [transactional-email.md](../../docs/transactional-email.md).
 
 **Spread all three in; do not hand-write them.** `betterAuth()` takes its
@@ -274,8 +268,8 @@ claims GUC, so a policy's `auth.uid()` still compares to a `uuid` column.
 
 ## 4. Client
 
-Assemble the client in a `"use client"` module (full plugin inference is
-preserved here too):
+Assemble the client in a `"use client"` module (plugin inference is preserved
+here too):
 
 ```tsx
 "use client";
@@ -394,13 +388,13 @@ marker and bounces to a clean `/login?next=…`; signing in returns them to
 `next`. `next` for the cookie-less case is filled in by middleware directly; for
 the cookie-present case the guard reads it from the `x-nk-auth-path` header
 middleware injects — so the self-heal (next + clearing) needs the middleware.
-Sites that skip middleware still get validated gating from the server helpers,
+An app that skips middleware still gets validated gating from the server helpers,
 just without automatic `next`/clearing.
 
 ## 6. Passwords: change, set, and reset
 
 nk-auth owns the reset **sender** (`makeEmailSenders.sendResetPassword`, §2) and
-now closes the loop so a site never touches Better Auth's `account` table or
+closes the loop so your app never touches Better Auth's `account` table or
 endpoint names directly. Three pieces:
 
 **Detect what login the user has.** A social-only account (Google, …) has no
@@ -478,11 +472,11 @@ async redirects() {
 ## Migrating bcrypt passwords to scrypt
 
 `bcryptPassword` is **legacy support only** (see its `@deprecated` note). It
-exists so sites whose `account.password` hashes are bcrypt keep verifying —
+exists so apps whose `account.password` hashes are bcrypt keep verifying:
 that is all nk-auth ships for the bcrypt case.
 
-The path to move a site fully onto scrypt is a **dual-format verifier**, wired
-in the site (nk-auth does not ship it). Better Auth's default hasher is scrypt
+The path to move fully onto scrypt is a **dual-format verifier**, wired in your
+app (nk-auth does not ship it). Better Auth's default hasher is scrypt
 (`<salt-hex>:<key-hex>`) and bcrypt hashes are trivially distinguishable (they
 start with `$2a$`/`$2b$`/`$2y$`), so override only
 `emailAndPassword.password.verify` to branch on `hash.startsWith("$2")` →

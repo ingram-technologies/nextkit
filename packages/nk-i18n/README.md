@@ -1,10 +1,10 @@
 # @ingram-tech/nk-i18n
 
-Type-safe, English-as-key i18n for Ingram Next.js sites. The English source text
-**is** the key (no `en.json`), translations are ICU MessageFormat, and catalogs
-are plain colocated JSON. Routing is left to the site — the translator only needs
-a locale string, so it works with URL-prefixed (`/fr/…`, `[locale]`, middleware
-rewrite) or cookieless (cookie + `Accept-Language`) setups alike.
+Type-safe, English-as-key i18n for Next.js. The English source text **is** the
+key (no `en.json`), translations are ICU MessageFormat, and catalogs are plain
+colocated JSON. Routing is left to your app: the translator only needs a locale
+string, so it works with URL-prefixed (`/fr/…`, `[locale]`, middleware rewrite)
+or cookieless (cookie + `Accept-Language`) setups alike.
 
 ```bash
 bun add @ingram-tech/nk-i18n
@@ -58,7 +58,7 @@ const t = useT({ fr, nl });
 ```
 
 When the source is a concrete scope or `{ fr, nl }`, `t("…")` is **type-checked**
-against the intersection of the catalogs — a missing translation is a compile
+against the intersection of the catalogs: a missing translation is a compile
 error, not a silent English fallback. For data-driven keys (a runtime `string`),
 widen the source: `useT<Messages>({ fr, nl })`.
 
@@ -84,16 +84,16 @@ import { LocaleProvider } from "@ingram-tech/nk-i18n/client";
 <LocaleProvider value={locale}>{children}</LocaleProvider>;
 ```
 
-Read it in client components (pass the site's `Locale` to narrow it):
+Read it in client components (pass your `Locale` to narrow it):
 
 ```ts
 import { useLocale } from "@ingram-tech/nk-i18n/client";
 const locale = useLocale<Locale>();
 ```
 
-For a site that encodes the locale in the URL, use **locale routing** (next
-section) rather than hand-rolling this. Otherwise, resolve however the site
-routes; `negotiateAcceptLanguage` handles the `Accept-Language` step:
+If you encode the locale in the URL, use **locale routing** (next section) rather
+than hand-rolling this. Otherwise resolve however your app routes;
+`negotiateAcceptLanguage` handles the `Accept-Language` step:
 
 ```ts
 import { cookies, headers } from "next/headers";
@@ -116,9 +116,9 @@ export const resolveLocale = cache(async (): Promise<Locale> => {
 
 One definition of how a locale is encoded in a URL, shared by the code that
 **serves** a language and the code that **advertises** it to search engines.
-When those drift — the classic being middleware that redirects away the very
-URLs hreflang points at — the site tells Google the French page lives at an
-address that doesn't serve French, and Google drops the language.
+When those drift (the classic being middleware that redirects away the very URLs
+hreflang points at) you tell Google the French page lives at an address that
+doesn't serve French, and Google drops the language.
 
 ```ts
 // lib/i18n/routing.ts
@@ -195,14 +195,14 @@ The precedence is fixed and not configurable:
 5. country 6. `defaultLocale`
 
 The URL beating the account setting is the load-bearing part: a shared link must
-show the recipient the language it names, or every localized link the site ships
-is a lie. Suppliers are lazy, so a localized address never touches the database.
+show the recipient the language it names, or every localized link you ship is a
+lie. Suppliers are lazy, so a localized address never touches the database.
 
 ### hreflang
 
 Hand the same object to nk-seo so there is no second config to drift. The
-preferred wiring is metadata — it needs no request header, so it also works on
-statically rendered routes:
+preferred wiring is metadata: it needs no request header, so it also works on
+statically rendered routes.
 
 ```ts
 export const pageMetadata = createMetadata({ baseUrl: routing.baseUrl, siteName, hreflang: routing });
@@ -229,7 +229,7 @@ The language switcher must be real `<a href={routing.urlForLocale(path, loc)}>`
 links: hreflang is an annotation, not a discovery mechanism, so a button calling
 a server action gives a crawler no path to the other languages.
 
-Prove the site serves what it advertises with `assertHreflangCluster` from
+Prove you serve what you advertise with `assertHreflangCluster` from
 `@ingram-tech/nk-seo/verify`. Full rationale in
 [`docs/i18n-routing.md`](../../docs/i18n-routing.md).
 

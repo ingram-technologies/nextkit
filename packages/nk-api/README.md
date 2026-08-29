@@ -1,14 +1,10 @@
 # `@ingram-tech/nk-api`
 
-The standard HTTP API seam for Ingram services — a thin layer over
-[Hono](https://hono.dev) + [`@hono/zod-openapi`](https://github.com/honojs/middleware/tree/main/packages/zod-openapi).
-It's the deliberate alternative to an auto-generated REST API: routes
-are hand-authored with Zod schemas that double as request validation **and** an
-emitted OpenAPI document, behind one error envelope and one auth contract.
-
-Use it so every Ingram API looks the same: same `{ error, details? }` envelope,
-same validation behaviour, same OpenAPI/Swagger conventions — fix once, every
-service benefits.
+A thin layer over [Hono](https://hono.dev) +
+[`@hono/zod-openapi`](https://github.com/honojs/middleware/tree/main/packages/zod-openapi)
+for hand-authored HTTP APIs. Routes are declared with Zod schemas that double as
+request validation and an emitted OpenAPI document, behind one error envelope
+(`{ error, details? }`) and one auth contract.
 
 ## What it gives you
 
@@ -29,10 +25,10 @@ service benefits.
   multi-tenant routes: validate the resource id in the path, resolve the caller's
   role (your lookup, under RLS), enforce a minimum role, and expose the id + role
   on the context. Returns a `scope(minRole?)` you put in route middleware. If it
-  runs without `requireAuth` before it, it **401s instead of crashing** on an
-  undefined user — the common ordering footgun, removed by construction.
+  runs without `requireAuth` before it, it 401s instead of crashing on an
+  undefined user.
 - **`setDefaultErrorLogger(logger)`** — set the crash logger once at startup so
-  `createApiApp` **and** every `createRouter` report unhandled 500s the same way,
+  `createApiApp` and every `createRouter` report unhandled 500s the same way,
   without threading a custom `onError` into each (mounted routers don't bubble).
 - **Pagination** — `paginationQuery` (the `page`/`limit` schema),
   `paginatedResponse(itemSchema)` (the `{ data, pagination }` response schema),
@@ -46,15 +42,15 @@ service benefits.
   `assertResponseOk` / `parseErrorBody`. Import-safe in the browser: it pulls no
   server code.
 
-`hono` and `@hono/zod-openapi` are **peer dependencies** so your app controls
-(and shares) a single copy — duplicate Hono instances break type inference and
-`instanceof`. (`@hono/swagger-ui` is a normal dependency: it's used only inside
+`hono` and `@hono/zod-openapi` are peer dependencies so your app controls (and
+shares) a single copy: duplicate Hono instances break type inference and
+`instanceof`. (`@hono/swagger-ui` is a normal dependency, used only inside
 nk-api, so consumers never install or import it.)
 
 ## Usage (Next.js)
 
 ```ts
-// src/api/http/auth.ts — bind the seam to your identity + env once
+// src/api/http/auth.ts — bind auth to your identity + env once
 import { createRequireAuth, type AuthEnv } from "@ingram-tech/nk-api";
 import { getCurrentUser, type AuthUser } from "@/lib/auth/session";
 
@@ -168,10 +164,10 @@ return c.json(paginate(rows, { page, limit, total }), 200);
 
 ## Rate limiting (`rateLimit`)
 
-A zero-dependency, per-instance fixed-window limiter — the no-Redis default for
-cutting off single-client abuse. On a multi-replica deploy each replica keeps
-its own counter, so the effective limit is `limit * replica_count`; swap for a
-shared store if blast radius matters more than simplicity.
+A zero-dependency, per-instance fixed-window limiter, for cutting off
+single-client abuse without Redis. On a multi-replica deploy each replica keeps
+its own counter, so the effective limit is `limit * replica_count`; swap in a
+shared store if that matters.
 
 ```ts
 import { getClientKey, rateLimit } from "@ingram-tech/nk-api";
@@ -197,10 +193,9 @@ The primitives `checkRateLimit({ key, limit, windowMs })` and
 
 ## Webhook signatures (`verifyHmacSha256`)
 
-Length-checked, constant-time HMAC-SHA256 verification for the
-`/internal/webhooks/<provider>` route class. Verify against the **raw** body,
-before any JSON round-trip. (Stripe is the exception — use its SDK's
-`constructEvent`, via `@ingram-tech/nk-billing`.)
+Length-checked, constant-time HMAC-SHA256 verification for inbound webhook
+routes. Verify against the **raw** body, before any JSON round-trip. (Stripe is
+the exception: use its SDK's `constructEvent`, via `@ingram-tech/nk-billing`.)
 
 ```ts
 import { verifyHmacSha256, HttpError } from "@ingram-tech/nk-api";

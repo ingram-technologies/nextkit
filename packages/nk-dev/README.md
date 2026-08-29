@@ -1,7 +1,7 @@
 # @ingram-tech/nk-dev
 
-The nextkit **dev toolchain in one package**. Everything a site needs at
-development time — and nothing that ships to production — lives here:
+The nextkit dev toolchain in one package. Everything a site needs at development
+time, and nothing that ships to production:
 
 - the **`nk` CLI** (`nk dev` / `format` / `lint` / `knip` / `ast-grep` / `migrations` / `check` / `type-check` / `test` / `build`, plus
   `nk doctor`);
@@ -12,8 +12,8 @@ development time — and nothing that ships to production — lives here:
 - **`nk init`**, which scaffolds a site to use all of the above.
 
 It's a single `devDependency` and pulls the toolchain (oxlint, oxfmt, tsc,
-vitest, jsdom, jest-dom, knip) as hard dependencies — so one install gives you
-the whole stack instead of re-listing each tool per site.
+vitest, jsdom, jest-dom, knip) as hard dependencies, so one install gives you the
+whole stack instead of listing each tool in every project.
 
 > **Runtime vs dev-time.** nk-dev is the *dev-time* bundle. Runtime features
 > (`@ingram-tech/nk-email`, `nk-db`, `nk-auth`, …) stay separate packages that
@@ -33,18 +33,18 @@ bun install   # the prepare script wires the git hook
 | File | What |
 | --- | --- |
 | `.oxlintrc.json` | `extends` the shared oxlint rules (relative path — oxlint doesn't resolve package specifiers) |
-| `.oxfmtrc.json` | a copy of the house format config (oxfmt has no `extends`) |
+| `.oxfmtrc.json` | a copy of the shipped format config (oxfmt has no `extends`) |
 | `tsconfig.json` | `extends` `@ingram-tech/nk-dev/tsconfig/nextjs.json` + the site's own `include`/`paths` |
 | `knip.json` | seed config (knip has no shareable config): gates on dependency/file hygiene, with unused exports/types off (noisy); ignores `@ingram-tech/nk-dev` |
 | `.githooks/pre-commit` + `prepare` script | oxfmt format-on-commit |
 | `CLAUDE.md` | the agent-guide `@import` |
 
 It also prints a `vitest.config.ts` snippet (`mergeConfig(nextkitTestConfig, {})`
-from `@ingram-tech/nk-dev/vitest`) rather than writing the file — add it only if
-you test with Vitest (many sites use `bun:test`).
+from `@ingram-tech/nk-dev/vitest`) rather than writing the file. Add it only if
+you test with Vitest.
 
-Everything is `extends`-based, so the house config is enforced by default but
-overridable — layer your own rules on top, or replace a stub entirely (e.g. drop
+Everything is `extends`-based, so the shipped config applies by default and stays
+overridable: layer your own rules on top, or replace a stub entirely (e.g. drop
 in a `biome.json` instead of the oxlint/oxfmt stubs).
 
 ## The `nk` command
@@ -65,12 +65,12 @@ Point your package.json scripts at it:
 }
 ```
 
-`nk` shells out to the site's own `bun x`-resolved tools (oxlint, oxfmt, Next,
-tsc), so versions stay under each site's control — nk just orchestrates.
+`nk` shells out to the project's own `bun x`-resolved tools (oxlint, oxfmt, Next,
+tsc), so versions stay under your control. nk only orchestrates.
 
 > **`nk` is optional.** It only orchestrates the standard commands; it never
-> wraps or intercepts the Next.js build. Every site must stay fully buildable and
-> runnable with plain `next build` / `next dev` if `nk` is removed — see the
+> wraps or intercepts the Next.js build. A site stays fully buildable and
+> runnable with plain `next build` / `next dev` if `nk` is removed. See the
 > [`nk` carve-out](https://github.com/ingram-technologies/nextkit/blob/main/docs/philosophy.md).
 > The orchestration tests in this package check that the formatter resolves to
 > standard oxlint/oxfmt invocations and nothing more.
@@ -92,8 +92,8 @@ tsc), so versions stay under each site's control — nk just orchestrates.
     `DATABASE_URL`, then `next dev --turbopack`. No Docker, no daemon.
   - **Plain** — otherwise just `next dev` (static/marketing sites with no DB).
 - **`nk format` / `nk format --check`** — formats code (JS/TS/JSON/CSS) with
-  oxfmt. `--check` verifies without writing (CI). SQL isn't formatted — it's
-  generated (drizzle migrations, `pg_dump` baselines, pglite fixtures).
+  oxfmt. `--check` verifies without writing (CI). SQL isn't formatted; see
+  [Why no SQL formatting?](#why-no-sql-formatting).
 - **`nk lint`** — `oxlint`.
 - **`nk knip`** — `knip` (unused dependencies / exports / files).
 - **`nk migrations [--check|--reseal|--ddl]`** — guard the `drizzle/` migration
@@ -132,9 +132,9 @@ tsc), so versions stay under each site's control — nk just orchestrates.
 
 ## Why no SQL formatting?
 
-oxfmt is the formatter for code, and it can't format SQL — but nk-dev doesn't
-format SQL at all. The SQL in our repos is ~entirely generated (drizzle
-migrations, `pg_dump` baselines, pglite fixtures), so formatting it only churned
-generated files and crashed on psql directives (`\restrict`) for no gain. nk-dev
-therefore carries no `prettier` dependency; if a site has a leftover
-`.prettierignore`, `nk doctor --fix` removes it.
+oxfmt can't format SQL, and nk-dev doesn't format it by another route either. In
+a nextkit project the SQL is nearly all generated (drizzle migrations, `pg_dump`
+baselines, pglite fixtures), so formatting it only churned generated files and
+crashed on psql directives (`\restrict`) for no gain. nk-dev therefore carries no
+`prettier` dependency; if a project has a leftover `.prettierignore`,
+`nk doctor --fix` removes it.

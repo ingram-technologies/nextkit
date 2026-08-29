@@ -1,7 +1,8 @@
 # @ingram-tech/nk-email
 
 Zero-dependency [Cloudflare Email Sending](https://developers.cloudflare.com/email-routing/email-workers/send-email-workers/)
-client — the one shared email client for Ingram sites.
+client, with an optional Postgres send log and a manifest of every message your
+product sends.
 
 ## Install
 
@@ -38,7 +39,7 @@ Supports `cc`, `bcc`, `attachments`, and custom `headers`.
 
 ### One-click unsubscribe (RFC 8058)
 
-Any non-transactional send — a newsletter issue, a post-signup lifecycle nudge —
+Any non-transactional send (a newsletter issue, a post-signup lifecycle nudge)
 must carry `List-Unsubscribe` headers for Gmail/Yahoo bulk-sender compliance and
 deliverability. Pass `listUnsubscribe` and the header pair is generated for you:
 
@@ -63,10 +64,9 @@ machinery (contacts, consent, dedup, rendering) reach for
 
 ### Send-log (opt-in metadata history)
 
-`sendEmail` is fire-and-forget — it persists nothing. When you want a durable
-record of *that* a message went out (an operator surface asking "what did we
-send, to whom, did it land?"), build a **mailer** with a database and call `send`
-where you called `sendEmail`:
+`sendEmail` persists nothing. When you want a durable record of *that* a message
+went out, build a **mailer** with a database and call `send` where you called
+`sendEmail`:
 
 ```ts
 import { createMailer } from "@ingram-tech/nk-email";
@@ -86,7 +86,7 @@ await mailer.send({
 
 Every send writes one row to `nk_email_log` (`kind`, recipient, subject, sender,
 `template_key`, `campaign_key`, `message_id`, `status`, `error`, `created_at`).
-It's **best-effort** — a logging outage never fails the mail — and **opt-in**:
+It is **best-effort** (a logging outage never fails the mail) and **opt-in**:
 with no `db` the mailer is a pure pass-through, so you can adopt the API first
 and turn on persistence later without touching call sites. Apply
 `migrations/0001_email_log.sql` (with your own migration pipeline) when you turn
@@ -95,11 +95,10 @@ logging on. `recordEmail(db, record)` is the low-level writer if you need it;
 
 ### Archiving bodies (opt-in)
 
-Metadata answers "did it land". It does not answer "**show me the exact email
-this person received**" — the question an operator actually gets asked, and the
-one a support thread turns on. Turn on `captureBody` and each row also carries
-the rendered message in a `body` jsonb column, which is enough to drive a preview
-pane straight off the log:
+Metadata answers "did it land". It does not answer "show me the exact email this
+person received". Turn on `captureBody` and each row also carries the rendered
+message in a `body` jsonb column, which is enough to drive a preview pane
+straight off the log:
 
 ```ts
 const mailer = createMailer({ db: pool, captureBody: true });
@@ -110,9 +109,8 @@ await mailer.send({ /* … */ });        // row.body = { html, text }
 await mailer.send({ ...magicLink, captureBody: false }); // metadata row still written
 ```
 
-Apply `migrations/0002_email_log_extras.sql` when you turn it on. It is a separate
-step because a metadata log and a message archive carry different burdens, and
-**two of them become yours**:
+Apply `migrations/0002_email_log_extras.sql` when you turn it on. It is a
+separate step because archiving bodies makes two problems yours:
 
 - **Secrets.** A verification / password-reset / magic-link body contains a live
   credential. Archived, it makes read access to this table equivalent to account
@@ -131,16 +129,16 @@ step because a metadata log and a message archive carry different burdens, and
 
 Bodies are clamped per part at `MAX_LOGGED_BODY_CHARS` (256k), and a clamped row
 is marked `{"truncated": true}` so a preview can say so rather than present a
-cut-off message as whole. With capture off — the default, and what nk-marketing
-uses — the `body` column is left out of the insert entirely, so `0001` alone
+cut-off message as whole. With capture off (the default, and what nk-marketing
+uses) the `body` column is left out of the insert entirely, so `0001` alone
 remains a complete install.
 
 ### Linking a row to your own records
 
-`nk_email_log` carries no foreign key into your tables — that is what lets every
-site apply the same migration unchanged. Pass `meta` instead: site-defined JSON,
-stored as-is in a `meta` jsonb column, which is the seam for correlating a logged
-send with whatever it belongs to.
+`nk_email_log` carries no foreign key into your tables, which is what lets any
+app apply the same migration unchanged. Pass `meta` instead: caller-defined JSON,
+stored as-is in a `meta` jsonb column, for correlating a logged send with
+whatever it belongs to.
 
 ```ts
 await mailer.send({
@@ -163,19 +161,19 @@ select l.subject, l.status, l.created_at, p.name
 create index on nk_email_log ((meta->>'personEmailId'));
 ```
 
-It's a correlation key, not referential integrity: nothing stops a `meta` id from
-outliving the row it names. Keep it to **ids, not payloads** — `meta` is capped at
-`MAX_LOGGED_META_CHARS` (4k) serialized, and anything larger (or unserializable)
-is dropped with a `console.error` rather than truncated, since half a JSON
-document is not a JSON document. The send and the rest of the row are never at
-risk. `meta` is independent of `captureBody` — a metadata-only log can carry it —
-and, like `body`, its column stays out of the insert when unset.
+It is a correlation key, not referential integrity: nothing stops a `meta` id
+from outliving the row it names. Keep it to ids, not payloads. `meta` is capped
+at `MAX_LOGGED_META_CHARS` (4k) serialized, and anything larger (or
+unserializable) is dropped with a `console.error` rather than truncated, since
+half a JSON document is not a JSON document. The send and the rest of the row are
+never at risk. `meta` is independent of `captureBody`, so a metadata-only log can
+carry it, and like `body` its column stays out of the insert when unset.
 
-**Already have a site-owned send log?** You can now fold it in — bodies and your
-own join both survive the move. It is still a judgement call rather than an
+**Already have your own send log?** You can fold it into this one; bodies and
+your own join both survive the move. It is a judgement call rather than an
 upgrade path: you trade a real foreign key for a `meta` correlation, in exchange
-for running one log instead of two. Nothing forces the choice; a site can keep
-its own log and still write `nk_email_log` for the fleet-uniform view. See
+for running one log instead of two. You can also keep your own log and write
+`nk_email_log` alongside it. See
 [transactional email conventions](../../docs/transactional-email.md#send-history-and-previews).
 
 ### Email catalog (drift-proof previews)
@@ -207,19 +205,19 @@ serializeEmailCatalog(catalog, { product: "Acme" });
 
 nk-email does no templating (you pass rendered `subject`/`html`/`text`), so an
 entry already holds the final strings. The serializer emits a versioned JSON
-manifest — commit it and point your operator surface at it. No route, no send,
-no runtime footprint.
+manifest: commit it and point your operator surface at it. No route and no
+runtime footprint.
 
-A catalog entry is a **sample render**, not a sent message: it shows what the
+A catalog entry is a sample render, not a sent message: it shows what the
 "booking confirmed" email looks like, with sample data, as of the current code.
 That is a different question from "what exactly did we mail Ava on Tuesday",
-which the send-log answers once `captureBody` is on. A site with an operator
-surface usually wants both, and they stay consistent because each is built from
-the real sender rather than a copy of it.
+which the send-log answers once `captureBody` is on. An operator surface usually
+wants both, and they stay consistent because each is built from the real sender
+rather than a copy of it.
 
 ### Escaping
 
-`escapeHtml(value)` escapes the five HTML-significant characters — use it when
+`escapeHtml(value)` escapes the five HTML-significant characters. Use it when
 interpolating any user-controlled text into an HTML email body.
 
 ### Fail fast / degrade gracefully
@@ -233,7 +231,7 @@ isConfigured();  // boolean — skip sending in local/dev instead of throwing
 
 ## Design
 
-- **Zero dependencies** beyond `fetch`. No SDK, no Node-only APIs — runs on
+- **Zero dependencies** beyond `fetch`. No SDK, no Node-only APIs, so it runs on
   Vercel Functions, the edge, or anywhere `fetch` exists.
 - **`from` is required and explicit.** Build it with `fromAddress()` so the
   sender domain comes from `EMAIL_FROM_DOMAIN`, never hard-coded.
