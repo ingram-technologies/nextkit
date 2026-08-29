@@ -114,7 +114,7 @@ export interface LocaleRouting<L extends string = string> {
 	param: string;
 	cookieName: string;
 	countryLocales: Readonly<Record<string, L>>;
-	hrefLangTags?: Readonly<Partial<Record<string, string>>>;
+	hrefLangTags?: Readonly<Partial<Record<L, string>>>;
 	/** Type guard, so sites don't each write their own. */
 	isLocale: (value: unknown) => value is L;
 	/**

@@ -197,11 +197,11 @@ export async function hreflangConfigFor<L extends string>(
 	routing: LocaleRouting<L>,
 ): Promise<{
 	baseUrl: string;
-	locales: readonly string[];
+	locales: readonly L[];
 	strategy: LocaleRouting<L>["strategy"];
 	param: string;
-	hrefLangTags: Readonly<Partial<Record<string, string>>> | undefined;
-	currentLocale: string | undefined;
+	hrefLangTags: Readonly<Partial<Record<L, string>>> | undefined;
+	currentLocale: L | undefined;
 }> {
 	return {
 		baseUrl: routing.baseUrl,
