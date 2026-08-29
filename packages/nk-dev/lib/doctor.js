@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { authNextFindings } from "./auth-next.js";
 import { authShadowFindings } from "./auth-shadow.js";
 import { SUPERSEDED_DEPS } from "./drift.js";
 import {
@@ -312,6 +313,10 @@ export function findings(cwd) {
 	// 11. No page/route under app/auth/ shadows a Better Auth endpoint.
 	out.push(...authShadowFindings(cwd));
 
+	// 12. If nk-auth's server guards are bound, something sets the header they
+	//     need to preserve `next`.
+	out.push(...authNextFindings(cwd));
+
 	return out;
 }
 
@@ -386,7 +391,8 @@ function migrationFindings(cwd) {
  * dependencies, oxlint/tsconfig extends, the CLAUDE.md guide import, stale knip
  * ignores, forbidden schema-applying drizzle-kit scripts, Prettier leftovers,
  * a missing or thin `ci` script, an unsealed or unmodelled-DDL-carrying migration chain, a
- * page under app/auth/ shadowing a Better Auth endpoint).
+ * page under app/auth/ shadowing a Better Auth endpoint, nk-auth guards bound
+ * without the proxy header that preserves `next`).
  * With `--fix`, apply every auto-fixable finding, then remind
  * to reinstall.
  */
