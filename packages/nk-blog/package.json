@@ -49,7 +49,7 @@
 		"react-markdown": "^10.1.0",
 		"remark-gfm": "^4.0.1",
 		"unist-util-visit": "^5.1.0",
-		"zod": "^4.4.3"
+		"zod": "^4.5.4"
 	},
 	"peerDependencies": {
 		"next": ">=14.0.0",
@@ -66,16 +66,16 @@
 	"devDependencies": {
 		"@ingram-tech/nk-dev": "workspace:*",
 		"@types/mdast": "^4.0.4",
-		"@types/node": "^26.2.0",
+		"@types/node": "^26.4.0",
 		"@types/react": "^19.2.18",
-		"@types/react-dom": "^19.2.4",
+		"@types/react-dom": "^19.2.5",
 		"mdast-util-mdx-jsx": "^3.2.0",
-		"next": "^16.3.1",
+		"next": "^16.3.3",
 		"react": "^19.2.8",
 		"react-dom": "^19.2.8",
 		"typescript": "^7.0.2",
 		"unified": "^11.0.5",
 		"vfile": "^6.0.3",
-		"vitest": "^4.1.10"
+		"vitest": "^4.1.11"
 	}
 }

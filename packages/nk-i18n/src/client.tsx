@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, type ReactNode, useContext, useMemo, useRef } from "react";
+import { createContext, type ReactNode, useContext, useMemo } from "react";
 import {
 	type CreateTOptions,
 	createT,
@@ -36,8 +36,10 @@ export function useLocale<TLocale extends string = string>(): TLocale {
 /**
  * Client translator bound to the active locale from {@link LocaleProvider}.
  * Message sources are usually passed as fresh object literals each render
- * (`useT({ fr, nl })`), so they are held in a ref and the translator identity
- * only changes when the locale changes — safe to list in hook deps.
+ * (`useT({ fr, nl })`), so they are deliberately not deps: the translator
+ * identity only changes when the locale changes — safe to list in hook deps.
+ * When it does, the memo runs this render's closure, so it picks up the
+ * current sources without any ref.
  */
 export function useT<const TSource extends Messages | I18nScope | undefined>(
 	messagesOrScope?: TSource,
@@ -45,16 +47,9 @@ export function useT<const TSource extends Messages | I18nScope | undefined>(
 	options?: CreateTOptions,
 ): Translator<TSource> {
 	const locale = useContext(LocaleContext);
-	const sources = useRef({ messagesOrScope, runtimeMessages, options });
-	sources.current = { messagesOrScope, runtimeMessages, options };
 	return useMemo(
-		() =>
-			createT(
-				locale,
-				sources.current.messagesOrScope,
-				sources.current.runtimeMessages,
-				sources.current.options,
-			),
+		() => createT(locale, messagesOrScope, runtimeMessages, options),
+		// oxlint-disable-next-line react/exhaustive-deps -- sources are fresh literals each render; the translator is bound per locale by design
 		[locale],
 	);
 }
