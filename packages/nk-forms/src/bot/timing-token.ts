@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { getSecret, getSecrets, isConfigured } from "./keys.js";
+import { getSecret, getSecrets, isConfigured } from "../keys.js";
 
 /**
  * Signed timing token: `<timestamp>.<hmac>`. The timestamp records when the
@@ -31,7 +31,7 @@ export const createFormToken = (): string => {
 		if (!warnedUnconfigured) {
 			warnedUnconfigured = true;
 			console.warn(
-				"@ingram-tech/bot-protection: BOT_PROTECTION_SECRET not set — timing token disabled.",
+				"@ingram-tech/nk-forms: BOT_PROTECTION_SECRET not set — timing token disabled.",
 			);
 		}
 		return "";

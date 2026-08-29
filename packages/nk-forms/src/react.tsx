@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useBotProtection } from "@ingram-tech/bot-protection/react";
+import { useBotProtection } from "./bot/react.js";
 
 // Re-export the primitives so a form component needs a single import.
-export { HoneypotInput, useBotProtection } from "@ingram-tech/bot-protection/react";
+export { HoneypotInput, useBotProtection } from "./bot/react.js";
 
 export type FormSubmitStatus = "idle" | "submitting" | "success" | "error";
 

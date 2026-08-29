@@ -1,7 +1,7 @@
 {
 	"name": "@ingram-tech/nk-forms",
 	"version": "0.2.7",
-	"description": "Contact/signup form pipeline for Next.js sites — bot protection, validation, and escaped email notifications in one handler.",
+	"description": "Contact/signup form pipeline for Next.js sites — invisible bot protection (honeypot + signed timing token + Vercel BotID), validation, and escaped email notifications in one handler.",
 	"license": "MIT",
 	"type": "module",
 	"repository": {
@@ -26,6 +26,14 @@
 		"./react": {
 			"types": "./dist/react.d.ts",
 			"import": "./dist/react.js"
+		},
+		"./honeypot": {
+			"types": "./dist/bot/honeypot.d.ts",
+			"import": "./dist/bot/honeypot.js"
+		},
+		"./fields": {
+			"types": "./dist/bot/fields.d.ts",
+			"import": "./dist/bot/fields.js"
 		}
 	},
 	"scripts": {
@@ -34,7 +42,6 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
-		"@ingram-tech/bot-protection": "workspace:*",
 		"@ingram-tech/nk-email": "workspace:*"
 	},
 	"devDependencies": {
@@ -46,9 +53,13 @@
 		"vitest": "^4.1.10"
 	},
 	"peerDependencies": {
+		"botid": ">=1.0.0",
 		"react": "^18.0.0 || ^19.0.0"
 	},
 	"peerDependenciesMeta": {
+		"botid": {
+			"optional": true
+		},
 		"react": {
 			"optional": true
 		}

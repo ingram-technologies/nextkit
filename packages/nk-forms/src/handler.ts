@@ -1,4 +1,4 @@
-import { verifyHuman, type VerifyOptions } from "@ingram-tech/bot-protection";
+import { verifyHuman, type VerifyOptions } from "./bot/verify.js";
 
 /**
  * Decision returned by a caller-supplied rate limiter. nk-forms owns no store —

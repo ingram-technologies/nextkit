@@ -28,7 +28,7 @@ conventions and the design/decision records.
   hreflang cluster it advertises.
 - **[forms.md](./forms.md)** — the public contact/signup submission pipeline
   (`@ingram-tech/nk-forms`): the bot gate, validation, escaped notifications, and
-  when to use it vs. `@ingram-tech/bot-protection` directly.
+  when to call the bot layers directly instead of the pipeline.
 - **[creating-a-package.md](./creating-a-package.md)** — checklist for new
   packages.
 - **[releasing.md](./releasing.md)** — versioning + npm Trusted Publishing flow.

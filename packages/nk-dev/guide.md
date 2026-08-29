@@ -9,10 +9,9 @@ package. Stay a thin, standard Next.js app (bun · oxlint + oxfmt · strict TS).
 - **Public contact/signup forms MUST use `@ingram-tech/nk-forms`** —
   `handleFormSubmission` server-side (rate-limit → bot gate → validate →
   escaped-email deliver → uniform 200) and `useFormSubmit` + `HoneypotInput`
-  client-side. It layers over `@ingram-tech/bot-protection`, which stays the
-  primitive for guarding *non-form* endpoints (a checkout, an authed route) —
-  call `checkBot` / `verifyHuman` directly there. Never ship a public form
-  without the bot gate.
+  client-side. For guarding a *non-form* endpoint (a checkout, an authed
+  route), call nk-forms' `checkBot` / `verifyHuman` directly instead of the
+  pipeline. Never ship a public form without the bot gate.
 - **Send email only via `@ingram-tech/nk-email`** — never add another mail client.
 - **Never trust an external request body's shape — validate it with Zod, never
   `as`-cast it.** Every `/api` route and webhook handler takes untrusted input;
@@ -155,8 +154,7 @@ tool instead). One-off single-file edits: just edit the file.
 - `@ingram-tech/nk-db` — Postgres data layer: `createPool` (one TLS-aware pool) + `createQueries` (raw SQL) + `createDb` (Drizzle), the PGlite dev/test harness at `@ingram-tech/nk-db/pglite`, the prefixed-id codec (the standalone `id758` package) at `@ingram-tech/nk-db/id`, and the drift-aware migration runner at `@ingram-tech/nk-db/migrate`
 - `@ingram-tech/nk-api` — the standard HTTP API seam (Hono + `@hono/zod-openapi`): one `{ error, details? }` envelope, `createApiApp` / `createRouter`, auth + multi-tenant resource-scope middleware, pagination helpers, and an emitted OpenAPI/Swagger doc. Reach for it instead of hand-rolling route handlers
 - `@ingram-tech/nk-billing` — Stripe primitives: subscriptions, a Stripe-side wallet, and an optional Postgres credit ledger behind the `/credits` subpath. Prices resolve at runtime by Stripe `lookup_key` — **never hardcode a price id**, so test and live share one code path
-- `@ingram-tech/bot-protection` — invisible form protection (honeypot + timing + Vercel BotID); the primitive nk-forms builds on, used directly only for non-form endpoints
-- `@ingram-tech/nk-forms` — the public contact/signup submission pipeline over bot-protection + nk-email: `handleFormSubmission` (rate-limit → bot gate → validate → escaped-email deliver → uniform 200), `renderNotificationEmail`, `mintFormToken`, and `useFormSubmit` / `HoneypotInput` (`/react`). Reach for it instead of wiring bot-protection by hand
+- `@ingram-tech/nk-forms` — the public contact/signup submission pipeline: `handleFormSubmission` (rate-limit → bot gate → validate → escaped-email deliver → uniform 200), `renderNotificationEmail`, `mintFormToken`, and `useFormSubmit` / `HoneypotInput` (`/react`). It owns the invisible bot-protection layers too (honeypot + signed timing token + Vercel BotID); `verifyHuman` / `checkBot` are exported from the root for non-form endpoints
 - `@ingram-tech/nk-i18n` — type-safe, English-as-key i18n: the English source text *is* the key (no `en.json`), ICU MessageFormat, colocated JSON catalogs, plus **locale URL routing** (`defineLocaleRouting` + a fixed URL→account→cookie→`Accept-Language`→country precedence, wired to Next at `/next`). A URL that names a locale must serve it with a 200 — never redirect `?hl=fr` away, or every hreflang annotation on the site points at a URL that doesn't serve the language it claims. See `docs/i18n-routing.md`
 - `@ingram-tech/nk-marketing` — Postgres-backed marketing & lifecycle email: contacts + consent, newsletter broadcast audiences, and idempotent triggered campaigns, with RFC 8058 one-click unsubscribe
 - `@ingram-tech/nk-seo` — SEO toolkit: metadata factory, JSON-LD builders, sitemap/robots routes, hreflang + canonical links, and an OG image template

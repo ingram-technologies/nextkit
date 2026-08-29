@@ -11,29 +11,9 @@
         "typescript": "^7.0.2",
       },
     },
-    "packages/bot-protection": {
-      "name": "@ingram-tech/bot-protection",
-      "version": "0.4.1",
-      "devDependencies": {
-        "@ingram-tech/nk-dev": "workspace:*",
-        "@types/node": "^26.2.0",
-        "@types/react": "^19.2.18",
-        "react": "^19.2.8",
-        "typescript": "^7.0.2",
-        "vitest": "^4.1.10",
-      },
-      "peerDependencies": {
-        "botid": ">=1.0.0",
-        "react": "^18.0.0 || ^19.0.0",
-      },
-      "optionalPeers": [
-        "botid",
-        "react",
-      ],
-    },
     "packages/nk-api": {
       "name": "@ingram-tech/nk-api",
-      "version": "0.3.3",
+      "version": "0.3.4",
       "dependencies": {
         "@hono/swagger-ui": "^0.6.1",
       },
@@ -52,7 +32,7 @@
     },
     "packages/nk-auth": {
       "name": "@ingram-tech/nk-auth",
-      "version": "0.13.5",
+      "version": "0.14.0",
       "dependencies": {
         "@ingram-tech/nk-db": "workspace:^",
         "bcrypt": "^6.0.0",
@@ -89,7 +69,7 @@
     },
     "packages/nk-billing": {
       "name": "@ingram-tech/nk-billing",
-      "version": "0.3.4",
+      "version": "0.3.5",
       "dependencies": {
         "stripe": "^22.5.0",
         "zod": "^4.4.3",
@@ -103,7 +83,7 @@
     },
     "packages/nk-blog": {
       "name": "@ingram-tech/nk-blog",
-      "version": "0.1.5",
+      "version": "0.1.7",
       "dependencies": {
         "@ingram-tech/nk-seo": "workspace:^",
         "@mdx-js/mdx": "^3.1.1",
@@ -139,7 +119,7 @@
     },
     "packages/nk-db": {
       "name": "@ingram-tech/nk-db",
-      "version": "1.6.0",
+      "version": "2.1.0",
       "bin": {
         "nk-pglite-dev": "./dist/pglite/dev.js",
         "nk-pg-migrate": "./dist/migrate-bin.js",
@@ -172,7 +152,7 @@
     },
     "packages/nk-dev": {
       "name": "@ingram-tech/nk-dev",
-      "version": "0.11.1",
+      "version": "0.13.0",
       "bin": {
         "nk": "bin/nk.js",
         "nextkit-format-staged": "bin/format-staged.mjs",
@@ -192,7 +172,7 @@
     },
     "packages/nk-email": {
       "name": "@ingram-tech/nk-email",
-      "version": "0.6.0",
+      "version": "0.6.1",
       "devDependencies": {
         "@ingram-tech/nk-dev": "workspace:*",
         "@types/node": "^26.2.0",
@@ -202,9 +182,8 @@
     },
     "packages/nk-forms": {
       "name": "@ingram-tech/nk-forms",
-      "version": "0.2.6",
+      "version": "0.2.7",
       "dependencies": {
-        "@ingram-tech/bot-protection": "workspace:*",
         "@ingram-tech/nk-email": "workspace:*",
       },
       "devDependencies": {
@@ -216,15 +195,17 @@
         "vitest": "^4.1.10",
       },
       "peerDependencies": {
+        "botid": ">=1.0.0",
         "react": "^18.0.0 || ^19.0.0",
       },
       "optionalPeers": [
+        "botid",
         "react",
       ],
     },
     "packages/nk-i18n": {
       "name": "@ingram-tech/nk-i18n",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "dependencies": {
         "intl-messageformat": "^11.2.14",
       },
@@ -247,7 +228,7 @@
     },
     "packages/nk-marketing": {
       "name": "@ingram-tech/nk-marketing",
-      "version": "0.5.0",
+      "version": "0.5.1",
       "dependencies": {
         "@ingram-tech/nk-email": "workspace:^",
       },
@@ -260,7 +241,7 @@
     },
     "packages/nk-seo": {
       "name": "@ingram-tech/nk-seo",
-      "version": "0.8.0",
+      "version": "0.9.0",
       "devDependencies": {
         "@ingram-tech/nk-dev": "workspace:*",
         "@ingram-tech/nk-i18n": "workspace:*",
@@ -282,7 +263,7 @@
     },
     "packages/nk-themes": {
       "name": "@ingram-tech/nk-themes",
-      "version": "0.2.1",
+      "version": "0.2.2",
       "dependencies": {
         "@wrksz/themes": "^1.2.0",
       },
@@ -497,8 +478,6 @@
     "@img/sharp-win32-ia32": ["@img/sharp-win32-ia32@0.35.3", "", { "os": "win32", "cpu": "ia32" }, "sha512-r53mXsBN6lFUDiST764SvgwUdHAqM4rPAiDzAmf4fLoB6X/rkfyTrLCg6+g17wJJiCmB3JYgHuUldCWUIRFSXw=="],
 
     "@img/sharp-win32-x64": ["@img/sharp-win32-x64@0.35.3", "", { "os": "win32", "cpu": "x64" }, "sha512-D4y1vNeZrIIJCN+uHaWVtH86B+aCrdMYYjicy9pXHvbGZeGYLLSd3wdVuC37FxVXlU1ARsk84eKWfWMXGYEqvA=="],
-
-    "@ingram-tech/bot-protection": ["@ingram-tech/bot-protection@workspace:packages/bot-protection"],
 
     "@ingram-tech/nk-api": ["@ingram-tech/nk-api@workspace:packages/nk-api"],
 

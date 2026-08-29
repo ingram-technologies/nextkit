@@ -35,7 +35,7 @@ nextkit/
   See [`philosophy.md`](./philosophy.md) for why dev-time config is one bundle
   while runtime stays vertical slices.
 - **Runtime packages** (`nk-email`, `nk-db`, `nk-auth`, `nk-billing`, `nk-api`,
-  `nk-i18n`, `nk-seo`, `nk-blog`, `bot-protection`, `nk-forms`, `nk-marketing`):
+  `nk-i18n`, `nk-seo`, `nk-blog`, `nk-forms`, `nk-marketing`, `nk-themes`):
   ship
   compiled JS + `.d.ts` from `src/`, built with `tsc`. These stay separate and
   peer-depend on `next`/`react`.

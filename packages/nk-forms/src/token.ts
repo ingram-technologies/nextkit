@@ -1,4 +1,4 @@
-import { createFormToken } from "@ingram-tech/bot-protection";
+import { createFormToken } from "./bot/timing-token.js";
 
 /**
  * Ready-made GET handler that mints the signed timing token the client hook

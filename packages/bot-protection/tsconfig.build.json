@@ -1,7 +1,0 @@
-{
-	// Build config: the published `dist` must not carry tests. Type-checking uses
-	// `tsconfig.json`, which DOES include them — a type error in a test is a real
-	// error, and type-level assertions only bite if something checks them.
-	"extends": "./tsconfig.json",
-	"exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.tsx"]
-}

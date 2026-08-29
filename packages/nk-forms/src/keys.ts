@@ -1,5 +1,5 @@
 /**
- * Environment contract for @ingram-tech/bot-protection.
+ * Environment contract for @ingram-tech/nk-forms.
  *
  * BOT_PROTECTION_SECRET — secret used to HMAC-sign the timing token so bots
  * can't forge a "this form was rendered long enough ago" claim. Generate with
@@ -22,7 +22,7 @@ export const getSecret = (): string => {
 	const secret = getSecrets()[0];
 	if (!secret) {
 		throw new Error(
-			"@ingram-tech/bot-protection: BOT_PROTECTION_SECRET is not configured",
+			"@ingram-tech/nk-forms: BOT_PROTECTION_SECRET is not configured",
 		);
 	}
 	return secret;

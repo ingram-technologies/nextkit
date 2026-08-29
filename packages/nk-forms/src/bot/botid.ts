@@ -22,7 +22,7 @@ const warnOnce = (detail: string): void => {
 	if (warnedUnavailable) return;
 	warnedUnavailable = true;
 	console.warn(
-		`@ingram-tech/bot-protection: BotID layer unavailable, degrading to "not a bot" (${detail}).`,
+		`@ingram-tech/nk-forms: BotID layer unavailable, degrading to "not a bot" (${detail}).`,
 	);
 };
 

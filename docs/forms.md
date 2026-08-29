@@ -8,14 +8,15 @@ form that validates a submission and notifies a human or subscribes an address.
 
 ## The split
 
-- **`@ingram-tech/bot-protection`** is the primitive: honeypot + signed timing
-  token + Vercel BotID (`verifyHuman`, `checkBot`, `createFormToken`). Use it
-  **directly** for bot detection that isn't a public form — a checkout, an authed
-  endpoint. Do not route those through nk-forms.
+- **`@ingram-tech/nk-forms`** owns the pipeline, the escaped-notification
+  renderer, and the bot-protection layers themselves: honeypot + signed timing
+  token + Vercel BotID (`verifyHuman`, `checkBot`, `createFormToken`, all
+  exported from the root). It owns the machinery; the site owns the schema, the
+  fields/branding, and the delivery.
 - **`@ingram-tech/nk-email`** sends mail and owns `escapeHtml`.
-- **`@ingram-tech/nk-forms`** composes the two into the submission pipeline and
-  the escaped-notification renderer. It owns the machinery; the site owns the
-  schema, the fields/branding, and the delivery.
+- For bot detection that isn't a public form — a checkout, an authed endpoint —
+  call `verifyHuman` / `checkBot` **directly** rather than routing the request
+  through `handleFormSubmission`.
 
 This is the vertical-slice rule from [`creating-a-package.md`](./creating-a-package.md)
 §5: contact-form fields vary too much to ship a one-size component, so we ship
@@ -28,8 +29,8 @@ the server machinery and a headless client hook, not the UI.
 
 The load-bearing invariant: **a dropped bot and an accepted human get the same
 200 `{ success: true }`.** Never surface the bot verdict to the client, and never
-show a real user an error for tripping a layer. See the `verifyHuman` contract in
-bot-protection — a failure means "silently drop", not "reject".
+show a real user an error for tripping a layer. A `verifyHuman` failure means
+"silently drop", not "reject".
 
 ## Gotchas
 
