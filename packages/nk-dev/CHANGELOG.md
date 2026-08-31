@@ -1,5 +1,15 @@
 # @ingram-tech/nk-dev
 
+## 0.14.1
+
+### Patch Changes
+
+- 86fb2e2: oxfmt 0.65. No formatting change on this repo's 300 files; a site may see
+  `nk format` touch a handful of lines on first run.
+- 4a9783e: Toolchain: oxlint 1.80, knip 6.33, vitest 4.1.11, @ast-grep/cli 0.45.2.
+  oxlint 1.80 adds `react/refs` (no ref reads during render) to the react
+  plugin's defaults; a site that had the pattern gets new findings from `nk lint`.
+
 ## 0.14.0
 
 ### Minor Changes
