@@ -114,9 +114,20 @@ const db = await createTestDb({
 
 **Upgrading better-auth** never means hand-writing a migration in your app: a
 schema-changing upgrade ships as a new file in nk-auth's chain, so you bump the
-dependency and your next migrate applies it. Reconcile the shipped schema against
-a pinned `better-auth` with `npx @better-auth/cli generate` (a maintainer task,
+dependency and your next migrate applies it. The chain is kept honest by
+`src/migrations.test.ts`, which diffs the applied chain against the schema the
+pinned `better-auth` asks for (`getAuthTables`) — a bump that adds a column fails
+that test until the delta is shipped as the next `000N_*.sql` (a maintainer task,
 done once in this package).
+
+One delta needs a word: `0002_better_auth_1_7` backfills the `account.issuer`
+column Better Auth 1.7 keys accounts on, with the exact value 1.7 writes per
+provider (`local:credential`, `https://accounts.google.com`,
+`local:oauth:<providerId>`, …). A provider whose issuer is per-tenant or
+discovered at runtime (`microsoft`, `cognito`, `paybin`, the generic-oauth
+plugin) cannot be derived, so the migration refuses and names the `providerId`s;
+set `issuer` on those rows by hand and re-run. Nothing to do on a site that only
+has password and built-in social sign-in.
 
 > **Adopting from the old copy-in model?** Earlier versions told you to `cp` the
 > baseline into your own `drizzle/` chain. If you already did, keep that file
