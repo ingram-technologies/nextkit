@@ -6,6 +6,7 @@ dist/
 .env
 .env.local
 coverage/
+.vitest/
 .turbo/
 
 # Internal design/handoff notes that name consumer sites — must never be

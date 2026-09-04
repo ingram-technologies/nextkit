@@ -44,13 +44,13 @@
 	},
 	"devDependencies": {
 		"@ingram-tech/nk-dev": "workspace:*",
+		"@ingram-tech/nk-i18n": "workspace:*",
 		"@types/node": "^26.4.1",
 		"@types/react": "^19.2.18",
 		"next": "^16.3.4",
 		"react": "^19.2.8",
 		"typescript": "^7.0.2",
-		"vitest": "^4.1.11",
-		"@ingram-tech/nk-i18n": "workspace:*"
+		"vitest": "^5.0.0"
 	},
 	"peerDependencies": {
 		"next": ">=14.0.0",
