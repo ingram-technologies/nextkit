@@ -1,5 +1,35 @@
 # @ingram-tech/nk-dev
 
+## 0.15.0
+
+### Minor Changes
+
+- 69c92b6: vitest 5. The shared config and setup file are unchanged, and no test in
+  nextkit needed an edit, but a site's suite may notice the new defaults:
+  
+  - mocks are cleared before every test (state no longer accumulates across
+    tests unless you opt out with `clearMocks: false`);
+  - an un-awaited `expect(...).resolves/rejects` now fails the test;
+  - `vi.mock` outside a file's top level throws;
+  - `sequential` is gone (tests are sequential unless `concurrent`);
+  - jest-dom's `toHaveTextContent` is strict; use `toMatchTextContent` for
+    substring matching;
+  - report and attachment output moves under `.vitest/` (add it to
+    `.gitignore`);
+  - `-t` uses `>` as the suite separator;
+  - Node 22 is the floor, which nk-dev's `engines` already required.
+
+### Patch Changes
+
+- 6249081: guide: forms live at `/internal/forms/<name>` via nk-forms' `createFormsHandler`,
+  never under `/api`. The `/api` vs `/internal` rule is now about contract, not
+  caller: `/api` is what someone could build on; `/internal` is everything the app
+  owns, including its own browser-called forms, which are bot-gated rather than
+  worker-secret-gated.
+- c8f45bb: oxfmt 0.66. No formatting change on this repo's 306 files.
+- f31a01d: Toolchain: oxlint 1.81, knip 6.34, @ast-grep/cli 0.45.3. No new rule fires on
+  this repo.
+
 ## 0.14.1
 
 ### Patch Changes
