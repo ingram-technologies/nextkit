@@ -1,5 +1,12 @@
 # @ingram-tech/nk-auth
 
+## 0.16.1
+
+### Patch Changes
+
+- f31a01d: Raise runtime dependency floors: jose ^6.2.11 (nk-auth), stripe ^22.6.1
+  (nk-billing). No API change.
+
 ## 0.16.0
 
 ### Minor Changes
