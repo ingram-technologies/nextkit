@@ -79,7 +79,7 @@
 		"@electric-sql/pglite": "^0.5.8",
 		"@electric-sql/pglite-socket": "^0.2.11",
 		"@ingram-tech/nk-dev": "workspace:*",
-		"@types/node": "^26.4.0",
+		"@types/node": "^26.4.1",
 		"@types/pg": "^8.23.1",
 		"drizzle-orm": "^0.45.2",
 		"pg": "^8.23.0",
