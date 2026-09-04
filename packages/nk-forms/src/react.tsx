@@ -5,6 +5,7 @@ import { useBotProtection } from "./bot/react.js";
 
 // Re-export the primitives so a form component needs a single import.
 export { HoneypotInput, useBotProtection } from "./bot/react.js";
+export { FORMS_BASE_PATH, formEndpoint } from "./paths.js";
 
 export type FormSubmitStatus = "idle" | "submitting" | "success" | "error";
 
@@ -33,7 +34,7 @@ const getErrorMessage = (data: unknown): string | null => {
  * (`mintFormToken`) and its POST runs `handleFormSubmission`.
  *
  * @example
- * const { honeypotRef, submit, status, error } = useFormSubmit("/api/contact");
+ * const { honeypotRef, submit, status, error } = useFormSubmit(formEndpoint("contact"));
  * // in the form:  <HoneypotInput inputRef={honeypotRef} />
  * // on submit:    const res = await submit({ name, email, message });
  * //               if (res.ok) setSent(true);

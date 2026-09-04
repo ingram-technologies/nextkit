@@ -12,6 +12,18 @@ export {
 	type RenderedEmail,
 	renderNotificationEmail,
 } from "./email.js";
+export { FORMS_BASE_PATH, formEndpoint } from "./paths.js";
+export {
+	createFormsHandler,
+	defineForm,
+	type FormDefinition,
+	type FormEntry,
+	type FormRateLimitContext,
+	type FormRegistry,
+	type FormsHandler,
+	type FormsHandlerOptions,
+	type RateLimitBudget,
+} from "./registry.js";
 export { mintFormToken } from "./token.js";
 
 // The bot-protection layers, exported from the root so a form route is a single

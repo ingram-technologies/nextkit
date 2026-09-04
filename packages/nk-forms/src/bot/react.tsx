@@ -14,12 +14,12 @@ import { VISUALLY_HIDDEN } from "./hidden-style.js";
  *
  * Pair with {@link HoneypotInput}, which renders the trap and wires the ref.
  *
- * @param tokenEndpoint - GET route that mints the token (e.g. "/api/contact").
+ * @param tokenEndpoint - GET route that mints the token (e.g. "/internal/forms/contact").
  * @param options.honeypotField - Override the trap field name; must match the
  *   server's `verifyHuman({ honeypotField })` and the `<HoneypotInput name>`.
  *
  * @example
- * const { honeypotRef, botFields, ready } = useBotProtection("/api/contact");
+ * const { honeypotRef, botFields, ready } = useBotProtection("/internal/forms/contact");
  * // ...in the form:  <HoneypotInput inputRef={honeypotRef} />
  * // ...on submit:    body: JSON.stringify({ ...values, ...botFields() })
  * // Optionally gate the submit button on `ready` — an empty token is

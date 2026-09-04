@@ -13,72 +13,112 @@ somewhere that isn't a public form, call `verifyHuman` or `checkBot` directly
 
 ## What it gives you
 
-- `handleFormSubmission(request, options)` — the fixed pipeline: rate-limit →
+- `createFormsHandler(registry, options)` — one `{ GET, POST }` for every form
+  on the site, mounted at `/internal/forms/[form]`. Each entry is a
+  `defineForm({ schema, onSubmit })`; the name becomes the URL, the log label
+  and the rate-limit namespace. Adding a form is adding an entry.
+- `handleFormSubmission(request, options)` — the pipeline under it: rate-limit →
   parse → bot gate → validate → deliver → uniform response. Bot hits and honest
   submissions return the same 200 body, so a bot never learns it was dropped.
   Returns a web-standard `Response` (no `next` dependency).
 - `renderNotificationEmail({ heading, fields, message, footer })` — builds
   `{ html, text }` with every value escaped.
-- `mintFormToken()` — a ready-made GET handler for the signed timing token.
-- `useFormSubmit(endpoint)` / re-exported `useBotProtection` + `HoneypotInput`
-  from `@ingram-tech/nk-forms/react`.
+- `mintFormToken()` — the GET half, for a standalone route.
+- `useFormSubmit(formEndpoint("contact"))` / re-exported `useBotProtection` +
+  `HoneypotInput` from `@ingram-tech/nk-forms/react`.
 
 You still own your schema (a Zod schema, accepted structurally, so no Zod
 version pin), your fields and branding, and your delivery (`onSubmit`).
 
+## Where forms live
+
+Forms are **not part of the site's API**. `/api/…` is the public contract —
+versioned, documented, something a client could build on. A contact form's
+POST has one consumer (one React component), no schema promise and no version,
+so it goes under `/internal/…` with the rest of the plumbing the app owns:
+
+    /internal/forms/<name>    GET mints the timing token · POST submits
+
+Unlike the worker and webhook routes that share the prefix, forms are called by
+anonymous browsers. They are gated by the bot layers and your rate limiter, not
+by a shared secret — do not add one.
+
 ## Route
 
+One file registers every form:
+
 ```ts
-// app/api/contact/route.ts
-import { handleFormSubmission, renderNotificationEmail } from "@ingram-tech/nk-forms";
+// app/internal/forms/[form]/route.ts
+import {
+	createFormsHandler,
+	defineForm,
+	renderNotificationEmail,
+} from "@ingram-tech/nk-forms";
 import { fromAddress, sendEmail } from "@ingram-tech/nk-email";
 import { z } from "zod";
 
-export { mintFormToken as GET } from "@ingram-tech/nk-forms";
-
-const schema = z.object({
-	name: z.string().trim().min(1).max(200),
-	email: z.string().trim().email().max(320),
-	message: z.string().trim().min(1).max(5000),
+const contact = defineForm({
+	schema: z.object({
+		name: z.string().trim().min(1).max(200),
+		email: z.string().trim().email().max(320),
+		message: z.string().trim().min(1).max(5000),
+	}),
+	onSubmit: async ({ name, email, message }) => {
+		const { html, text } = renderNotificationEmail({
+			heading: "New contact form submission",
+			fields: [
+				{ label: "Name", value: name },
+				{ label: "Email", value: email },
+			],
+			message,
+			footer: "Sent from the acme.test contact form.",
+		});
+		await sendEmail({
+			to: "studio@acme.test",
+			from: fromAddress("Acme"),
+			replyTo: email,
+			subject: `[Contact] ${name}`,
+			html,
+			text,
+		});
+	},
 });
 
-export const POST = (request: Request) =>
-	handleFormSubmission(request, {
-		schema,
-		label: "contact",
-		onSubmit: async ({ name, email, message }) => {
-			const { html, text } = renderNotificationEmail({
-				heading: "New contact form submission",
-				fields: [
-					{ label: "Name", value: name },
-					{ label: "Email", value: email },
-				],
-				message,
-				footer: "Sent from the acme.test contact form.",
-			});
-			await sendEmail({
-				to: "studio@acme.test",
-				from: fromAddress("Acme"),
-				replyTo: email,
-				subject: `[Contact] ${name}`,
-				html,
-				text,
-			});
-		},
-	});
+const newsletter = defineForm({
+	schema: z.object({ email: z.string().trim().email().max(320) }),
+	rateLimit: { limit: 3, windowMs: 60 * 60 * 1000 },
+	onSubmit: ({ email }) => subscribe(email),
+});
+
+export const { GET, POST } = createFormsHandler(
+	{ contact, newsletter },
+	{
+		// nk-forms owns no store. You get the form name, the request and the
+		// budget (default 5 per 10 minutes) and answer with { ok, retryAfterMs }.
+		rateLimit: ({ request, form, limit, windowMs }) =>
+			checkRateLimit(`${form}:${clientKey(request)}`, limit, windowMs),
+		logger,
+	},
+);
 ```
 
-Add a rate limiter by passing `rateLimit: () => ({ ok, retryAfterMs })`, backed
-by whatever store you already use. nk-forms owns none.
+`defineForm` exists so each entry's `onSubmit` is typed from its own schema.
+Options on an entry (`rateLimit`, `verify`) override the handler-wide ones.
+
+For a single form that does not fit the registry, the pieces are exported on
+their own: `export { mintFormToken as GET }` and
+`export const POST = (req) => handleFormSubmission(req, { schema, onSubmit })`.
 
 ## Client
 
 ```tsx
 "use client";
-import { HoneypotInput, useFormSubmit } from "@ingram-tech/nk-forms/react";
+import { formEndpoint, HoneypotInput, useFormSubmit } from "@ingram-tech/nk-forms/react";
 
 export function ContactForm() {
-	const { honeypotRef, submit, status, error } = useFormSubmit("/api/contact");
+	const { honeypotRef, submit, status, error } = useFormSubmit(
+		formEndpoint("contact"),
+	);
 
 	return (
 		<form
@@ -143,7 +183,7 @@ export const dynamic = "force-dynamic";
 export default function ContactPage() {
 	const token = createFormToken();
 	return (
-		<form action="/api/contact" method="post">
+		<form action="/internal/forms/contact" method="post">
 			{/* ...your real fields... */}
 			<HoneypotField token={token} />
 			<button type="submit">Send</button>
@@ -173,7 +213,7 @@ export default withBotId({ /* your config */ });
 ```ts
 // instrumentation-client.ts
 import { initBotId } from "botid/client/core";
-initBotId({ protect: [{ path: "/api/contact", method: "POST" }] });
+initBotId({ protect: [{ path: "/internal/forms/*", method: "POST" }] });
 ```
 
 ## Environment

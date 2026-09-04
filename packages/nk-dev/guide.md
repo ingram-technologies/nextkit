@@ -6,10 +6,12 @@ package. Stay a thin, standard Next.js app (bun · oxlint + oxfmt · strict TS).
 
 ## Hard rules
 
-- **Public contact/signup forms MUST use `@ingram-tech/nk-forms`** —
-  `handleFormSubmission` server-side (rate-limit → bot gate → validate →
-  escaped-email deliver → uniform 200) and `useFormSubmit` + `HoneypotInput`
-  client-side. For guarding a *non-form* endpoint (a checkout, an authed
+- **Public contact/signup forms MUST use `@ingram-tech/nk-forms`** — one
+  `createFormsHandler` registry at `app/internal/forms/[form]/route.ts`
+  (rate-limit → bot gate → validate → escaped-email deliver → uniform 200)
+  and `useFormSubmit(formEndpoint(name))` + `HoneypotInput` client-side.
+  Forms are plumbing, not API: never mount one under `/api/…` (see Route & URL
+  conventions). For guarding a *non-form* endpoint (a checkout, an authed
   route), call nk-forms' `checkBot` / `verifyHuman` directly instead of the
   pipeline. Never ship a public form without the bot gate.
 - **Send email only via `@ingram-tech/nk-email`** — never add another mail client.
@@ -35,10 +37,18 @@ Keep the URL namespace honest about **who calls each route**:
   that's the redirect URI you register with the IdP. Don't confuse it with
   *connector* OAuth (the app acting as a client to a provider), which lives at
   `/internal/connect/<provider>/callback` below.
-- **`/api/…` — the app's public API only.** Routes that external clients or your
-  own frontend consume *as an API*. Nothing else belongs here.
-- **`/internal/…` — all plumbing the public never calls as your API.** This is
-  where provider integrations, webhooks, workers and crons live:
+- **`/api/…` — the app's public API contract, and nothing else.** Routes that
+  are a *contract*: versioned, documented (OpenAPI via `nk-api`), something an
+  external client or a typed frontend client could build on. The test is not
+  "does the frontend fetch it" but "would we owe someone a deprecation if it
+  changed". A form POST with one React consumer fails that test.
+- **`/internal/…` — everything the app owns and nobody may build on.** Provider
+  integrations, webhooks, workers, crons, and the site's own forms:
+  - **`/internal/forms/<name>`** — public contact/signup forms, served by one
+    `createFormsHandler` registry from `@ingram-tech/nk-forms`. GET mints the
+    timing token, POST submits. This is the one anonymous, browser-called
+    thing under `/internal`: it is gated by the bot layers and the site's rate
+    limiter, **not** by the worker secret. Don't add one.
   - **`/internal/connect/<provider>/{start,callback}`** — the outbound OAuth /
     app-install handshake. `start` (session-gated) kicks off the redirect to the
     provider; **`callback` is the URL you register with the provider** — it
@@ -52,9 +62,10 @@ Keep the URL namespace honest about **who calls each route**:
     scheduled jobs, gated by a shared worker secret (Vercel Cron / queue calls them).
 
 Rule of thumb: if a human navigates to it, it's a **page** (normal route tree);
-if your frontend fetches it as an API, it's **`/api/…`**; if a provider, cron, or
-queue calls it, it's **`/internal/…`**. Never put OAuth callbacks or webhooks in
-the UI/page tree, and never expose internal plumbing under `/api/`.
+if it's a contract someone else could build on, it's **`/api/…`**; if only this
+app's own code, a provider, a cron, or a queue calls it, it's **`/internal/…`**.
+Never put OAuth callbacks or webhooks in the UI/page tree, and never expose
+internal plumbing — forms included — under `/api/`.
 
 ## Data & migrations
 
@@ -154,7 +165,7 @@ tool instead). One-off single-file edits: just edit the file.
 - `@ingram-tech/nk-db` — Postgres data layer: `createPool` (one TLS-aware pool) + `createQueries` (raw SQL) + `createDb` (Drizzle), the PGlite dev/test harness at `@ingram-tech/nk-db/pglite`, the prefixed-id codec (the standalone `id758` package) at `@ingram-tech/nk-db/id`, and the drift-aware migration runner at `@ingram-tech/nk-db/migrate`
 - `@ingram-tech/nk-api` — the standard HTTP API seam (Hono + `@hono/zod-openapi`): one `{ error, details? }` envelope, `createApiApp` / `createRouter`, auth + multi-tenant resource-scope middleware, pagination helpers, and an emitted OpenAPI/Swagger doc. Reach for it instead of hand-rolling route handlers
 - `@ingram-tech/nk-billing` — Stripe primitives: subscriptions, a Stripe-side wallet, and an optional Postgres credit ledger behind the `/credits` subpath. Prices resolve at runtime by Stripe `lookup_key` — **never hardcode a price id**, so test and live share one code path
-- `@ingram-tech/nk-forms` — the public contact/signup submission pipeline: `handleFormSubmission` (rate-limit → bot gate → validate → escaped-email deliver → uniform 200), `renderNotificationEmail`, `mintFormToken`, and `useFormSubmit` / `HoneypotInput` (`/react`). It owns the invisible bot-protection layers too (honeypot + signed timing token + Vercel BotID); `verifyHuman` / `checkBot` are exported from the root for non-form endpoints
+- `@ingram-tech/nk-forms` — the public contact/signup submission pipeline: `createFormsHandler` + `defineForm` (one registry at `/internal/forms/[form]`; each entry runs rate-limit → bot gate → validate → escaped-email deliver → uniform 200), `renderNotificationEmail`, and `useFormSubmit(formEndpoint(name))` / `HoneypotInput` (`/react`); `handleFormSubmission` / `mintFormToken` for a standalone route. It owns the invisible bot-protection layers too (honeypot + signed timing token + Vercel BotID); `verifyHuman` / `checkBot` are exported from the root for non-form endpoints
 - `@ingram-tech/nk-i18n` — type-safe, English-as-key i18n: the English source text *is* the key (no `en.json`), ICU MessageFormat, colocated JSON catalogs, plus **locale URL routing** (`defineLocaleRouting` + a fixed URL→account→cookie→`Accept-Language`→country precedence, wired to Next at `/next`). A URL that names a locale must serve it with a 200 — never redirect `?hl=fr` away, or every hreflang annotation on the site points at a URL that doesn't serve the language it claims. See `docs/i18n-routing.md`
 - `@ingram-tech/nk-marketing` — Postgres-backed marketing & lifecycle email: contacts + consent, newsletter broadcast audiences, and idempotent triggered campaigns, with RFC 8058 one-click unsubscribe
 - `@ingram-tech/nk-seo` — SEO toolkit: metadata factory, JSON-LD builders, sitemap/robots routes, hreflang + canonical links, and an OG image template
