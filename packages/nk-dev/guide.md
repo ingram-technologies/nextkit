@@ -24,6 +24,13 @@ package. Stay a thin, standard Next.js app (bun · oxlint + oxfmt · strict TS).
   retired `@ingram-tech/{oxlint,typescript}-config` — `nk doctor` flags the drift.
   `nk` is optional convenience that only orchestrates the standard tools — the
   site must stay buildable with plain `next build` / `next dev`.
+- **Type-check with `nk type-check`, not bare `tsc`.** A `tsc` error that
+  points inside `.next/` (typically `.next/dev/types/validator.ts` after a
+  route was deleted or `next dev` was killed mid-write) is stale generated
+  output, not a source defect: `next typegen` does not rewrite the dev
+  server's copy. `nk type-check` detects that case, removes the artifacts and
+  retries; `nk clean` does the removal on its own. Don't hunt for the error in
+  `src/`, and don't `rm -rf .next/types` by hand.
 
 ## Route & URL conventions
 

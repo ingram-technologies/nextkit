@@ -113,7 +113,13 @@ tsc), so versions stay under your control. nk only orchestrates.
 - **`nk check`** — `oxlint` + `oxfmt --check` + `knip` (only when the repo has a
   knip config) + the agent-guide import gate + the migration seal. The CI gate;
   runs every checker and reports them all before failing.
-- **`nk type-check`** — `next typegen && tsc --noEmit`.
+- **`nk type-check`** — `next typegen && tsc --noEmit`, with recovery: when
+  every error sits inside generated types (`.next/types`, `.next/dev/types` —
+  a deleted route or a killed dev server leaves them stale, and `next typegen`
+  does not rewrite the dev copy), it removes them, regenerates and retries once.
+  Starts cold when the lockfile is newer than `tsconfig.tsbuildinfo`; `--cold`
+  forces it.
+- **`nk clean`** — remove the regenerable artifacts above by hand.
 - **`nk test [...]`** — `vitest run`, extra args passed through.
 - **`nk build [...]`** — `next build`, extra args passed through.
 
