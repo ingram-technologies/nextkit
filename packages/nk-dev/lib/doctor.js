@@ -24,8 +24,25 @@ const CANONICAL_SCRIPTS = {
 };
 
 const GUIDE_IMPORT = "@./node_modules/@ingram-tech/nk-dev/guide.md";
-const OXLINTRC_EXTENDS = "./node_modules/@ingram-tech/nk-dev/oxlintrc.json";
+const OXLINTRC_FILE = "node_modules/@ingram-tech/nk-dev/oxlintrc.json";
+/** Matches any `extends` entry that reaches nk-dev's oxlintrc, whatever the prefix. */
+const OXLINTRC_EXTENDS_RE = /(^|\/)node_modules\/@ingram-tech\/nk-dev\/oxlintrc\.json$/;
 const TSCONFIG_EXTENDS = "@ingram-tech/nk-dev/tsconfig/nextjs.json";
+
+/**
+ * The `extends` entry that reaches nk-dev's oxlintrc from `cwd`. oxlint resolves
+ * `extends` relative to the config file, not through node resolution, so a
+ * hoisted-workspace member (whose node_modules sits at the repo root) needs
+ * `../node_modules/…`, not `./node_modules/…`. Walk up until the file exists;
+ * fall back to the standalone-site form.
+ */
+function oxlintrcExtendsFor(cwd) {
+	for (const prefix of ["./", "../", "../../", "../../../"]) {
+		const entry = `${prefix}${OXLINTRC_FILE}`;
+		if (existsSync(resolve(cwd, entry))) return entry;
+	}
+	return `./${OXLINTRC_FILE}`;
+}
 
 /** Read + parse a JSON file, or null if absent/unparseable. */
 function readJson(file) {
@@ -117,7 +134,7 @@ export function findings(cwd) {
 	const ox = readJson(oxPath);
 	if (ox) {
 		const ext = [].concat(ox.extends ?? []);
-		if (!ext.includes(OXLINTRC_EXTENDS)) {
+		if (!ext.some((e) => OXLINTRC_EXTENDS_RE.test(String(e)))) {
 			out.push({
 				id: "oxlintrc:extends",
 				level: "error",
@@ -132,9 +149,9 @@ export function findings(cwd) {
 						.filter(
 							(e) =>
 								!String(e).includes("oxlint-config") &&
-								e !== OXLINTRC_EXTENDS,
+								!OXLINTRC_EXTENDS_RE.test(String(e)),
 						);
-					j.extends = [OXLINTRC_EXTENDS, ...kept];
+					j.extends = [oxlintrcExtendsFor(dir), ...kept];
 					j.$schema ??= "./node_modules/oxlint/configuration_schema.json";
 					writeJson(p, j);
 					return "repointed .oxlintrc.json extends → nk-dev";
