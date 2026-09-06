@@ -1,5 +1,80 @@
 # @ingram-tech/nk-dev
 
+## 0.16.0
+
+### Minor Changes
+
+- 314d5c5: New oxlint rule `nextkit/base-ui-native-button` (error): a Base UI button-like
+  component rendered as something other than a `<button>` needs
+  `nativeButton={false}`. `useButton` defaults the prop to true, so
+  `render={<Link />}` on a `Button` or a `*Trigger` makes Base UI skip the
+  keyboard, role and form-participation shims the non-native element needs, and
+  log an error at runtime. The types cannot see it. The rule only inspects a JSX
+  element literal in `render`, so a variable or call falls out for free, and it
+  is inert on projects that do not depend on `@base-ui/react`.
+- b8b2dae: `nk check` resolves the tailwind `@source` paths in the site's stylesheets and
+  fails on one that matches nothing. Tailwind v4 resolves `@source` against the
+  CSS file that carries it and treats a path matching no files as an empty scan,
+  so a path one directory short silently drops every utility class only those
+  files use: in a monorepo that means the shared component package's buttons,
+  badges, tabs and sheets render unstyled in production. Nothing else catches it,
+  because nothing else in the toolchain reads CSS: oxlint and tsc do not parse
+  it, knip walks the import graph, and `next build` exits 0 with a smaller
+  stylesheet. Globbed sources are checked at their literal prefix
+  (`../packages/*/src` is checked as `../packages`), `@source inline(...)` is
+  ignored, and a site with no `@source` is a no-op.
+  
+  The gate also checks the other half of the same failure: a workspace
+  dependency whose components write class names and that no `@source` scans at
+  all. Automatic source detection starts at the site and never reaches a sibling
+  package, so a stylesheet that simply never names the shared component library
+  drops its classes exactly as a misspelled path does, with even less to notice.
+  Linked workspace members are found through the `node_modules` symlink, so it
+  works under bun, npm and pnpm workspaces; published dependencies, packages that
+  write no class names, and sites with no tailwind entry stylesheet are skipped.
+- c291cfe: New oxlint rule `nextkit/no-server-env-in-client` (error): a `"use client"`
+  file may read only `NEXT_PUBLIC_*` and `NODE_ENV`. Next inlines nothing else
+  into client bundles, so any other `process.env.X` read from a client component
+  is `undefined` in the browser while working in dev, in tests, and in every
+  server render of the same module — the feature silently never happens. An
+  allowlist rather than a list of secret names, because such a list goes stale
+  the moment someone adds an integration and the miss is invisible. The fix is
+  to read the value on the server and pass it down, not to rename it
+  `NEXT_PUBLIC_`, which publishes it to every visitor.
+- c8b0901: New oxlint rule `nextkit/no-sql-array-cast` (error): no `${value}::type[]` in a
+  drizzle `sql` template. A template interpolation is one bound parameter and
+  drizzle expands a JS array into several, so the cast lands on a record and
+  Postgres fails at run time with "cannot cast type record to uuid[]". Types,
+  lint and build are all happy until the query reaches the server. Build the
+  array with `array[...]` and `sql.join` instead. Casting a column to an array
+  type is legitimate and syntactically identical, so that case takes a justified
+  disable comment.
+- da249da: New oxlint rule `nextkit/no-unvalidated-request-body` (error), enforcing the
+  guide's hard rule in the place it binds hardest: a route handler
+  (`app/**/route.ts`) may not assert a type on the body it just parsed.
+  `Request.json()` is typed `Promise<any>`, so both `(await req.json()) as Body`
+  and `const body: Body = await req.json()` type-check while claiming something
+  about a payload the caller controls, and the first symptom is a 500 or a row
+  written from a body nobody checked. Parse it with a schema instead;
+  `as unknown` on the way into the parser is still fine. Casting a response you
+  fetched is a different claim and the rule says nothing about it.
+
+### Patch Changes
+
+- 9ee76f6: `nk doctor` no longer flags a hoisted-workspace member whose `.oxlintrc.json`
+  extends `../node_modules/@ingram-tech/nk-dev/oxlintrc.json`. oxlint resolves
+  `extends` relative to the config file, so that is the only path that works when
+  `node_modules` lives at the workspace root; the check matched the literal
+  `./node_modules/…` string and `--fix` rewrote the config to a path that does
+  not exist, breaking `nk lint`. Both now accept any prefix that reaches the
+  file, and `--fix` writes the one that resolves from the site folder.
+- 1dbead5: Docs: the agent guide now says to type-check with `nk type-check` rather than
+  bare `tsc`, and explains that a `tsc` error inside `.next/` (a deleted route or
+  a killed `next dev` leaving `.next/dev/types/validator.ts` stale) is generated
+  output that `nk type-check` recovers from on its own. The README describes
+  that recovery and `nk clean` instead of summarising the command as
+  `next typegen && tsc --noEmit`.
+
 ## 0.15.0
 
 ### Minor Changes
