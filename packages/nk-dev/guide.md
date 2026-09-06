@@ -18,6 +18,8 @@ package. Stay a thin, standard Next.js app (bun · oxlint + oxfmt · strict TS).
 - **Never trust an external request body's shape — validate it with Zod, never
   `as`-cast it.** Every `/api` route and webhook handler takes untrusted input;
   an `as` cast is a lie the type-checker can't catch at runtime.
+  `nextkit/no-unvalidated-request-body` enforces this in `app/**/route.ts`:
+  cast the parsed body to `unknown` on the way into a schema, never to a shape.
 - Format/lint with **oxlint + oxfmt** via `nk` (`@ingram-tech/nk-dev`); don't
   reintroduce ESLint or Prettier (SQL isn't formatted — it's generated). nk-dev
   owns the toolchain: don't re-declare `oxfmt`/`oxlint`/`typescript` or the

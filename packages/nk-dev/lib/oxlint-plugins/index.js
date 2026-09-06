@@ -11,6 +11,7 @@ import noRedirectOnlyPage from "./no-redirect-only-page.js";
 import noRedundantNodeCrypto from "./no-redundant-node-crypto.js";
 import noServerEnvInClient from "./no-server-env-in-client.js";
 import noSqlArrayCast from "./no-sql-array-cast.js";
+import noUnvalidatedRequestBody from "./no-unvalidated-request-body.js";
 import redundantUseStateType from "./redundant-usestate-type.js";
 import satoriCss from "./satori-css.js";
 import tNoPositionalArgs from "./t-no-positional-args.js";
@@ -28,6 +29,7 @@ export default {
 		...noRedundantNodeCrypto.rules,
 		...noServerEnvInClient.rules,
 		...noSqlArrayCast.rules,
+		...noUnvalidatedRequestBody.rules,
 		...redundantUseStateType.rules,
 		...satoriCss.rules,
 		...tNoPositionalArgs.rules,
