@@ -6,6 +6,7 @@
 	},
 	"rules": {
 		"nextkit/no-radix-props-on-base-ui": "error",
+		"nextkit/base-ui-native-button": "error",
 		"nextkit/no-deferred-current-target": "error",
 		"nextkit/no-redundant-usestate-type": "warn",
 		"nextkit/lucide-icon-suffix": "warn",

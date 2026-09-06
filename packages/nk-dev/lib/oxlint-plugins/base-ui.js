@@ -26,46 +26,7 @@
 // @base-ui/react; on Radix (or UI-less) sites it is inert. This lets the shared
 // nextkit ruleset enable it as an error fleet-wide without false positives.
 
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-
-const baseUiCache = new Map();
-
-const pkgDeclaresBaseUi = (pkgPath) => {
-	try {
-		const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
-		return Boolean(
-			pkg.dependencies?.["@base-ui/react"] ||
-			pkg.devDependencies?.["@base-ui/react"] ||
-			pkg.peerDependencies?.["@base-ui/react"],
-		);
-	} catch {
-		return false;
-	}
-};
-
-// Walk up to the nearest package.json and report whether it declares
-// @base-ui/react, memoizing every directory visited so a lint run pays the fs
-// cost once per project subtree.
-const projectUsesBaseUi = (fromDir) => {
-	const seen = [];
-	let dir = fromDir;
-	let result = null;
-	while (result === null) {
-		if (baseUiCache.has(dir)) {
-			result = baseUiCache.get(dir);
-		} else {
-			seen.push(dir);
-			const pkgPath = join(dir, "package.json");
-			const parent = dirname(dir);
-			if (existsSync(pkgPath)) result = pkgDeclaresBaseUi(pkgPath);
-			else if (parent === dir) result = false;
-			else dir = parent;
-		}
-	}
-	for (const d of seen) baseUiCache.set(d, result);
-	return result;
-};
+import { fileUsesBaseUi } from "./base-ui-project.js";
 
 // component name -> { bannedProp: replacementProp }
 const BANNED = {
@@ -97,8 +58,7 @@ const noRadixPropsOnBaseUi = {
 		},
 	},
 	create(context) {
-		const filename = context.physicalFilename || context.filename || "";
-		if (!filename || !projectUsesBaseUi(dirname(filename))) return {};
+		if (!fileUsesBaseUi(context)) return {};
 		return {
 			JSXAttribute(node) {
 				if (!node.name || node.name.type !== "JSXIdentifier") return;

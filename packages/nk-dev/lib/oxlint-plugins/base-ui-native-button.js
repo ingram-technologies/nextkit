@@ -1,0 +1,120 @@
+// nextkit oxlint JS plugin rule: a Base UI (@base-ui/react) button-like
+// component that renders something other than a <button> must say so with
+// `nativeButton={false}`.
+//
+// Base UI builds every button-like part on `useButton`, whose `nativeButton`
+// prop defaults to true. Render a non-<button> element through `render` and
+// leave the default in place and Base UI logs at runtime:
+//
+//   Base UI: A component that acts as a button expected a native <button>
+//   because the `nativeButton` prop is true. Rendering a non-<button> removes
+//   native button semantics, which can impact forms and accessibility.
+//
+// It is not only console noise: Base UI skips the keyboard, role and
+// form-participation shims the non-native element needs, so the control is
+// reachable but not operable the way a button is. The type-checker cannot see
+// it (`nativeButton` is optional and the render element is just a ReactElement),
+// so it needs a rule.
+//
+// Scope is structural and deliberately narrow:
+//
+//   * Only a JSX element literal in `render` is inspected, which is the
+//     convention on these sites (`render={<Link href={...} />}`). A variable,
+//     call or conditional is not followed: the unusual cases fall out for free
+//     instead of needing an allowlist of innocents.
+//   * `render={<button />}` (the lowercase intrinsic) is correct as-is.
+//   * `nativeButton={false}` anywhere on the element clears it. Any other
+//     value, or a spread that might carry one, still reports: a spread is not
+//     an explicit `nativeButton={false}`.
+//
+// Which components count as button-like: the ones Base UI itself builds on
+// `useButton` are Button, every *Trigger, *Close and *Item, plus Checkbox/Radio/
+// Switch/Toggle/Tab and the NumberField steppers. Matching all of those would
+// mean matching `Item`, a name too generic to key on outside Base UI, so the
+// set here is the suffixes that are both unambiguous and where a `render` of a
+// link is the common mistake: `Button` (Base UI's own, and every wrapper named
+// after it) and `Trigger`. Add a suffix below if a site hits one of the others.
+
+import { fileUsesBaseUi } from "./base-ui-project.js";
+
+const BUTTON_LIKE_SUFFIXES = ["Button", "Trigger"];
+
+/** `<Foo>` -> "Foo", `<Menu.Trigger>` -> "Trigger", otherwise null. */
+const componentNameOf = (opening) => {
+	const name = opening.name;
+	if (name.type === "JSXIdentifier") return name.name;
+	if (name.type === "JSXMemberExpression" && name.property.type === "JSXIdentifier") {
+		return name.property.name;
+	}
+	return null;
+};
+
+const isButtonLike = (name) =>
+	name !== null &&
+	/^[A-Z]/.test(name) &&
+	BUTTON_LIKE_SUFFIXES.some((suffix) => name.endsWith(suffix));
+
+/** The JSX element literal passed to `render`, or null. */
+const renderedElement = (attribute) => {
+	const value = attribute.value;
+	if (!value || value.type !== "JSXExpressionContainer") return null;
+	const expression = value.expression;
+	return expression.type === "JSXElement" ? expression : null;
+};
+
+const isNativeButtonFalse = (attribute) => {
+	const value = attribute.value;
+	if (!value || value.type !== "JSXExpressionContainer") return false;
+	const expression = value.expression;
+	return expression.type === "Literal" && expression.value === false;
+};
+
+const baseUiNativeButton = {
+	meta: {
+		type: "problem",
+		docs: {
+			description:
+				"Require nativeButton={false} on a Base UI button-like component rendered as a non-<button>",
+		},
+		messages: {
+			missingNativeButtonFalse:
+				"`{{component}}` renders <{{rendered}}> but leaves `nativeButton` at its default of true, so Base UI drops the native button semantics it would otherwise shim and logs an error at runtime. Add `nativeButton={false}`, or render a real <button>.",
+		},
+	},
+	create(context) {
+		if (!fileUsesBaseUi(context)) return {};
+		return {
+			JSXOpeningElement(node) {
+				const component = componentNameOf(node);
+				if (!isButtonLike(component)) return;
+
+				let render = null;
+				for (const attribute of node.attributes) {
+					if (attribute.type !== "JSXAttribute") continue;
+					if (attribute.name.type !== "JSXIdentifier") continue;
+					if (attribute.name.name === "nativeButton") {
+						if (isNativeButtonFalse(attribute)) return;
+					} else if (attribute.name.name === "render") {
+						render = renderedElement(attribute);
+					}
+				}
+				if (render === null) return;
+
+				const rendered = componentNameOf(render.openingElement);
+				// The lowercase intrinsic `button` is exactly what the default wants.
+				if (rendered === null || rendered === "button") return;
+
+				context.report({
+					node: render,
+					messageId: "missingNativeButtonFalse",
+					data: { component, rendered },
+				});
+			},
+		};
+	},
+};
+
+export default {
+	meta: { name: "nextkit" },
+	rules: { "base-ui-native-button": baseUiNativeButton },
+};

@@ -3,6 +3,7 @@
 // oxlintrc.json loads via `jsPlugins`.
 
 import baseUi from "./base-ui.js";
+import baseUiNativeButton from "./base-ui-native-button.js";
 import deferredCurrentTarget from "./deferred-current-target.js";
 import lucideIconSuffix from "./lucide-icon-suffix.js";
 import noCryptoRandomUuid from "./no-crypto-random-uuid.js";
@@ -21,6 +22,7 @@ export default {
 	meta: { name: "nextkit" },
 	rules: {
 		...baseUi.rules,
+		...baseUiNativeButton.rules,
 		...deferredCurrentTarget.rules,
 		...lucideIconSuffix.rules,
 		...noCryptoRandomUuid.rules,
