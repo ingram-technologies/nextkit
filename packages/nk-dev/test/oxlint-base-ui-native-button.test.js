@@ -67,9 +67,10 @@ describe("nextkit/base-ui-native-button", () => {
 		expect(out).toContain("base-ui-native-button");
 	});
 
-	it("flags a namespaced Trigger, which Base UI also builds on useButton", () => {
-		const out = lint("const x = <Menu.Trigger render={<Link />} />;");
-		expect(out).toContain("base-ui-native-button");
+	it("ignores a Trigger that has no nativeButton prop", () => {
+		// Base UI builds Menu.Trigger on useButton but does not expose
+		// nativeButton, so requiring it would not type-check.
+		expect(lint("const x = <Menu.Trigger render={<Link />} />;")).toBe("");
 	});
 
 	it("flags a spread, which is not an explicit nativeButton={false}", () => {
@@ -98,11 +99,11 @@ describe("nextkit/base-ui-native-button", () => {
 		).toBe("");
 	});
 
-	it("still reports a non-button component render", () => {
-		expect(lint("const x = <TooltipTrigger render={<span />} />;")).toContain(
+	it("still reports a non-button render on a component that takes the prop", () => {
+		expect(lint("const x = <Button render={<span />} />;")).toContain(
 			"base-ui-native-button",
 		);
-		expect(lint("const x = <DialogTrigger render={<Badge />} />;")).toContain(
+		expect(lint("const x = <PopoverTrigger render={<Badge />} />;")).toContain(
 			"base-ui-native-button",
 		);
 	});

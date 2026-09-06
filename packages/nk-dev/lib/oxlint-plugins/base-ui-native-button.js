@@ -29,17 +29,26 @@
 //     value, or a spread that might carry one, still reports: a spread is not
 //     an explicit `nativeButton={false}`.
 //
-// Which components count as button-like: the ones Base UI itself builds on
-// `useButton` are Button, every *Trigger, *Close and *Item, plus Checkbox/Radio/
-// Switch/Toggle/Tab and the NumberField steppers. Matching all of those would
-// mean matching `Item`, a name too generic to key on outside Base UI, so the
-// set here is the suffixes that are both unambiguous and where a `render` of a
-// link is the common mistake: `Button` (Base UI's own, and every wrapper named
-// after it) and `Trigger`. Add a suffix below if a site hits one of the others.
+// Which components count: only the ones that actually accept `nativeButton`.
+// In @base-ui/react 1.8.0 that is Button, PopoverTrigger, Switch and the menu
+// items; every other *Trigger builds on useButton internally but does not
+// expose the prop, so demanding it there produces code that does not compile.
+// An earlier revision keyed on the `Button`/`Trigger` name suffixes and was
+// wrong on both counts: it reported design-system Buttons (which render a
+// native <button>) and Triggers that have no such prop.
+//
+// The host must also be Base UI's own component. A locally defined
+// `SidebarMenuButton` shares the name and takes no such prop, so the name list
+// below is deliberately short and exact rather than suffix-matched.
 
 import { fileUsesBaseUi } from "./base-ui-project.js";
 
-const BUTTON_LIKE_SUFFIXES = ["Button", "Trigger"];
+const NATIVE_BUTTON_PROP_COMPONENTS = new Set([
+	"Button",
+	"PopoverTrigger",
+	"Switch",
+	"MenuItem",
+]);
 
 /** `<Foo>` -> "Foo", `<Menu.Trigger>` -> "Trigger", otherwise null. */
 const componentNameOf = (opening) => {
@@ -65,10 +74,7 @@ const componentNameOf = (opening) => {
 const rendersNativeButton = (name) =>
 	name === "button" || (/^[A-Z]/.test(name) && name.endsWith("Button"));
 
-const isButtonLike = (name) =>
-	name !== null &&
-	/^[A-Z]/.test(name) &&
-	BUTTON_LIKE_SUFFIXES.some((suffix) => name.endsWith(suffix));
+const isButtonLike = (name) => name !== null && NATIVE_BUTTON_PROP_COMPONENTS.has(name);
 
 /** The JSX element literal passed to `render`, or null. */
 const renderedElement = (attribute) => {

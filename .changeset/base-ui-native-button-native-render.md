@@ -2,11 +2,16 @@
 "@ingram-tech/nk-dev": patch
 ---
 
-`nextkit/base-ui-native-button` no longer reports a render target that is
-itself a button. Only the lowercase intrinsic counted as native, so
-`<DropdownMenuTrigger render={<Button />} />` was flagged even though the
-design-system Button is Base UI's own primitive and renders a native
-`<button>`. Adding `nativeButton={false}` there is wrong twice over: the
-element is native, and Base UI logs the inverse warning when the prop lies
-about it. A component named `*Button` is now treated as native, which on one
-site turned 81 reports into the 26 real ones.
+`nextkit/base-ui-native-button` now only inspects components that actually
+accept `nativeButton`: Button, PopoverTrigger, Switch and the menu items.
+
+Keying on the `Button` / `Trigger` name suffixes was wrong twice. A
+`*Trigger` builds on `useButton` internally but does not expose the prop, so
+the rule demanded code that does not type-check; and a render target named
+`*Button` is Base UI's own primitive or a wrapper on it, which renders a
+native `<button>`, where `nativeButton={false}` earns the inverse runtime
+warning. A locally defined component that merely shares the name (a
+SidebarMenuButton) took no such prop either.
+
+On one site this took the rule from 81 reports, 55 of them wrong and the rest
+unfixable as suggested, to only the genuine `Button render={<Link />}` cases.
