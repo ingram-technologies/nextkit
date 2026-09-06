@@ -9,6 +9,7 @@ import { FORMATTER } from "./formatter.js";
 import { hasKnipConfig, runKnip } from "./knip.js";
 import { checkSeal } from "./migrations.js";
 import { run, runCapture, writeThrough } from "./run.js";
+import { tailwindSourceFindings } from "./tailwind-sources.js";
 import { readdirSync, rmSync } from "node:fs";
 
 /** `nk lint [...]` — oxlint, with extra args passed through (e.g. `--fix`). */
@@ -20,7 +21,8 @@ export function lint(extraArgs = []) {
  * `nk check` — the CI gate. Runs every fast checker and reports them all before
  * failing: oxlint, oxfmt (format), knip (when configured), and the agent-guide
  * import gate. Tooling drift (superseded deps) is reported as a non-fatal
- * warning — `nk doctor --fix` resolves it.
+ * warning — `nk doctor --fix` resolves it. Tailwind `@source` paths that
+ * resolve to nothing fail the gate: no other checker reads CSS.
  */
 export function check() {
 	// Run every gate before deciding (no short-circuit), so one failure doesn't
@@ -48,9 +50,27 @@ export function check() {
 			"  → restore the file and add a new migration, or run `nk migrations` to seal a newly generated one.",
 		);
 	}
+	// A tailwind @source that matches nothing drops every class only those
+	// files use, and no other gate reads CSS. A no-op on sites without one.
+	const sources = tailwindSourceFindings();
+	for (const { file, source, resolved } of sources) {
+		console.error(
+			`nk check: ${file} scans \`${source}\`, which does not exist (${resolved})`,
+		);
+		console.error(
+			"  → tailwind resolves @source against the stylesheet and silently scans nothing; fix the path.",
+		);
+	}
 	warnToolDrift();
 	process.exit(
-		lintFailed || fmtFailed || knipFailed || !guide.ok || !seal.ok ? 1 : 0,
+		lintFailed ||
+			fmtFailed ||
+			knipFailed ||
+			!guide.ok ||
+			!seal.ok ||
+			sources.length > 0
+			? 1
+			: 0,
 	);
 }
 
