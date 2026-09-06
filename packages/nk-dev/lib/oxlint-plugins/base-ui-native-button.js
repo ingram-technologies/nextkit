@@ -22,7 +22,9 @@
 //     convention on these sites (`render={<Link href={...} />}`). A variable,
 //     call or conditional is not followed: the unusual cases fall out for free
 //     instead of needing an allowlist of innocents.
-//   * `render={<button />}` (the lowercase intrinsic) is correct as-is.
+//   * `render={<button />}` is correct as-is, and so is a component named
+//     `*Button`: that is Base UI's own button primitive or a wrapper on it,
+//     which renders a native <button>.
 //   * `nativeButton={false}` anywhere on the element clears it. Any other
 //     value, or a spread that might carry one, still reports: a spread is not
 //     an explicit `nativeButton={false}`.
@@ -48,6 +50,20 @@ const componentNameOf = (opening) => {
 	}
 	return null;
 };
+
+/**
+ * A render target that is itself a button. The lowercase intrinsic is the
+ * obvious one; a component named `*Button` is Base UI's own primitive or a
+ * wrapper around it, and renders a native <button> too, so requiring
+ * `nativeButton={false}` there would be wrong twice over: the element is
+ * native, and Base UI logs the inverse warning when the prop lies about it.
+ *
+ * The known gap is a `*Button` wrapper that renders an anchor (a LinkButton).
+ * Those set `nativeButton={false}` on their own inner button, so the mistake
+ * is contained in the wrapper rather than at every call site.
+ */
+const rendersNativeButton = (name) =>
+	name === "button" || (/^[A-Z]/.test(name) && name.endsWith("Button"));
 
 const isButtonLike = (name) =>
 	name !== null &&
@@ -101,8 +117,7 @@ const baseUiNativeButton = {
 				if (render === null) return;
 
 				const rendered = componentNameOf(render.openingElement);
-				// The lowercase intrinsic `button` is exactly what the default wants.
-				if (rendered === null || rendered === "button") return;
+				if (rendered === null || rendersNativeButton(rendered)) return;
 
 				context.report({
 					node: render,

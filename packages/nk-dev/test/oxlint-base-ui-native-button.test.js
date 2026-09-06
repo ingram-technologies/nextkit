@@ -89,6 +89,24 @@ describe("nextkit/base-ui-native-button", () => {
 		);
 	});
 
+	it("allows a component that is itself a button", () => {
+		// The design-system Button is Base UI's own primitive: it renders a
+		// native <button>, so nativeButton must stay true.
+		expect(lint("const x = <DropdownMenuTrigger render={<Button />} />;")).toBe("");
+		expect(
+			lint("const x = <SidebarMenuButton render={<SidebarMenuButton />} />;"),
+		).toBe("");
+	});
+
+	it("still reports a non-button component render", () => {
+		expect(lint("const x = <TooltipTrigger render={<span />} />;")).toContain(
+			"base-ui-native-button",
+		);
+		expect(lint("const x = <DialogTrigger render={<Badge />} />;")).toContain(
+			"base-ui-native-button",
+		);
+	});
+
 	it("does not follow a render value that is not an element literal", () => {
 		expect(lint("const x = <Button render={element} />;")).toBe("");
 		expect(lint("const x = <Button render={renderLink()} />;")).toBe("");
