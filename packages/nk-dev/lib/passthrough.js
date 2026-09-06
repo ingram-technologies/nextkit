@@ -9,7 +9,10 @@ import { FORMATTER } from "./formatter.js";
 import { hasKnipConfig, runKnip } from "./knip.js";
 import { checkSeal } from "./migrations.js";
 import { run, runCapture, writeThrough } from "./run.js";
-import { tailwindSourceFindings } from "./tailwind-sources.js";
+import {
+	tailwindCoverageFindings,
+	tailwindSourceFindings,
+} from "./tailwind-sources.js";
 import { readdirSync, rmSync } from "node:fs";
 
 /** `nk lint [...]` — oxlint, with extra args passed through (e.g. `--fix`). */
@@ -22,7 +25,8 @@ export function lint(extraArgs = []) {
  * failing: oxlint, oxfmt (format), knip (when configured), and the agent-guide
  * import gate. Tooling drift (superseded deps) is reported as a non-fatal
  * warning — `nk doctor --fix` resolves it. Tailwind `@source` paths that
- * resolve to nothing fail the gate: no other checker reads CSS.
+ * resolve to nothing, and workspace packages no stylesheet scans, fail the
+ * gate: no other checker reads CSS.
  */
 export function check() {
 	// Run every gate before deciding (no short-circuit), so one failure doesn't
@@ -61,6 +65,17 @@ export function check() {
 			"  → tailwind resolves @source against the stylesheet and silently scans nothing; fix the path.",
 		);
 	}
+	// The same failure from the other side: a workspace package whose classes
+	// no stylesheet scans. Automatic detection never reaches a sibling package.
+	const uncovered = tailwindCoverageFindings();
+	for (const { name, dir } of uncovered) {
+		console.error(
+			`nk check: no @source scans \`${name}\` (${dir}), whose components write class names`,
+		);
+		console.error(
+			"  → tailwind only scans the site; add `@source` for the package or its classes are dropped.",
+		);
+	}
 	warnToolDrift();
 	process.exit(
 		lintFailed ||
@@ -68,7 +83,8 @@ export function check() {
 			knipFailed ||
 			!guide.ok ||
 			!seal.ok ||
-			sources.length > 0
+			sources.length > 0 ||
+			uncovered.length > 0
 			? 1
 			: 0,
 	);

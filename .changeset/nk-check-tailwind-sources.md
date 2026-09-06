@@ -13,3 +13,12 @@ it, knip walks the import graph, and `next build` exits 0 with a smaller
 stylesheet. Globbed sources are checked at their literal prefix
 (`../packages/*/src` is checked as `../packages`), `@source inline(...)` is
 ignored, and a site with no `@source` is a no-op.
+
+The gate also checks the other half of the same failure: a workspace
+dependency whose components write class names and that no `@source` scans at
+all. Automatic source detection starts at the site and never reaches a sibling
+package, so a stylesheet that simply never names the shared component library
+drops its classes exactly as a misspelled path does, with even less to notice.
+Linked workspace members are found through the `node_modules` symlink, so it
+works under bun, npm and pnpm workspaces; published dependencies, packages that
+write no class names, and sites with no tailwind entry stylesheet are skipped.
