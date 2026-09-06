@@ -17,6 +17,7 @@
 		"nextkit/no-redundant-node-crypto": "warn",
 		"nextkit/satori-css": "warn",
 		"nextkit/no-server-env-in-client": "error",
+		"nextkit/no-sql-array-cast": "error",
 		"no-unused-vars": "warn",
 		"typescript/no-non-null-assertion": "error",
 		"typescript/no-explicit-any": "error",

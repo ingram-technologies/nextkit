@@ -10,6 +10,7 @@ import noIdCodecInAppCode from "./no-id-codec-in-app-code.js";
 import noRedirectOnlyPage from "./no-redirect-only-page.js";
 import noRedundantNodeCrypto from "./no-redundant-node-crypto.js";
 import noServerEnvInClient from "./no-server-env-in-client.js";
+import noSqlArrayCast from "./no-sql-array-cast.js";
 import redundantUseStateType from "./redundant-usestate-type.js";
 import satoriCss from "./satori-css.js";
 import tNoPositionalArgs from "./t-no-positional-args.js";
@@ -26,6 +27,7 @@ export default {
 		...noRedirectOnlyPage.rules,
 		...noRedundantNodeCrypto.rules,
 		...noServerEnvInClient.rules,
+		...noSqlArrayCast.rules,
 		...redundantUseStateType.rules,
 		...satoriCss.rules,
 		...tNoPositionalArgs.rules,
