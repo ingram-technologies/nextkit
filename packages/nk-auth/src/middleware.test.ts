@@ -9,8 +9,12 @@ import {
 // Control the optimistic cookie-presence check without coupling to better-auth's
 // cookie-name internals: the middleware's logic is what we're testing.
 let cookiePresent = false;
+let seenPrefix: string | undefined;
 vi.mock("better-auth/cookies", () => ({
-	getSessionCookie: () => (cookiePresent ? "token.sig" : null),
+	getSessionCookie: (_req: unknown, config?: { cookiePrefix?: string }) => {
+		seenPrefix = config?.cookiePrefix;
+		return cookiePresent ? "token.sig" : null;
+	},
 }));
 
 afterEach(() => {
@@ -125,6 +129,15 @@ describe("createAuthMiddleware — request behavior", () => {
 			.find((c) => c.includes("__Secure-better-auth.session_token="));
 		expect(deletion).toBeTruthy();
 		expect(deletion?.toLowerCase()).toContain("secure");
+	});
+
+	it("detects the session cookie under the app's own prefix", () => {
+		const mw = createAuthMiddleware({
+			protectedPaths: ["/app"],
+			sessionCookiePrefix: "acme",
+		});
+		mw(req("/app"));
+		expect(seenPrefix).toBe("acme");
 	});
 
 	it("does not gate longer path segments sharing a protected prefix", () => {

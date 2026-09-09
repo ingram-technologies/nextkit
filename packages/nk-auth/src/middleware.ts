@@ -142,9 +142,12 @@ export interface AuthMiddlewareConfig extends NextParamOptions {
 	/** Destination for the front-door redirect. Required when `frontDoorPaths` is set. */
 	signedInRedirect?: string;
 	/**
-	 * Cookie-name fragment for the cookies cleared on a stale session. Default
-	 * `better-auth`, which matches `better-auth.session_token` and the
-	 * `__Secure-…` production variant.
+	 * The app's Better Auth `advanced.cookiePrefix`, when it sets one. Used both
+	 * to detect the session cookie and to clear it on the stale handshake.
+	 * Default `better-auth`, which matches `better-auth.session_token` and the
+	 * `__Secure-…` production variant. An app on a shared parent domain (a
+	 * second site under `.example.com`) needs its own prefix, and without it
+	 * here the gate never sees the cookie and loops with the server guard.
 	 */
 	sessionCookiePrefix?: string;
 }
@@ -196,7 +199,7 @@ export function createAuthMiddleware(config: AuthMiddlewareConfig) {
 		});
 		if (stale) return stale;
 
-		const hasSessionCookie = !!getSessionCookie(request);
+		const hasSessionCookie = !!getSessionCookie(request, { cookiePrefix });
 
 		// 2. Unauthenticated (no cookie) on a protected path -> sign in, and
 		//    remember where they were going.
