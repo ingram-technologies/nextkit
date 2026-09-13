@@ -1,5 +1,11 @@
 # @ingram-tech/nk-dev
 
+## 0.17.1
+
+### Patch Changes
+
+- 6fe0f55: Guide: tidy the nk-auth bullet's wording.
+
 ## 0.17.0
 
 ### Minor Changes

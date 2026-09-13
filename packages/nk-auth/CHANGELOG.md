@@ -1,5 +1,11 @@
 # @ingram-tech/nk-auth
 
+## 0.17.1
+
+### Patch Changes
+
+- bcc31ef: The chain check resolves the shipped `migrations/` folder through the package manifest at call time (`authMigrationsFolder()`, replacing the `AUTH_MIGRATIONS_FOLDER` constant 0.17.0 exported for an hour). The constant was built with `new URL("../migrations", import.meta.url)`, which Turbopack treats as an asset to inline and fails a site's `next build` on ("Can't resolve '../migrations'").
+
 ## 0.17.0
 
 ### Minor Changes
