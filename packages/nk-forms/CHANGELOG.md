@@ -1,5 +1,12 @@
 # @ingram-tech/nk-forms
 
+## 0.4.1
+
+### Patch Changes
+
+- c3554e1: Raise the `react` / `react-dom` peer floors to ^19.3.0 (additive release: ViewTransition, fragment refs, independent transitions). No API change.
+- @ingram-tech/nk-email@0.6.2
+
 ## 0.4.0
 
 ### Minor Changes

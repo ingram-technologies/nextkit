@@ -1,5 +1,11 @@
 # @ingram-tech/nk-themes
 
+## 0.2.4
+
+### Patch Changes
+
+- c3554e1: Raise the `react` / `react-dom` peer floors to ^19.3.0 (additive release: ViewTransition, fragment refs, independent transitions). No API change.
+
 ## 0.2.3
 
 ### Patch Changes

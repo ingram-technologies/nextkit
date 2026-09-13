@@ -1,5 +1,17 @@
 # @ingram-tech/nk-dev
 
+## 0.17.0
+
+### Minor Changes
+
+- 52354ea: `nk doctor` fails a site whose `better-auth` / `@better-auth/passkey` is declared at any version or range other than the exact one the installed nk-auth pins in its `peerDependencies` (`--fix` pins it). Better Auth moves only with nk-auth, whose chain carries the schema each version needs; the guide states the rule and the order: bump, `db:migrate` against the target database, deploy.
+
+### Patch Changes
+
+- fed2c3c: Raise dependency floors: zod ^4.6.4, jose ^6.2.12, stripe ^22.6.2,
+  intl-messageformat ^11.2.15; nk-dev's toolchain moves to oxlint ^1.82,
+  oxfmt ^0.67 and knip ^6.35. No API change.
+
 ## 0.16.1
 
 ### Patch Changes

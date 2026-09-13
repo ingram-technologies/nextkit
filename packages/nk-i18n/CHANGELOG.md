@@ -1,5 +1,18 @@
 # @ingram-tech/nk-i18n
 
+## 0.6.0
+
+### Minor Changes
+
+- dbbe3e6: `LocaleProvider` is gone; `@ingram-tech/nk-i18n/client` exports `LocaleContext` instead. Render it as the provider, `<LocaleContext value={locale}>`, in a client or (React 19.3) server component. The React peer is now `^19.0.0`, which `<Context value>` needs.
+
+### Patch Changes
+
+- fed2c3c: Raise dependency floors: zod ^4.6.4, jose ^6.2.12, stripe ^22.6.2,
+  intl-messageformat ^11.2.15; nk-dev's toolchain moves to oxlint ^1.82,
+  oxfmt ^0.67 and knip ^6.35. No API change.
+- c3554e1: Raise the `react` / `react-dom` peer floors to ^19.3.0 (additive release: ViewTransition, fragment refs, independent transitions). No API change.
+
 ## 0.5.3
 
 ### Patch Changes
