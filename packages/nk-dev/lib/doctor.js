@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from "no
 import { resolve } from "node:path";
 import { authNextFindings } from "./auth-next.js";
 import { authShadowFindings } from "./auth-shadow.js";
+import { authVersionFindings } from "./auth-version.js";
 import { SUPERSEDED_DEPS } from "./drift.js";
 import {
 	SEAL_FILE,
@@ -334,6 +335,10 @@ export function findings(cwd) {
 	//     need to preserve `next`.
 	out.push(...authNextFindings(cwd));
 
+	// 13. Better Auth is pinned to the exact version the installed nk-auth was
+	//     released against — its chain carries the schema that version needs.
+	out.push(...authVersionFindings(cwd));
+
 	return out;
 }
 
@@ -409,7 +414,8 @@ function migrationFindings(cwd) {
  * ignores, forbidden schema-applying drizzle-kit scripts, Prettier leftovers,
  * a missing or thin `ci` script, an unsealed or unmodelled-DDL-carrying migration chain, a
  * page under app/auth/ shadowing a Better Auth endpoint, nk-auth guards bound
- * without the proxy header that preserves `next`).
+ * without the proxy header that preserves `next`, better-auth declared at a
+ * version or range other than the exact one nk-auth pins).
  * With `--fix`, apply every auto-fixable finding, then remind
  * to reinstall.
  */
