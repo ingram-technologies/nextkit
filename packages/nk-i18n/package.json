@@ -38,12 +38,12 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
-		"intl-messageformat": "^11.2.14"
+		"intl-messageformat": "^11.2.15"
 	},
 	"devDependencies": {
 		"@ingram-tech/nk-dev": "workspace:*",
 		"@types/react": "^19.2.18",
-		"next": "^16.3.4",
+		"next": "^16.3.5",
 		"react": "^19.2.8",
 		"typescript": "^7.0.2",
 		"vitest": "^5.0.0"
