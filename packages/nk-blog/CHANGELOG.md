@@ -1,5 +1,16 @@
 # @ingram-tech/nk-blog
 
+## 0.1.11
+
+### Patch Changes
+
+- fed2c3c: Raise dependency floors: zod ^4.6.4, jose ^6.2.12, stripe ^22.6.2,
+  intl-messageformat ^11.2.15; nk-dev's toolchain moves to oxlint ^1.82,
+  oxfmt ^0.67 and knip ^6.35. No API change.
+- c3554e1: Raise the `react` / `react-dom` peer floors to ^19.3.0 (additive release: ViewTransition, fragment refs, independent transitions). No API change.
+- Updated dependencies [c3554e1]
+  - @ingram-tech/nk-seo@0.10.2
+
 ## 0.1.10
 
 ### Patch Changes
