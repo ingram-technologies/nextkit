@@ -20,7 +20,8 @@
 	],
 	"bin": {
 		"nk-pglite-dev": "./dist/pglite/dev.js",
-		"nk-pg-migrate": "./dist/migrate-bin.js"
+		"nk-pg-migrate": "./dist/migrate-bin.js",
+		"nk-pg-fingerprint": "./dist/fingerprint-bin.js"
 	},
 	"exports": {
 		".": {
@@ -42,6 +43,10 @@
 		"./migrate": {
 			"types": "./dist/migrate.d.ts",
 			"default": "./dist/migrate.js"
+		},
+		"./fingerprint": {
+			"types": "./dist/fingerprint.d.ts",
+			"default": "./dist/fingerprint.js"
 		},
 		"./pglite": {
 			"types": "./dist/pglite/index.d.ts",

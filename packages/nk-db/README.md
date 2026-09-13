@@ -146,6 +146,37 @@ The same surface is available programmatically:
 `runMigrations` / `inspectMigrations` / `baselineMigrations` from
 `@ingram-tech/nk-db/migrate`.
 
+### Schema fingerprint (`@ingram-tech/nk-db/fingerprint`, `nk-pg-fingerprint`)
+
+A catalog-level fingerprint of a schema, covering what the drizzle snapshot
+cannot model: functions, triggers, policies, RLS flags, grants, ownership,
+`DEFERRABLE` clauses, roles. It is the equivalence gate for squashing a chain
+back to a baseline, and the honest answer to "does the chain reproduce prod":
+
+```bash
+nk-pg-fingerprint chain out/chain.json --migrations drizzle     # a fresh in-memory PGlite from the chain
+nk-pg-fingerprint db out/prod.json                              # DATABASE_URL [+ DATABASE_CA_CERT]
+nk-pg-fingerprint diff out/chain.json out/prod.json             # set-wise per key; exit 2 on any difference
+```
+
+Both fingerprint modes take `--schemas a,b` (default `public`) and
+`--roles r1,r2` (the app roles whose ownership and grants matter; other roles'
+entries are environment noise). Chain mode applies each file whole, in journal
+order, so a pg_dump-derived baseline works (drizzle's migrator would send it
+as one statement), and takes `--dep <folder>` for chains applied first
+(nk-auth's), `--id758` to pre-install the id codec functions, `--ext
+<module>[:<export>]` for PGlite extensions and `--pre "<sql>"` for what the
+server had before the chain ran (`create extension if not exists vector`).
+Run it from the workspace that depends on `@electric-sql/pglite`.
+
+Diff set-wise, never with `diff` on the files: identifier collation differs
+between PGlite and a server, so a textual diff is sort noise. Expect a small,
+constant noise floor between a chain and a live database (the app role's
+`rolcanlogin`, the schema owner and ACL grantor, extension views the server
+has); everything else is real drift, fixed with a forward migration, never in
+the baseline. Programmatically: `fingerprintChain`, `fingerprintDatabase`,
+`diffFingerprints`, `formatFingerprintDiff`.
+
 ## Prefixed ids (`@ingram-tech/nk-db/id`)
 
 The codec is the standalone [`id758`](https://github.com/ingram-technologies/id758)
