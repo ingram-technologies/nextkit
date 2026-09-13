@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, type ReactNode, useContext, useMemo } from "react";
+import { createContext, useContext, useMemo } from "react";
 import {
 	type CreateTOptions,
 	createT,
@@ -9,21 +9,12 @@ import {
 	type Translator,
 } from "./core.js";
 
-const LocaleContext = createContext<string>("en");
-
 /**
- * Provide the active locale to client components. Wrap the app once (in the root
- * layout) with the server-resolved locale.
+ * The active locale for client components. Render it once, in the root layout,
+ * with the server-resolved locale: `<LocaleContext value={locale}>`. A server
+ * component can render it directly (React 19.3); no wrapper component needed.
  */
-export function LocaleProvider({
-	value,
-	children,
-}: {
-	value: string;
-	children: ReactNode;
-}) {
-	return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
-}
+export const LocaleContext = createContext<string>("en");
 
 /**
  * Read the active locale. Pass the site's `Locale` union as the type argument
@@ -34,7 +25,7 @@ export function useLocale<TLocale extends string = string>(): TLocale {
 }
 
 /**
- * Client translator bound to the active locale from {@link LocaleProvider}.
+ * Client translator bound to the active locale from {@link LocaleContext}.
  * Message sources are usually passed as fresh object literals each render
  * (`useT({ fr, nl })`), so they are deliberately not deps: the translator
  * identity only changes when the locale changes — safe to list in hook deps.

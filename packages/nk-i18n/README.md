@@ -75,13 +75,14 @@ export const siteScope = defineI18nScope({ name: "site", messages: { fr, nl } })
 
 ## Locale provider & resolution
 
-Wrap the app once with the server-resolved locale:
+Render the context once, in the root layout, with the server-resolved locale.
+A server component can render it directly (React 19.3):
 
 ```tsx
 // app/layout.tsx
-import { LocaleProvider } from "@ingram-tech/nk-i18n/client";
+import { LocaleContext } from "@ingram-tech/nk-i18n/client";
 
-<LocaleProvider value={locale}>{children}</LocaleProvider>;
+<LocaleContext value={locale}>{children}</LocaleContext>;
 ```
 
 Read it in client components (pass your `Locale` to narrow it):
@@ -241,7 +242,7 @@ Prove you serve what you advertise with `assertHreflangCluster` from
   `resolveLocaleFromSignals`, `resolveLocaleFromSuppliers`, and the `Messages` /
   `I18nScope` / `Translator` / `TranslationKey` / `I18nConfig` /
   `LocaleDefinition` / `LocaleRouting` / `LocaleSignals` types.
-- `@ingram-tech/nk-i18n/client` (`"use client"`): `LocaleProvider`, `useLocale`,
+- `@ingram-tech/nk-i18n/client` (`"use client"`): `LocaleContext`, `useLocale`,
   `useT`.
 - `@ingram-tech/nk-i18n/next` (server, needs `next`): `localeProxy`,
   `forwardRequestContext`, `getUrlLocale`, `createLocaleResolver`,
