@@ -12,7 +12,7 @@ import { createTestDb, type TestDb } from "@ingram-tech/nk-db/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
 	assertAuthChainApplied,
-	AUTH_MIGRATIONS_FOLDER,
+	authMigrationsFolder,
 	AUTH_MIGRATIONS_TABLE,
 	AuthChainNotAppliedError,
 	authChainCheck,
@@ -24,12 +24,12 @@ const partialChain = (upTo: number): string => {
 	const folder = join(root, "migrations");
 	mkdirSync(join(folder, "meta"), { recursive: true });
 	const journal = JSON.parse(
-		readFileSync(join(AUTH_MIGRATIONS_FOLDER, "meta", "_journal.json"), "utf8"),
+		readFileSync(join(authMigrationsFolder(), "meta", "_journal.json"), "utf8"),
 	) as { entries: Array<{ idx: number; tag: string }> };
 	const entries = journal.entries.filter((entry) => entry.idx < upTo);
 	for (const entry of entries) {
 		copyFileSync(
-			join(AUTH_MIGRATIONS_FOLDER, `${entry.tag}.sql`),
+			join(authMigrationsFolder(), `${entry.tag}.sql`),
 			join(folder, `${entry.tag}.sql`),
 		);
 	}
@@ -52,7 +52,7 @@ describe("assertAuthChainApplied", () => {
 			createTestDb({
 				migrate: async () => {},
 				dependencyMigrations: [
-					{ folder: AUTH_MIGRATIONS_FOLDER, table: AUTH_MIGRATIONS_TABLE },
+					{ folder: authMigrationsFolder(), table: AUTH_MIGRATIONS_TABLE },
 				],
 			}),
 			createTestDb({

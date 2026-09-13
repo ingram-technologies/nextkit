@@ -1,11 +1,22 @@
 import { inspectMigrations, type MigrationStatus } from "@ingram-tech/nk-db/migrate";
-import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
+import { dirname } from "node:path";
 import type { Pool } from "pg";
 
-/** The migration chain this package ships (`migrations/` next to `dist/`). */
-export const AUTH_MIGRATIONS_FOLDER: string = fileURLToPath(
-	new URL("../migrations", import.meta.url),
-);
+/**
+ * The migration chain this package ships: `migrations/` in the installed
+ * package. Resolved through the package manifest, at call time, so a bundler
+ * that rewrites `import.meta.url` (Next's server build) still lands on the
+ * folder under `node_modules`, and never sees a URL it would try to inline.
+ */
+export const authMigrationsFolder = (): string =>
+	dirname(
+		dirname(
+			createRequire(import.meta.url).resolve(
+				"@ingram-tech/nk-auth/migrations/meta/_journal.json",
+			),
+		),
+	);
 
 /** The journal table the README tells a site to record the chain in. */
 export const AUTH_MIGRATIONS_TABLE = "__nkauth_migrations";
@@ -68,7 +79,7 @@ export const assertAuthChainApplied = async (
 	if (rows[0]?.present === null || rows[0]?.present === undefined) return null;
 	const status = await inspectMigrations({
 		pool,
-		migrationsFolder: AUTH_MIGRATIONS_FOLDER,
+		migrationsFolder: authMigrationsFolder(),
 		migrationsSchema: schema,
 		migrationsTable: table,
 	});

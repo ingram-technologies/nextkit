@@ -5,7 +5,7 @@
 
 export {
 	assertAuthChainApplied,
-	AUTH_MIGRATIONS_FOLDER,
+	authMigrationsFolder,
 	AUTH_MIGRATIONS_TABLE,
 	type AuthChainCheckOptions,
 	AuthChainNotAppliedError,
