@@ -112,22 +112,51 @@ const db = await createTestDb({
 });
 ```
 
-**Upgrading better-auth** never means hand-writing a migration in your app: a
-schema-changing upgrade ships as a new file in nk-auth's chain, so you bump the
-dependency and your next migrate applies it. The chain is kept honest by
-`src/migrations.test.ts`, which diffs the applied chain against the schema the
-pinned `better-auth` asks for (`getAuthTables`) — a bump that adds a column fails
-that test until the delta is shipped as the next `000N_*.sql` (a maintainer task,
-done once in this package).
+## Upgrading Better Auth
 
-One delta needs a word: `0002_better_auth_1_7` backfills the `account.issuer`
-column Better Auth 1.7 keys accounts on, with the exact value 1.7 writes per
-provider (`local:credential`, `https://accounts.google.com`,
-`local:oauth:<providerId>`, …). A provider whose issuer is per-tenant or
+`better-auth` and `@better-auth/*` move **only with nk-auth**, and a site pins
+them to the exact version nk-auth's `peerDependencies` names (currently
+`1.7.4`), never a range. `nk doctor` fails on a site whose pin differs, and on
+a range. The reason is the schema: a Better Auth version that changes a table
+ships here as the next `000N_*.sql` in the chain, with `src/migrations.test.ts`
+diffing the applied chain against that version's `getAuthTables()`, so package
+and schema cannot drift apart inside this repo. A site that bumps `better-auth`
+on its own reopens the gap this closes.
+
+Each bump then follows one order on every site, no exceptions:
+
+1. bump `@ingram-tech/nk-auth` and set `better-auth` to the version it names;
+2. run `db:migrate` against the **target** database (the auth chain first, as
+   the script above does);
+3. deploy that commit.
+
+Migrating first is always safe: a chain delta is written so the version still
+running tolerates it. Deploying first is what broke sign-in across the fleet
+twice, so `createAuthHelpers` now checks, once per process on the first session
+read, that the chain recorded in the database is not behind the installed
+package, and throws `AuthChainNotAppliedError` naming the missing files instead
+of letting sign-in fail somewhere downstream. The check runs when the
+instance's `database` is a `pg` Pool and the database records the chain; a site
+that owns Better Auth's tables in its own baseline never records it and is
+skipped. Call `assertAuthChainApplied(pool)` from `instrumentation.ts` or a
+health check to fail a deploy even earlier, and pass `chainCheck: false` to
+the helpers to opt out.
+
+**The 1.7 detour.** Better Auth 1.7.0 to 1.7.2 keyed accounts on a new
+`account.issuer` column (NOT NULL, unique with `accountId`); nk-auth 0.16.0
+shipped that as `0002_better_auth_1_7`, backfilling `issuer` with exactly the
+value 1.7.2 writes per provider. A provider whose issuer is per-tenant or
 discovered at runtime (`microsoft`, `cognito`, `paybin`, the generic-oauth
-plugin) cannot be derived, so the migration refuses and names the `providerId`s;
-set `issuer` on those rows by hand and re-run. Nothing to do on a site that only
-has password and built-in social sign-in.
+plugin) cannot be derived, so 0002 refuses and names the `providerId`s. Better
+Auth 1.7.3 then reverted the whole change (accounts are keyed on
+`(providerId, accountId)` again, and upstream has committed to keeping the
+core schema fixed for the rest of v1), and 1.7.3+ never writes `issuer`, so
+0002's NOT NULL rejects every sign-up until it is relaxed. nk-auth 0.17.0 ships
+`0003_better_auth_1_7_3`, which drops the index and the NOT NULL and leaves the
+column nullable and unread; it is safe under 1.7.2 and 1.7.3+ alike. A 1.6
+database applies 0002 and 0003 back to back, and where 0002 refuses a provider,
+set `issuer` to any placeholder: the value is never read again. Dropping the
+column is a later, optional delta, possible once no 1.7.2 site remains.
 
 > **Adopting from the old copy-in model?** Earlier versions told you to `cp` the
 > baseline into your own `drizzle/` chain. If you already did, keep that file

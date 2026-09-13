@@ -3,6 +3,13 @@
 // React. Focused subpaths (./jwt, ./organization, ./pool) let a site import
 // only what it needs (e.g. avoid bcrypt when it doesn't use passwords).
 
+export {
+	assertAuthChainApplied,
+	AUTH_MIGRATIONS_FOLDER,
+	AUTH_MIGRATIONS_TABLE,
+	type AuthChainCheckOptions,
+	AuthChainNotAppliedError,
+} from "./chain.js";
 export { type BackendJwtConfig, backendJwtOptions, verifyBackendJwt } from "./jwt.js";
 export { base58Id, fromPrefixedId, toPrefixedId, uuidGenerateId } from "./id.js";
 export { type AuthEnv, authEnv, authSecret, isConfigured } from "./keys.js";

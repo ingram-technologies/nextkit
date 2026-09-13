@@ -92,6 +92,36 @@ describe("nk-auth migration chain", () => {
 		).toEqual([]);
 	});
 
+	// Columns the chain carries that the pinned better-auth no longer models.
+	// Each one is a relic of a reverted upstream change and is listed with the
+	// delta that may drop it, so a relic cannot accumulate unnoticed.
+	const RELIC_COLUMNS: Record<string, string> = {
+		"account.issuer":
+			"1.7.0-1.7.2 keyed accounts on it; 1.7.3 reverted. Nullable since 0003, droppable once no 1.7.2 site remains.",
+	};
+	it("carries no column the pinned better-auth does not model, beyond the listed relics", async () => {
+		const expected = getAuthTables({ plugins: [jwt(), passkey()] });
+		const modelled = new Set<string>();
+		for (const table of Object.values(expected)) {
+			for (const [name, field] of Object.entries(table.fields)) {
+				modelled.add(`${table.modelName}.${field.fieldName ?? name}`);
+			}
+			modelled.add(`${table.modelName}.id`);
+		}
+		const extras = (await columnsOf(db))
+			.filter((c) => AUTH_TABLES.includes(c.table_name))
+			.map((c) => `${c.table_name}.${c.column_name}`)
+			.filter((column) => !modelled.has(column))
+			.sort();
+		expect(extras).toEqual(Object.keys(RELIC_COLUMNS).sort());
+		for (const [column, why] of Object.entries(RELIC_COLUMNS)) {
+			const row = (await columnsOf(db)).find(
+				(c) => `${c.table_name}.${c.column_name}` === column,
+			);
+			expect(row?.is_nullable, `${column}: ${why}`).toBe("YES");
+		}
+	});
+
 	it("enables deny-all RLS on every auth table (hardening 2)", async () => {
 		const { rows } = await db.pool.query<{
 			tablename: string;
@@ -206,7 +236,10 @@ describe("0002_better_auth_1_7 on a pre-1.7 database", () => {
 			await seedAccount(at, bob, "github", "gh-42");
 
 			const result = await upgrade(at);
-			expect(result.applied).toEqual(["0002_better_auth_1_7"]);
+			expect(result.applied).toEqual([
+				"0002_better_auth_1_7",
+				"0003_better_auth_1_7_3",
+			]);
 
 			const { rows } = await at.pool.query<{
 				providerId: string;
@@ -251,5 +284,58 @@ describe("0002_better_auth_1_7 on a pre-1.7 database", () => {
 		} finally {
 			await at.close();
 		}
+	});
+});
+
+// 0003 is what a site on 1.7.2 upgrades THROUGH to 1.7.3+: the constraint 0002
+// set must be gone, and both package versions must keep working against the
+// result. These run over the full chain, the way a site's `db:migrate` does.
+describe("0003_better_auth_1_7_3 relaxes the 1.7 identity constraint", () => {
+	const seedUser = async (email: string): Promise<string> => {
+		const { rows } = await db.pool.query<{ id: string }>(
+			`insert into "user" ("name", "email") values ('u', $1) returning id`,
+			[email],
+		);
+		const id = rows[0]?.id;
+		if (!id) throw new Error("seed user failed");
+		return id;
+	};
+
+	it("accepts an account row without issuer, as 1.7.3+ writes it", async () => {
+		const dave = await seedUser("dave@acme.test");
+		await db.pool.query(
+			`insert into "account" ("id", "accountId", "providerId", "userId") values ('acct-dave', $1, 'credential', $1)`,
+			[dave],
+		);
+		const { rows } = await db.pool.query<{ issuer: string | null }>(
+			`select "issuer" from "account" where "id" = 'acct-dave'`,
+		);
+		expect(rows[0]?.issuer).toBeNull();
+	});
+
+	it("accepts one account id at two providers, as 1.6 and 1.7.3+ allow", async () => {
+		const erin = await seedUser("erin@acme.test");
+		for (const provider of ["github", "gitlab"]) {
+			await db.pool.query(
+				`insert into "account" ("id", "accountId", "providerId", "userId") values ($1, 'shared-42', $2, $3)`,
+				[`acct-erin-${provider}`, provider, erin],
+			);
+		}
+		const { rows } = await db.pool.query<{ n: string }>(
+			`select count(*)::text as n from "account" where "accountId" = 'shared-42'`,
+		);
+		expect(Number(rows[0]?.n)).toBe(2);
+	});
+
+	it("still lets 1.7.2 write issuer into the relaxed column", async () => {
+		const fay = await seedUser("fay@acme.test");
+		await db.pool.query(
+			`insert into "account" ("id", "accountId", "providerId", "userId", "issuer") values ('acct-fay', $1, 'credential', $1, 'local:credential')`,
+			[fay],
+		);
+		const { rows } = await db.pool.query<{ issuer: string | null }>(
+			`select "issuer" from "account" where "id" = 'acct-fay'`,
+		);
+		expect(rows[0]?.issuer).toBe("local:credential");
 	});
 });

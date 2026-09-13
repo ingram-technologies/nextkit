@@ -24,6 +24,7 @@
  * `redirectIfAuthenticated` here, so a stale cookie resolves to "no session"
  * and falls through to the form instead of ping-ponging forever.
  */
+import { type AuthChainCheckOptions, authChainCheck } from "./chain.js";
 import type { IdHelper } from "@ingram-tech/nk-db/id";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -54,6 +55,11 @@ interface SessionLike {
  * inferred user shape (additional fields, org id, …) — no `any`, no casts.
  */
 interface AuthLike<S extends SessionLike> {
+	/**
+	 * The options the instance was built with. `database` is the `pg` Pool a
+	 * site passes to `betterAuth()`; the chain check queries through it.
+	 */
+	options?: { database?: unknown };
 	api: {
 		getSession: (input: { headers: Headers }) => Promise<S | null>;
 		/**
@@ -95,6 +101,14 @@ export interface AuthHelpersOptions extends NextParamOptions {
 	 * which matches `better-auth.session_token` and `__Secure-…` in production.
 	 */
 	sessionCookiePrefix?: string;
+	/**
+	 * Verify, once per process on the first session read, that the shipped
+	 * auth migration chain is fully applied (see `assertAuthChainApplied`).
+	 * Runs only when the instance's `database` is a `pg` Pool and the database
+	 * records the chain. Pass `false` to opt out, or the journal location when
+	 * the site records the chain under another table.
+	 */
+	chainCheck?: false | AuthChainCheckOptions;
 }
 
 const encodeIfString = (helper: IdHelper | undefined, value: unknown): unknown =>
@@ -155,7 +169,12 @@ export function createAuthHelpers<S extends SessionLike>(
 	 * pre-mutation snapshot; re-read through `auth.api.getSession` directly if
 	 * that ever matters.
 	 */
+	const ensureChain =
+		options.chainCheck === false
+			? async (): Promise<void> => {}
+			: authChainCheck(auth.options?.database, options.chainCheck);
 	const getSession = cache(async (): Promise<S | null> => {
+		await ensureChain();
 		const session = await auth.api.getSession({ headers: await headers() });
 		return session && options.ids
 			? encodeSessionIds(session, options.ids)
