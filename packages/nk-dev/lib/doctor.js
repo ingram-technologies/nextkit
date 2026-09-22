@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { authNextFindings } from "./auth-next.js";
 import { authShadowFindings } from "./auth-shadow.js";
 import { authVersionFindings } from "./auth-version.js";
+import { ogImageFindings } from "./og-image.js";
 import { SUPERSEDED_DEPS } from "./drift.js";
 import {
 	SEAL_FILE,
@@ -338,6 +339,9 @@ export function findings(cwd) {
 	// 13. Better Auth is pinned to the exact version the installed nk-auth was
 	//     released against — its chain carries the schema that version needs.
 	out.push(...authVersionFindings(cwd));
+
+	// 14. No page/layout declares an Open Graph card without an image in reach.
+	out.push(...ogImageFindings(cwd));
 
 	return out;
 }

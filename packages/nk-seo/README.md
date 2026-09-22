@@ -268,7 +268,12 @@ return { title, openGraph: { title, url, images } };
 ```
 
 `createMetadata`'s `defaultImage` / per-page `image` already do this — point
-either at the image route and every page it builds carries the card.
+either at the image route and every page it builds carries the card. The same
+rule bites the root layout: an `openGraph` there with the image file under a
+route group (the marketing tree) leaves the login page and every app route
+with a card and no image. Keep the site image at the app root, where it also
+serves at a stable `/opengraph-image` (under a group Next appends a hash to
+the URL). `nk doctor` flags both shapes.
 
 **Locale-negotiating middleware eats the image route.** A site that redirects
 any path lacking a locale prefix also redirects `/opengraph-image`, so the card
