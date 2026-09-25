@@ -8,6 +8,7 @@ export {
 	type Blog,
 	type BlogConfig,
 	type BlogSource,
+	type LangFilter,
 	type RawPostFile,
 } from "./blog.js";
 export { fsSource } from "./sources/fs.js";

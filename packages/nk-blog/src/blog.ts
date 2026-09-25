@@ -22,6 +22,13 @@ export interface BlogConfig {
 	/** Include drafts (listing pages typically pass `NODE_ENV !== "production"`). */
 	drafts?: boolean;
 	/**
+	 * Language of every post that declares no `lang`. Set it to make the blog
+	 * multilingual: each post is written in one language, slugs are unique per
+	 * language, and posts sharing a `translationKey` are one another's
+	 * translations. Unset, `lang` is only what frontmatter says.
+	 */
+	defaultLang?: string;
+	/**
 	 * Site-specific image fallback (e.g. "look in /public/images/posts/<slug>").
 	 * This is config precisely so per-site divergence never forks the reader.
 	 */
@@ -35,15 +42,30 @@ export interface BlogConfig {
 	onInvalid?: "throw" | "skip";
 }
 
+/** Narrows a listing to one language. Omitted, every language is included. */
+export interface LangFilter {
+	lang?: string;
+}
+
 export interface Blog {
 	/** All non-draft posts, newest first, with bodies. */
-	posts(): Promise<BlogPost[]>;
+	posts(filter?: LangFilter): Promise<BlogPost[]>;
 	/** All non-draft posts, newest first, without bodies. */
-	previews(): Promise<BlogPostPreview[]>;
-	post(slug: string): Promise<BlogPost | null>;
-	slugs(): Promise<string[]>;
+	previews(filter?: LangFilter): Promise<BlogPostPreview[]>;
+	/**
+	 * The post at `slug`. Slugs are unique per language, so pass `lang` on a
+	 * multilingual blog; without it, the `defaultLang` post wins a shared slug.
+	 */
+	post(slug: string, filter?: LangFilter): Promise<BlogPost | null>;
+	slugs(filter?: LangFilter): Promise<string[]>;
 	/** The pinned (`featured: true`) post, else the newest. */
-	featured(): Promise<BlogPost | null>;
+	featured(filter?: LangFilter): Promise<BlogPost | null>;
+	/**
+	 * Every language version of `post`, itself included, in `posts()` order —
+	 * the input to `blogPostAlternates`. Drafts are excluded like everywhere
+	 * else, so an unpublished translation is never advertised.
+	 */
+	translations(post: BlogPostPreview): Promise<BlogPostPreview[]>;
 }
 
 const POST_FILE = /^(?:(?<flat>[^/]+)|(?<dir>[^/]+)\/index)\.(?<ext>mdx?)$/;
@@ -117,7 +139,8 @@ export function parsePost(file: RawPostFile, config: BlogConfig): BlogPost | nul
 		image,
 		draft: frontmatter.draft || named.draftByName,
 		featured: frontmatter.featured,
-		lang: frontmatter.lang,
+		lang: frontmatter.lang ?? config.defaultLang,
+		translationKey: frontmatter.translationKey ?? slug,
 		canonical: frontmatter.canonical,
 		format: named.format,
 		readingTimeMinutes: time.minutes,
@@ -126,45 +149,81 @@ export function parsePost(file: RawPostFile, config: BlogConfig): BlogPost | nul
 	};
 }
 
+const inLang = (post: BlogPostPreview, filter?: LangFilter): boolean =>
+	filter?.lang === undefined || post.lang === filter.lang;
+
 export function createBlog(config: BlogConfig): Blog {
-	const posts = async (): Promise<BlogPost[]> => {
+	const all = async (): Promise<BlogPost[]> => {
 		const files = await config.source.load();
 		const parsed = files
 			.map((file) => parsePost(file, config))
 			.filter((post): post is BlogPost => post !== null);
 
-		// Collision check BEFORE the draft filter: a draft colliding with a live
-		// post must fail the production build too, not only draft-enabled
-		// previews. Two files resolving to one slug is a routing conflict —
-		// always a loud build failure, never a quiet last-one-wins.
-		const seen = new Map<string, BlogPost>();
+		// Collision checks BEFORE the draft filter: a draft colliding with a
+		// live post must fail the production build too, not only draft-enabled
+		// previews. Two files resolving to one address, or two posts claiming
+		// to be the same translation, is a conflict — always a loud build
+		// failure, never a quiet last-one-wins.
+		const bySlug = new Map<string, BlogPost>();
+		const byTranslation = new Map<string, BlogPost>();
 		for (const post of parsed) {
-			if (seen.has(post.slug)) {
-				throw new Error(`nk-blog: duplicate slug "${post.slug}"`);
+			const where = post.lang === undefined ? "" : ` in lang "${post.lang}"`;
+			const slugKey = `${post.lang ?? ""}\0${post.slug}`;
+			if (bySlug.has(slugKey)) {
+				throw new Error(`nk-blog: duplicate slug "${post.slug}"${where}`);
 			}
-			seen.set(post.slug, post);
+			bySlug.set(slugKey, post);
+
+			const translationKey = `${post.lang ?? ""}\0${post.translationKey}`;
+			const claimed = byTranslation.get(translationKey);
+			if (claimed) {
+				throw new Error(
+					`nk-blog: "${claimed.slug}" and "${post.slug}" are both the${where} version of translation "${post.translationKey}"`,
+				);
+			}
+			byTranslation.set(translationKey, post);
 		}
 
-		return [...seen.values()]
+		return [...bySlug.values()]
 			.filter((post) => config.drafts === true || !post.draft)
 			.sort(
 				(a, b) =>
 					new Date(b.date).getTime() - new Date(a.date).getTime() ||
 					// Same-day posts: deterministic order between builds.
-					a.slug.localeCompare(b.slug),
+					a.slug.localeCompare(b.slug) ||
+					(a.lang ?? "").localeCompare(b.lang ?? ""),
 			);
 	};
 
+	const posts = async (filter?: LangFilter): Promise<BlogPost[]> =>
+		(await all()).filter((post) => inLang(post, filter));
+
 	return {
 		posts,
-		previews: async () =>
-			(await posts()).map(({ content: _content, ...preview }) => preview),
-		post: async (slug) =>
-			(await posts()).find((candidate) => candidate.slug === slug) ?? null,
-		slugs: async () => (await posts()).map((post) => post.slug),
-		featured: async () => {
-			const all = await posts();
-			return all.find((post) => post.featured) ?? all[0] ?? null;
+		previews: async (filter) =>
+			(await posts(filter)).map(({ content: _content, ...preview }) => preview),
+		post: async (slug, filter) => {
+			const matches = (await posts(filter)).filter(
+				(candidate) => candidate.slug === slug,
+			);
+			return (
+				matches.find((candidate) => candidate.lang === config.defaultLang) ??
+				matches[0] ??
+				null
+			);
 		},
+		slugs: async (filter) => (await posts(filter)).map((post) => post.slug),
+		featured: async (filter) => {
+			const listed = await posts(filter);
+			return listed.find((post) => post.featured) ?? listed[0] ?? null;
+		},
+		translations: async (post) =>
+			(await all())
+				.filter(
+					(candidate) =>
+						(candidate.translationKey ?? candidate.slug) ===
+						(post.translationKey ?? post.slug),
+				)
+				.map(({ content: _content, ...preview }) => preview),
 	};
 }

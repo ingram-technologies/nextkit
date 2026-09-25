@@ -18,8 +18,17 @@ export interface BlogPostPreview {
 	image?: string;
 	draft: boolean;
 	featured: boolean;
-	/** Reserved for i18n'd blogs; not interpreted by the reader yet. */
+	/**
+	 * The post's language: frontmatter `lang`, else `BlogConfig.defaultLang`.
+	 * Undefined on a single-language blog that sets neither.
+	 */
 	lang?: string;
+	/**
+	 * Shared by a post and its translations: frontmatter `translationKey`, else
+	 * the slug. Always set by the reader; optional so hand-built previews
+	 * (tests, fixtures) need not spell it out.
+	 */
+	translationKey?: string;
 	/** Reserved canonical-URL override for syndicated posts. */
 	canonical?: string;
 	format: PostFormat;

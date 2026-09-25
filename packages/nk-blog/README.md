@@ -61,6 +61,49 @@ export default async function Post({ params }: PageProps<"/blog/[slug]">) {
 }
 ```
 
+## Multilingual blogs
+
+Set `defaultLang` and each post is written in one language:
+
+```md
+---
+title: "Facturation électronique : ce qui change pour les utilisateurs Stripe"
+lang: fr
+translationKey: france-e-invoicing-mandate   # the English post's slug; omit for a French-only post
+---
+```
+
+- **`lang`** is the post's language; posts without it take `defaultLang`.
+- **Slugs are unique per language**, so a translation can reuse its original's
+  slug or carry its own (a French slug for French search).
+- **`translationKey`** groups a post with its translations. It defaults to the
+  slug, so same-slug posts link without declaring it. A post links only to
+  versions that exist: a French-only article advertises no English URL.
+
+```ts
+export const blog = createBlog({ source: fsSource("content/blog"), defaultLang: "en" });
+
+await blog.previews({ lang: "fr" });          // the French index
+await blog.post(slug, { lang: "fr" });        // a French post
+const versions = await blog.translations(post);
+
+const seoConfig = { baseUrl, basePath: "/blog", defaultLang: "en" };
+postUrl(post, seoConfig);                     // /blog/what-is, /fr/blog/cest-quoi
+const { canonical, languages } = blogPostAlternates(post, versions, seoConfig);
+// → Metadata.alternates: { canonical, languages }
+```
+
+URLs: default-language posts live at `basePath`, others at `/<lang><basePath>`
+(nk-i18n's prefix shape). Unlike nk-i18n's negotiated pages the default
+language is not prefixed: a post is one document in one language with exactly
+one address, so there is no language-neutral bare URL to reserve. Route the
+other languages with a `[lang]` segment (`app/[lang]/blog/[slug]/page.tsx`,
+`generateStaticParams` over `blog.posts()` minus the default language) so the
+posts stay fully static. `blogPostArticle` sets `inLanguage`; a per-language
+feed is `generateRss({ ...config, basePath: "/fr/blog", language: "fr" },
+await blog.previews({ lang: "fr" }))`. `readTime` is English — localize from
+`readingTimeMinutes`.
+
 ## The rules that keep this portable
 
 - **Vocabulary, not imports.** A Tier-1 post references `<Callout>`, `<Figure>`,

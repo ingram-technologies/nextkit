@@ -90,3 +90,94 @@ describe("createBlog", () => {
 		expect((await blog.featured())?.slug).toBe("pinned");
 	});
 });
+
+describe("multilingual blogs", () => {
+	const files = [
+		post("what-is.md"),
+		post("cest-quoi.md", "lang: fr\ntranslationKey: what-is"),
+		post("fr-only.md", "lang: fr"),
+		post("shared.md"),
+		post("shared.fr.md", "lang: fr\nslug: shared"),
+	];
+	const blog = createBlog({ source: memory(...files), defaultLang: "en" });
+
+	it("gives unmarked posts the default language and filters by lang", async () => {
+		expect((await blog.post("what-is"))?.lang).toBe("en");
+		expect((await blog.slugs({ lang: "fr" })).sort()).toEqual([
+			"cest-quoi",
+			"fr-only",
+			"shared",
+		]);
+		expect((await blog.slugs({ lang: "en" })).sort()).toEqual([
+			"shared",
+			"what-is",
+		]);
+		expect(await blog.slugs()).toHaveLength(5);
+	});
+
+	it("keeps slugs unique per language, the default winning an unfiltered lookup", async () => {
+		expect((await blog.post("shared"))?.lang).toBe("en");
+		expect((await blog.post("shared", { lang: "fr" }))?.lang).toBe("fr");
+		expect(await blog.post("fr-only", { lang: "en" })).toBeNull();
+	});
+
+	it("groups translations by translationKey, defaulting to the slug", async () => {
+		const english = await blog.post("what-is");
+		if (!english) throw new Error("missing fixture");
+		const versions = await blog.translations(english);
+		expect(versions.map((v) => `${v.lang}:${v.slug}`).sort()).toEqual([
+			"en:what-is",
+			"fr:cest-quoi",
+		]);
+
+		const shared = await blog.post("shared", { lang: "fr" });
+		if (!shared) throw new Error("missing fixture");
+		expect(await blog.translations(shared)).toHaveLength(2);
+
+		const alone = await blog.post("fr-only");
+		if (!alone) throw new Error("missing fixture");
+		expect(await blog.translations(alone)).toHaveLength(1);
+	});
+
+	it("never advertises a draft translation", async () => {
+		const withDraft = createBlog({
+			source: memory(
+				post("a.md"),
+				post("a-fr.md", "lang: fr\ntranslationKey: a\ndraft: true"),
+			),
+			defaultLang: "en",
+		});
+		const english = await withDraft.post("a");
+		if (!english) throw new Error("missing fixture");
+		expect(await withDraft.translations(english)).toHaveLength(1);
+	});
+
+	it("fails the build on a slug or translation claimed twice in one language", async () => {
+		await expect(
+			createBlog({
+				source: memory(
+					post("a.md", "lang: fr"),
+					post("b.md", "lang: fr\nslug: a"),
+				),
+			}).posts(),
+		).rejects.toThrow(/duplicate slug "a" in lang "fr"/);
+		await expect(
+			createBlog({
+				source: memory(
+					post("a.md"),
+					post("b.md", "lang: fr\ntranslationKey: a"),
+					post("c.md", "lang: fr\ntranslationKey: a"),
+				),
+				defaultLang: "en",
+			}).posts(),
+		).rejects.toThrow(
+			/"b" and "c" are both the in lang "fr" version of translation "a"/,
+		);
+	});
+
+	it("leaves lang unset on a single-language blog", async () => {
+		expect(
+			(await createBlog({ source: memory(post("a.md")) }).post("a"))?.lang,
+		).toBeUndefined();
+	});
+});

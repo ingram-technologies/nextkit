@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { blogPostArticle, blogPostBreadcrumbs } from "./seo.js";
+import {
+	blogIndexUrl,
+	blogPostAlternates,
+	blogPostArticle,
+	blogPostBreadcrumbs,
+	postUrl,
+} from "./seo.js";
 import type { BlogPostPreview } from "./types.js";
 
 const post: BlogPostPreview = {
@@ -50,5 +56,57 @@ describe("seo bridge", () => {
 			"Hello",
 		]);
 		expect(node.itemListElement[2]?.item).toBe("https://example.com/posts/hello");
+	});
+});
+
+describe("multilingual seo", () => {
+	const ml = { ...config, basePath: "/blog", defaultLang: "en" };
+	const en: BlogPostPreview = {
+		...post,
+		slug: "what-is",
+		lang: "en",
+		translationKey: "what-is",
+	};
+	const fr: BlogPostPreview = {
+		...post,
+		slug: "cest-quoi",
+		lang: "fr",
+		translationKey: "what-is",
+	};
+
+	it("prefixes only non-default languages", () => {
+		expect(postUrl(en, ml)).toBe("https://example.com/blog/what-is");
+		expect(postUrl(fr, ml)).toBe("https://example.com/fr/blog/cest-quoi");
+		expect(blogIndexUrl("fr", ml)).toBe("https://example.com/fr/blog");
+		// Without defaultLang nothing is prefixed, whatever the post says.
+		expect(postUrl(fr, { ...ml, defaultLang: undefined })).toBe(
+			"https://example.com/blog/cest-quoi",
+		);
+	});
+
+	it("links existing versions only, x-default on the default language", () => {
+		expect(blogPostAlternates(fr, [en, fr], ml)).toEqual({
+			canonical: "https://example.com/fr/blog/cest-quoi",
+			languages: {
+				en: "https://example.com/blog/what-is",
+				fr: "https://example.com/fr/blog/cest-quoi",
+				"x-default": "https://example.com/blog/what-is",
+			},
+		});
+		expect(blogPostAlternates(fr, [fr], ml).languages).toEqual({});
+	});
+
+	it("marks the article language and localizes the crumbs", () => {
+		expect(blogPostArticle(fr, ml)).toMatchObject({
+			inLanguage: "fr",
+			url: "https://example.com/fr/blog/cest-quoi",
+		});
+		expect(
+			blogPostBreadcrumbs(fr, ml).itemListElement.map((item) => item.item),
+		).toEqual([
+			"https://example.com/fr",
+			"https://example.com/fr/blog",
+			"https://example.com/fr/blog/cest-quoi",
+		]);
 	});
 });

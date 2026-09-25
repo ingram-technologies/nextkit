@@ -33,8 +33,11 @@ export {
 } from "./reading-time.js";
 export { formatPostDate } from "./date.js";
 export {
+	blogIndexUrl,
+	blogPostAlternates,
 	blogPostArticle,
 	blogPostBreadcrumbs,
 	postUrl,
+	type BlogPostAlternates,
 	type BlogSeoConfig,
 } from "./seo.js";

@@ -54,8 +54,13 @@ export const blogFrontmatterSchema = z
 		slug: slugSchema.optional(),
 		draft: z.boolean().default(false),
 		featured: z.boolean().default(false),
-		// Reserved fields — validated now so adding behavior later isn't breaking.
+		// The post's language (e.g. "fr"); `BlogConfig.defaultLang` when absent.
 		lang: nonEmpty.optional(),
+		// Groups a post with its translations; defaults to the slug, so posts
+		// sharing a slug across languages link without declaring it. Set it
+		// when a translation carries its own slug.
+		translationKey: nonEmpty.optional(),
+		// Reserved — validated now so adding behavior later isn't breaking.
 		canonical: nonEmpty.optional(),
 	})
 	.transform(({ author, authors, coverImage, image, ...rest }) => ({
