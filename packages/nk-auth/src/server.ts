@@ -61,7 +61,10 @@ interface AuthLike<S extends SessionLike> {
 	 */
 	options?: { database?: unknown };
 	api: {
-		getSession: (input: { headers: Headers }) => Promise<S | null>;
+		getSession: (input: {
+			headers: Headers;
+			query?: { disableRefresh?: boolean };
+		}) => Promise<S | null>;
 		/**
 		 * Better Auth's `/list-accounts`: the auth methods linked to the current
 		 * session's user, each `{ providerId }` ("credential" for email/password,
@@ -175,7 +178,14 @@ export function createAuthHelpers<S extends SessionLike>(
 			: authChainCheck(auth.options?.database, options.chainCheck);
 	const getSession = cache(async (): Promise<S | null> => {
 		await ensureChain();
-		const session = await auth.api.getSession({ headers: await headers() });
+		// Never refresh here: a refresh extends the row and re-issues the cookie,
+		// and a server component cannot set cookies, so the row would outlive a
+		// cookie that still expires on its sign-in max-age. Refreshes belong to
+		// the client's `/get-session` (see README, "Session lifetime").
+		const session = await auth.api.getSession({
+			headers: await headers(),
+			query: { disableRefresh: true },
+		});
 		return session && options.ids
 			? encodeSessionIds(session, options.ids)
 			: session;

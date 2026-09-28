@@ -109,6 +109,16 @@ describe("createAuthHelpers", () => {
 		expect(await getUser()).toBe(session.user);
 	});
 
+	it("reads without refreshing, since a server component cannot set the cookie", async () => {
+		const getSession = vi.fn(async () => session);
+		await createAuthHelpers({
+			api: { getSession, listUserAccounts: async () => [] },
+		}).getSession();
+		expect(getSession).toHaveBeenCalledWith(
+			expect.objectContaining({ query: { disableRefresh: true } }),
+		);
+	});
+
 	it("getUser returns null when signed out", async () => {
 		expect(await helpers(null).getUser()).toBeNull();
 	});

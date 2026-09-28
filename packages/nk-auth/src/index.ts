@@ -41,3 +41,4 @@ export {
 } from "./password.js";
 export { authBasePath } from "./paths.js";
 export { createAuthPool } from "./pool.js";
+export { sessionLifetime } from "./session-lifetime.js";
