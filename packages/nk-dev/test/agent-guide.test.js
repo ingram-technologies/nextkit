@@ -1,8 +1,8 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { checkAgentGuideImport } from "../lib/agent-guide.js";
+import { checkAgentGuideImport, ensureGuideImport } from "../lib/agent-guide.js";
 
 const IMPORT_LINE = "@./node_modules/@ingram-tech/nk-dev/guide.md";
 
@@ -10,6 +10,7 @@ describe("checkAgentGuideImport", () => {
 	let dir;
 	beforeEach(() => {
 		dir = mkdtempSync(join(tmpdir(), "nk-"));
+		mkdirSync(join(dir, ".git"));
 	});
 	afterEach(() => {
 		rmSync(dir, { recursive: true, force: true });
@@ -64,5 +65,75 @@ describe("checkAgentGuideImport", () => {
 		mkdirSync(app);
 		writePkg(app, { dependencies: { "@ingram-tech/nk-dev": "^0.1.1" } });
 		expect(checkAgentGuideImport(app).ok).toBe(true);
+	});
+
+	it("accepts the import from an ancestor when a nearer CLAUDE.md lacks it", () => {
+		writeFileSync(join(dir, "CLAUDE.md"), `# Monorepo\n\n${IMPORT_LINE}\n`);
+		const app = join(dir, "api");
+		mkdirSync(app);
+		writePkg(app, { devDependencies: { "@ingram-tech/nk-dev": "^0.19.0" } });
+		writeFileSync(join(app, "CLAUDE.md"), "# API rules\n");
+		expect(checkAgentGuideImport(app).ok).toBe(true);
+	});
+
+	it("accepts the import two levels up", () => {
+		writeFileSync(join(dir, "CLAUDE.md"), `# Monorepo\n\n${IMPORT_LINE}\n`);
+		const app = join(dir, "apps", "api");
+		mkdirSync(app, { recursive: true });
+		writePkg(app, { devDependencies: { "@ingram-tech/nk-dev": "^0.19.0" } });
+		expect(checkAgentGuideImport(app).ok).toBe(true);
+	});
+
+	it("fails when no CLAUDE.md up to the repository root imports the guide", () => {
+		writeFileSync(join(dir, "CLAUDE.md"), "# Monorepo\n");
+		const app = join(dir, "api");
+		mkdirSync(app);
+		writePkg(app, { devDependencies: { "@ingram-tech/nk-dev": "^0.19.0" } });
+		writeFileSync(join(app, "CLAUDE.md"), "# API rules\n");
+		const res = checkAgentGuideImport(app);
+		expect(res.ok).toBe(false);
+		expect(res.reason).toMatch(/does not @import/);
+	});
+
+	it("ignores a CLAUDE.md above the repository root", () => {
+		writeFileSync(join(dir, "CLAUDE.md"), `# Outside\n\n${IMPORT_LINE}\n`);
+		const repo = join(dir, "repo");
+		mkdirSync(join(repo, ".git"), { recursive: true });
+		writePkg(repo, { devDependencies: { "@ingram-tech/nk-dev": "^0.19.0" } });
+		expect(checkAgentGuideImport(repo).ok).toBe(false);
+	});
+});
+
+describe("ensureGuideImport", () => {
+	let dir;
+	beforeEach(() => {
+		dir = mkdtempSync(join(tmpdir(), "nk-"));
+		mkdirSync(join(dir, ".git"));
+	});
+	afterEach(() => {
+		rmSync(dir, { recursive: true, force: true });
+	});
+
+	const imports = (file) => readFileSync(file, "utf8").split(IMPORT_LINE).length - 1;
+
+	it("writes CLAUDE.md with the import when none exists", () => {
+		ensureGuideImport(dir);
+		expect(imports(join(dir, "CLAUDE.md"))).toBe(1);
+	});
+
+	it("appends the import once, however often it runs", () => {
+		writeFileSync(join(dir, "CLAUDE.md"), "# Site\n");
+		ensureGuideImport(dir);
+		ensureGuideImport(dir);
+		expect(imports(join(dir, "CLAUDE.md"))).toBe(1);
+	});
+
+	it("adds nothing when an ancestor already imports the guide", () => {
+		writeFileSync(join(dir, "CLAUDE.md"), `# Monorepo\n\n${IMPORT_LINE}\n`);
+		const app = join(dir, "api");
+		mkdirSync(app);
+		writeFileSync(join(app, "CLAUDE.md"), "# API rules\n");
+		ensureGuideImport(app);
+		expect(readFileSync(join(app, "CLAUDE.md"), "utf8")).toBe("# API rules\n");
 	});
 });
