@@ -1,4 +1,4 @@
-import { checkAgentGuideImport } from "./agent-guide.js";
+import { GUIDE_IMPORT, checkAgentGuideImport } from "./agent-guide.js";
 import {
 	cleanGeneratedArtifacts,
 	onlyGeneratedTypeErrors,
@@ -48,7 +48,7 @@ export function check() {
 	if (!guide.ok) {
 		console.error(`nk check: ${guide.reason}`);
 		console.error(
-			"  → add `@./node_modules/@ingram-tech/nk-dev/guide.md` to your CLAUDE.md (or run `nk init`).",
+			`  → add \`${GUIDE_IMPORT}\` to your CLAUDE.md (or run \`nk init\`).`,
 		);
 	}
 	// Applied migrations are immutable. A no-op on sites without a `drizzle/`
