@@ -9,6 +9,7 @@ import { FORMATTER } from "./formatter.js";
 import { hasKnipConfig, runKnip } from "./knip.js";
 import { checkSeal } from "./migrations.js";
 import { run, runCapture, writeThrough } from "./run.js";
+import { lintEnvironment } from "./tsgolint.js";
 import {
 	tailwindCoverageFindings,
 	tailwindSourceFindings,
@@ -17,7 +18,11 @@ import { readdirSync, rmSync } from "node:fs";
 
 /** `nk lint [...]` — oxlint, with extra args passed through (e.g. `--fix`). */
 export function lint(extraArgs = []) {
-	process.exit(run(FORMATTER.lint[0], [...FORMATTER.lint[1], ...extraArgs]));
+	process.exit(
+		run(FORMATTER.lint[0], [...FORMATTER.lint[1], ...extraArgs], {
+			env: lintEnvironment(),
+		}),
+	);
 }
 
 /**
@@ -31,7 +36,8 @@ export function lint(extraArgs = []) {
 export function check() {
 	// Run every gate before deciding (no short-circuit), so one failure doesn't
 	// hide another. oxc splits lint (oxlint) and format (oxfmt), so we run both.
-	const lintFailed = run(FORMATTER.lint[0], FORMATTER.lint[1]) !== 0;
+	const lintFailed =
+		run(FORMATTER.lint[0], FORMATTER.lint[1], { env: lintEnvironment() }) !== 0;
 	const fmtFailed = run(FORMATTER.checkFormat[0], FORMATTER.checkFormat[1]) !== 0;
 	// knip (unused deps/exports/files). Opt-in: only when the repo has a knip
 	// config — knip has no shareable config, so absence means "not adopted".
