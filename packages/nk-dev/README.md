@@ -81,7 +81,7 @@ tsc), so versions stay under your control. nk only orchestrates.
   skips files that already exist.
 - **`nk doctor [--fix]`** — report drift from the canonical nk-dev toolchain
   (superseded deps, config `extends`, package.json scripts, the agent-guide
-  import, a stale `.prettierignore`, an unsealed migration chain and the DDL in
+  import (from any CLAUDE.md up to the repository root), a stale `.prettierignore`, an unsealed migration chain and the DDL in
   it drizzle can't model, a page under `app/auth/` shadowing a Better Auth
   endpoint — static segments beat the `[...all]` catch-all, so such a page
   silently 405s the endpoint, a page or layout whose `openGraph` carries no
@@ -96,7 +96,10 @@ tsc), so versions stay under your control. nk only orchestrates.
 - **`nk format` / `nk format --check`** — formats code (JS/TS/JSON/CSS) with
   oxfmt. `--check` verifies without writing (CI). SQL isn't formatted; see
   [Why no SQL formatting?](#why-no-sql-formatting).
-- **`nk lint`** — `oxlint`.
+- **`nk lint`** — `oxlint`. nk-dev ships oxlint's type-aware backend
+  (`oxlint-tsgolint`) and hands it to oxlint, so a site turns on type-aware
+  rules with `"options": { "typeAware": true }` in `.oxlintrc.json` and
+  declares nothing else. An `OXLINT_TSGOLINT_PATH` you set wins.
 - **`nk knip`** — `knip` (unused dependencies / exports / files).
 - **`nk migrations [--check|--reseal|--ddl]`** — guard the `drizzle/` migration
   chain, with no database involved. Verifies each file against the hashes in
@@ -113,7 +116,7 @@ tsc), so versions stay under your control. nk only orchestrates.
   apply → `nk format` + `nk type-check`) and its syntactic-not-semantic limits
   live in the codemod skill, `skills/ts-codemod.md`.
 - **`nk check`** — `oxlint` + `oxfmt --check` + `knip` (only when the repo has a
-  knip config) + the agent-guide import gate + the migration seal. The CI gate;
+  knip config) + the agent-guide import gate (any CLAUDE.md from the site up to the repository root) + the migration seal. The CI gate;
   runs every checker and reports them all before failing.
 - **`nk type-check`** — `next typegen && tsc --noEmit`, with recovery: when
   every error sits inside generated types (`.next/types`, `.next/dev/types` —
