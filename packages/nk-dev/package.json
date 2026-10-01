@@ -53,6 +53,7 @@
 		"knip": "^6.35.1",
 		"oxfmt": "^0.67.0",
 		"oxlint": "^1.82.0",
+		"oxlint-tsgolint": "^7.0.2003",
 		"typescript": "npm:@typescript/typescript6@^6.0.2",
 		"vitest": "^5.0.0"
 	},
