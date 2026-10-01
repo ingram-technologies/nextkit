@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { checkAgentGuideImport, ensureGuideImport } from "./agent-guide.js";
 import { authNextFindings } from "./auth-next.js";
 import { authShadowFindings } from "./auth-shadow.js";
 import { authVersionFindings } from "./auth-version.js";
@@ -25,7 +26,6 @@ const CANONICAL_SCRIPTS = {
 	"type-check": "nk type-check",
 };
 
-const GUIDE_IMPORT = "@./node_modules/@ingram-tech/nk-dev/guide.md";
 const OXLINTRC_FILE = "node_modules/@ingram-tech/nk-dev/oxlintrc.json";
 /** Matches any `extends` entry that reaches nk-dev's oxlintrc, whatever the prefix. */
 const OXLINTRC_EXTENDS_RE = /(^|\/)node_modules\/@ingram-tech\/nk-dev\/oxlintrc\.json$/;
@@ -180,31 +180,15 @@ export function findings(cwd) {
 		});
 	}
 
-	// 5. CLAUDE.md imports the shared guide.
-	const claudePath = resolve(cwd, "CLAUDE.md");
-	if (deps["@ingram-tech/nk-dev"]) {
-		const claude = existsSync(claudePath) ? readFileSync(claudePath, "utf8") : null;
-		if (claude === null || !/@\S*nk-dev\/guide\.md/.test(claude)) {
-			out.push({
-				id: "claude:guide-import",
-				level: "error",
-				message:
-					claude === null
-						? "no CLAUDE.md importing the nk-dev guide"
-						: "CLAUDE.md does not @import the nk-dev guide",
-				fix: (dir) => {
-					const p = resolve(dir, "CLAUDE.md");
-					const body = existsSync(p)
-						? readFileSync(p, "utf8")
-						: "# Project\n";
-					writeFileSync(
-						p,
-						`${body.replace(/\n*$/, "")}\n\n${GUIDE_IMPORT}\n`,
-					);
-					return "added the guide import to CLAUDE.md";
-				},
-			});
-		}
+	// 5. A CLAUDE.md from here to the repository root imports the shared guide.
+	const guide = checkAgentGuideImport(cwd);
+	if (!guide.ok) {
+		out.push({
+			id: "claude:guide-import",
+			level: "error",
+			message: guide.reason,
+			fix: ensureGuideImport,
+		});
 	}
 
 	// 6. knip.json ignoreDependencies referencing superseded packages (stale).

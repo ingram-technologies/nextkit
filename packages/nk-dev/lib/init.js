@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { ensureGuideImport } from "./agent-guide.js";
 
 // Files live at the package root, two levels up from lib/.
 const PKG_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -99,8 +100,6 @@ set -eu
 exec bun x --bun nextkit-format-staged
 `;
 
-const GUIDE_IMPORT = "@./node_modules/@ingram-tech/nk-dev/guide.md";
-
 export function init() {
 	const cwd = process.cwd();
 
@@ -135,8 +134,8 @@ export function init() {
 	// 7. Format-on-commit hook + git wiring.
 	setupGitHook(cwd);
 
-	// 8. Make sure the agent guide is imported into CLAUDE.md.
-	ensureGuideImport(cwd);
+	// 8. Make sure the agent guide is imported into a CLAUDE.md the agent loads.
+	log(ensureGuideImport(cwd));
 
 	// 9. A `prepare` script so the hook re-wires itself on every `bun install`.
 	ensurePrepareScript(cwd);
@@ -161,22 +160,6 @@ function setupGitHook(cwd) {
 		cwd,
 		stdio: "ignore",
 	});
-}
-
-function ensureGuideImport(cwd) {
-	const claudePath = resolve(cwd, "CLAUDE.md");
-	if (!existsSync(claudePath)) {
-		writeFileSync(claudePath, `# Project\n\n${GUIDE_IMPORT}\n`);
-		log("wrote CLAUDE.md with the agent-guide import");
-		return;
-	}
-	const body = readFileSync(claudePath, "utf8");
-	if (body.includes("nk-dev/guide.md")) {
-		log("CLAUDE.md already imports the agent guide.");
-		return;
-	}
-	writeFileSync(claudePath, `${body.replace(/\n*$/, "")}\n\n${GUIDE_IMPORT}\n`);
-	log("added the agent-guide import to CLAUDE.md");
 }
 
 function hintVitestConfig(cwd) {
