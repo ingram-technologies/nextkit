@@ -75,8 +75,8 @@
 		"zod": "^4.6.4"
 	},
 	"peerDependencies": {
-		"@better-auth/passkey": "1.7.4",
-		"better-auth": "1.7.4",
+		"@better-auth/passkey": "1.7.7",
+		"better-auth": "1.7.7",
 		"next": "^15.0.0 || ^16.0.0",
 		"pg": "^8.13.0",
 		"react": "^18.0.0 || ^19.0.0"
@@ -96,13 +96,13 @@
 		}
 	},
 	"devDependencies": {
-		"@better-auth/passkey": "1.7.4",
+		"@better-auth/passkey": "1.7.7",
 		"@ingram-tech/nk-dev": "workspace:*",
 		"@types/bcrypt": "^6.0.0",
 		"@types/node": "^26.6.4",
 		"@types/pg": "^8.23.1",
 		"@types/react": "^19.3.0",
-		"better-auth": "1.7.4",
+		"better-auth": "1.7.7",
 		"next": "^16.3.8",
 		"pg": "^8.23.1",
 		"react": "^19.3.0",

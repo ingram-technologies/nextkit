@@ -117,7 +117,7 @@ const db = await createTestDb({
 
 `better-auth` and `@better-auth/*` move **only with nk-auth**, and a site pins
 them to the exact version nk-auth's `peerDependencies` names (currently
-`1.7.4`), never a range. `nk doctor` fails on a site whose pin differs, and on
+`1.7.7`), never a range. `nk doctor` fails on a site whose pin differs, and on
 a range. The reason is the schema: a Better Auth version that changes a table
 ships here as the next `000N_*.sql` in the chain, with `src/migrations.test.ts`
 diffing the applied chain against that version's `getAuthTables()`, so package
