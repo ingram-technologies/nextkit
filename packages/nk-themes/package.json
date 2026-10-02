@@ -39,7 +39,7 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
-		"@wrksz/themes": "^1.2.0"
+		"@wrksz/themes": "^2.0.2"
 	},
 	"devDependencies": {
 		"@ingram-tech/nk-dev": "workspace:*",

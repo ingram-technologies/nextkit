@@ -8,9 +8,11 @@ patches the vendor, itself.
 ## Why this exists
 
 `@wrksz/themes` keeps the familiar `next-themes` API but stores the mode in a
-**cookie**, which the server can read, so SSR paints the correct theme with zero
-flash, without an injected inline script (and without the React 19
-`dangerouslySetInnerHTML` warning that forces a patch to `next-themes`).
+**cookie**. The provider injects a small pre-paint script that reads it and sets
+the mode class before the first paint, so there is zero flash, and it never
+calls `cookies()` itself, so the root layout stays static (no request-time
+rendering forced on every page). It also avoids the React 19
+`dangerouslySetInnerHTML` warning that forces a patch to `next-themes`.
 
 Wrapping it here keeps the vendor an implementation detail: you import
 `@ingram-tech/nk-themes/*`, and an override, patch or replacement happens in one
@@ -82,14 +84,22 @@ const { theme, setTheme } = useTheme();
 
 ## Reading the mode on the server
 
-`getTheme` reads the cookie server-side — in a Server Component (async, via
-`next/headers`) or in middleware/proxy (synchronous, from a `Request`):
+The provider does not read the cookie on the server, so `useTheme` returns
+`undefined` until hydration; keep theme-dependent UI equal on server and client
+(the CSS-driven `ThemeToggle` already is). When server-rendered markup itself
+must know the mode, read it with `getTheme` — in a Server Component (async, via
+`next/headers`) or in middleware/proxy (synchronous, from a `Request`) — and
+seed the provider with `initialTheme`:
 
 ```tsx
-import { getTheme } from "@ingram-tech/nk-themes/next";
+import { getTheme, ThemeProvider } from "@ingram-tech/nk-themes/next";
 
 const mode = await getTheme({ defaultTheme: "system" }); // "light" | "dark" | "system"
+<ThemeProvider initialTheme={mode}>{children}</ThemeProvider>;
 ```
+
+That read makes the layout render per request; only do it where the markup
+genuinely differs by mode.
 
 ## Entry points
 

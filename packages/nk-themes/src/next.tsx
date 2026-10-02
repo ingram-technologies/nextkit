@@ -21,8 +21,10 @@ import type { ThemeProviderProps } from "@wrksz/themes/next";
  *
  * It bakes in the defaults every nextkit site wants:
  *
- * - `storage="cookie"` — the mode is read server-side, so SSR paints the right
- *   theme with **zero flash** and no client-only `localStorage` round-trip.
+ * - `storage="cookie"` — the injected pre-paint script reads the cookie and sets
+ *   the mode before first paint, so there is **zero flash**. The provider never
+ *   calls `cookies()`, so the layout stays static; pass `initialTheme` from
+ *   {@link getTheme} only where server markup must know the mode.
  * - `attribute="class"` — toggles the `.dark` class on `<html>`, matching the
  *   Tailwind `dark:` variant our design system uses.
  * - `enableSystem` + `defaultTheme="system"` — follow the OS until the user picks.
@@ -47,7 +49,8 @@ export function ThemeProvider(props: ThemeProviderProps) {
 /**
  * Read the current color mode from the theme cookie, server-side. Pass a
  * `Request` for synchronous use in middleware/proxy, or call with no args in a
- * Server Component (reads via `next/headers`). Re-exported from `@wrksz/themes`
+ * Server Component (reads via `next/headers`, which makes it render per
+ * request). Feed the result to `ThemeProvider`'s `initialTheme`. Re-exported from `@wrksz/themes`
  * so sites depend only on nk-themes.
  */
 export { getTheme };
