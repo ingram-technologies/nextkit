@@ -95,15 +95,25 @@ export const isolateConnections = (server: PGLiteSocketServer, db: PGlite): bool
 	// silently.
 	const lastSql = new Map<number, string>();
 	let stalledSince: number | null = null;
+	let stalledOwner: number | null = null;
+	// A deadlock never clears itself, so the warning backs off (5s, 10s, 20s…
+	// capped at a minute) instead of repeating every 5s for the rest of the run.
+	let warnGap = 5000;
+	let warnAt = 0;
 	let stallTimer: ReturnType<typeof setTimeout> | undefined;
-	const reportStall = (owner: number | null): void => {
-		stalledSince ??= Date.now();
-		clearTimeout(stallTimer);
-		stallTimer = setTimeout(() => {
-			if (stalledSince === null || q.queue.length === 0) {
-				stalledSince = null;
-				return;
-			}
+	const armStallCheck = (): void => {
+		stallTimer = setTimeout(checkStall, Math.max(0, warnAt - Date.now()));
+		stallTimer.unref?.();
+	};
+	const checkStall = (): void => {
+		stallTimer = undefined;
+		if (stalledSince === null || q.queue.length === 0) {
+			stalledSince = null;
+			return;
+		}
+		// The stall that armed this timer may have ended and a newer one begun;
+		// then it is not yet due.
+		if (Date.now() >= warnAt) {
 			const seconds = Math.round((Date.now() - stalledSince) / 1000);
 			const waiting = q.queue
 				.map(
@@ -112,14 +122,26 @@ export const isolateConnections = (server: PGLiteSocketServer, db: PGlite): bool
 				.join(" ");
 			const holding = db.isInTransaction() ? "open transaction" : "open batch";
 			console.warn(
-				`nk(pglite): queue stalled ${seconds}s on connection #${owner} ` +
-					`(${holding}); its last SQL: ${lastSql.get(owner ?? -1) ?? "?"}; ` +
+				`nk(pglite): queue stalled ${seconds}s on connection #${stalledOwner} ` +
+					`(${holding}); its last SQL: ${lastSql.get(stalledOwner ?? -1) ?? "?"}; ` +
 					`waiting: ${waiting}. PGlite is one session: code that awaits ` +
 					"a second connection inside a transaction never finishes here.",
 			);
-			reportStall(owner);
-		}, 5000);
-		stallTimer.unref?.();
+			warnGap = Math.min(warnGap * 2, 60_000);
+			warnAt = Date.now() + warnGap;
+		}
+		armStallCheck();
+	};
+	const reportStall = (owner: number | null): void => {
+		stalledOwner = owner;
+		if (stalledSince === null) {
+			stalledSince = Date.now();
+			warnGap = 5000;
+			warnAt = stalledSince + warnGap;
+		}
+		// Arm once per stall: re-arming on every arrival would let steady traffic
+		// from the waiting connections postpone the warning forever.
+		if (stallTimer === undefined) armStallCheck();
 	};
 
 	q.processQueue = async (): Promise<void> => {

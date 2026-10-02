@@ -71,7 +71,7 @@ is in the [README](../packages/nk-db/README.md); the decisions:
   URL host and `DATABASE_CA_CERT` (below).
 - **Local detection wins over pulled env.** A pulled `.env` (e.g.
   `vercel env pull`) carries the production `DATABASE_POOL_MAX` /
-  `DATABASE_CA_CERT`, but the local PGlite socket is one session and
+  `DATABASE_CA_CERT`, but the local PGlite socket serves one session and
   speaks no TLS — so a local `DATABASE_URL` forces no-TLS and `max: 1`
   regardless. An explicit `max` passed in code still applies.
 

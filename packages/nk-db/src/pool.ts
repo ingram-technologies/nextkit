@@ -82,8 +82,8 @@ export const createPool = (config: CreatePoolConfig = {}): Pool => {
 	const caCert = normalizeCaCert(config.caCert ?? env?.caCert);
 	const local = isLocal(connectionString);
 	// Local wins over the env: a pulled .env (e.g. `vercel env pull`) carries the
-	// production DATABASE_POOL_MAX/DATABASE_CA_CERT, but the PGlite socket is
-	// one session and speaks no TLS — honoring them breaks dev. An explicit
+	// production DATABASE_POOL_MAX/DATABASE_CA_CERT, but the PGlite socket
+	// serves one session and speaks no TLS — honoring them breaks dev. An explicit
 	// `config.max` in code still applies.
 	const max = config.max ?? (local ? 1 : env?.poolMax);
 

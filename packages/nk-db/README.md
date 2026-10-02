@@ -28,7 +28,7 @@ DATABASE_POOL_MAX=5       # optional; keep small on serverless
 
 TLS is determined by the connection string and the CA cert, never by a flag: a
 local host (`127.0.0.1`/`localhost`) gets no TLS and a `max: 1` pool (the
-PGlite socket is one session; local detection also wins over a pulled
+PGlite socket serves one session; local detection also wins over a pulled
 `DATABASE_POOL_MAX`/`DATABASE_CA_CERT`); with `DATABASE_CA_CERT` set the server
 cert + hostname are verified; otherwise TLS runs without chain verification
 (managed-provider certs aren't in Node's trust store).
