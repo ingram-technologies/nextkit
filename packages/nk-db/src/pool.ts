@@ -48,8 +48,8 @@ export const normalizeCaCert = (caCert: string | undefined): string | undefined 
  * `createAuthPool`):
  *
  *   - `caCert` set  -> verify the server cert + hostname (`sslmode=verify-full`).
- *   - local host    -> no TLS, and cap at `max: 1` (the PGlite socket server is
- *                      single-connection/multiplexed; a larger pool breaks dev).
+ *   - local host    -> no TLS, and cap at `max: 1` (the PGlite socket serves
+ *                      every connection from one session; more buys nothing).
  *   - otherwise     -> TLS **without** chain verification. Managed certs (e.g.
  *                      DigitalOcean) aren't in Node's trust store, so full
  *                      verification fails with "self-signed certificate in
@@ -83,7 +83,7 @@ export const createPool = (config: CreatePoolConfig = {}): Pool => {
 	const local = isLocal(connectionString);
 	// Local wins over the env: a pulled .env (e.g. `vercel env pull`) carries the
 	// production DATABASE_POOL_MAX/DATABASE_CA_CERT, but the PGlite socket is
-	// single-connection and speaks no TLS — honoring them breaks dev. An explicit
+	// one session and speaks no TLS — honoring them breaks dev. An explicit
 	// `config.max` in code still applies.
 	const max = config.max ?? (local ? 1 : env?.poolMax);
 

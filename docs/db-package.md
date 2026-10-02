@@ -71,7 +71,7 @@ is in the [README](../packages/nk-db/README.md); the decisions:
   URL host and `DATABASE_CA_CERT` (below).
 - **Local detection wins over pulled env.** A pulled `.env` (e.g.
   `vercel env pull`) carries the production `DATABASE_POOL_MAX` /
-  `DATABASE_CA_CERT`, but the local PGlite socket is single-connection and
+  `DATABASE_CA_CERT`, but the local PGlite socket is one session and
   speaks no TLS — so a local `DATABASE_URL` forces no-TLS and `max: 1`
   regardless. An explicit `max` passed in code still applies.
 
@@ -413,7 +413,8 @@ boots it persisted to `.pglite/`, applies migrations, exposes it via
 `PGLiteSocketServer` on `127.0.0.1:5432` so the app's normal `pg.Pool` connects
 through `DATABASE_URL` with no app-code changes, then execs `next dev`; the
 test harness runs in-memory. Walkthroughs and the encoded gotchas
-(single-connection socket → `max: 1`; `pg.Pool` destroys a connection on query
+(one session behind the socket → `max: 1`, and no second connection awaited
+inside a transaction; `pg.Pool` destroys a connection on query
 error, so unique-violation control flow is banned in favor of
 `INSERT … ON CONFLICT`) are in the [README](../packages/nk-db/README.md).
 
