@@ -1,5 +1,22 @@
 # @ingram-tech/nk-dev
 
+## 0.19.0
+
+### Minor Changes
+
+- 1ebe1e9: oxfmt 0.71 (from 0.67). No option changes; the release line is formatter
+  fixes, mostly in Markdown, so a site may see a few lines reformatted on its
+  next `nk format`.
+- 0ae421f: Type-aware lint with no setup: nk-dev depends on `oxlint-tsgolint`, and `nk lint` and `nk check` hand its native binary to oxlint through `OXLINT_TSGOLINT_PATH` (a path you set wins). Turn the rules on with `"options": { "typeAware": true }` in `.oxlintrc.json`; without it, lint is unchanged.
+  
+  The agent-guide gate in `nk check`, the `nk doctor` finding and `nk init` accept the guide import from any `CLAUDE.md` between the working directory and the repository root. A workspace member's own `CLAUDE.md` no longer fails the gate, and `doctor --fix` and `init` no longer add a second import.
+
+### Patch Changes
+
+- ba8ca83: Toolchain refresh: oxlint 1.86, knip 6.39, vitest 5.0.3, jsdom 30.1 and
+  @testing-library/dom 10.4.2. No rule or config changes in nk-dev's shipped
+  oxlintrc; sites pick up the new versions on their next install.
+
 ## 0.18.0
 
 ### Minor Changes
