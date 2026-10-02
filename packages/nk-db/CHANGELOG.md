@@ -1,5 +1,27 @@
 # @ingram-tech/nk-db
 
+## 2.3.0
+
+### Minor Changes
+
+- e0fd700: PGlite dev server: accept several connections. `createPgliteServer` (and so
+  `nk dev`) now passes `maxConnections` to pglite-socket, default 20 (new
+  option), instead of inheriting its default of 1, which refused every pool
+  after the first that `next dev` creates and failed authed pages with
+  "Connection terminated unexpectedly". It also patches pglite-socket's query
+  queue so concurrent connections' extended-protocol batches no longer
+  interleave on PGlite's one session (electric-sql/pglite#1046), a failed
+  message no longer stalls the queue, a failed batch gets one ReadyForQuery
+  instead of two (electric-sql/pglite#958), and a transaction that waits on a
+  second connection is logged as `nk(pglite): queue stalled …` instead of
+  hanging silently.
+- 69e3e6d: PGlite dev server: the `nk(pglite): queue stalled …` warning now backs off (5s,
+  10s, 20s…, capped at a minute) instead of repeating every 5s, and steady
+  traffic from waiting connections can no longer postpone it. The optional
+  `@electric-sql/pglite-socket` peer now requires `>=0.2.11`, the release whose
+  query queue the multi-connection patch is written against; on older releases
+  the patch was skipped and concurrent connections could interleave.
+
 ## 2.2.0
 
 ### Minor Changes
