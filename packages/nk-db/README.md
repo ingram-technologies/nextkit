@@ -28,7 +28,7 @@ DATABASE_POOL_MAX=5       # optional; keep small on serverless
 
 TLS is determined by the connection string and the CA cert, never by a flag: a
 local host (`127.0.0.1`/`localhost`) gets no TLS and a `max: 1` pool (the
-PGlite socket is single-connection; local detection also wins over a pulled
+PGlite socket is one session; local detection also wins over a pulled
 `DATABASE_POOL_MAX`/`DATABASE_CA_CERT`); with `DATABASE_CA_CERT` set the server
 cert + hostname are verified; otherwise TLS runs without chain verification
 (managed-provider certs aren't in Node's trust store).
@@ -300,15 +300,22 @@ Tests use an in-memory instance:
 ```ts
 import { createTestDb } from "@ingram-tech/nk-db/pglite";
 
-// Vitest: fileParallelism:false (the socket is single-connection).
+// Vitest: fileParallelism:false (PGlite is one session).
 const { pool, db, reset, close } = await createTestDb({ migrationsFolder: "drizzle" });
 // beforeEach(reset); afterAll(close);
 ```
 
 ## Gotchas it bakes in
 
-- **Local pool is capped at `max:1`** — the PGlite socket is single-connection;
-  a larger pool breaks dev with "Connection terminated unexpectedly".
+- **Local pool is capped at `max:1`** — PGlite is one Postgres session. The
+  socket accepts up to `maxConnections` (default 20, room for the several pools
+  `next dev` creates) but runs one batch at a time, so a bigger pool gains
+  nothing.
+- **Never await a second connection inside a transaction.** On PGlite the
+  transaction holds the only session, so the second query waits forever; the
+  socket logs `nk(pglite): queue stalled …` with the holder's last SQL. Prod
+  survives it but pins two connections per request. Do the extra lookup
+  before or after the transaction.
 - **`pg.Pool` destroys a connection on a query *error*.** Don't catch unique
   violations as control flow — use `INSERT … ON CONFLICT DO NOTHING RETURNING …`.
 - **`jsonb` params:** `JSON.stringify()` the value and cast `$n::jsonb` (Drizzle's

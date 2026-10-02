@@ -16,6 +16,7 @@ import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
 import { ID758_SQL } from "id758/sql";
 import type { Pool } from "pg";
 import { resetPublicTables } from "./reset.js";
+import { isolateConnections } from "./socket-fix.js";
 
 export interface PgliteServerOptions {
 	/** Persisted data dir; omit for an in-memory database (tests). */
@@ -65,6 +66,15 @@ export interface PgliteServerOptions {
 	 * `CREATE EXTENSION` them: PGlite only knows the extensions passed here.
 	 */
 	extensions?: Extensions;
+	/**
+	 * How many TCP connections the socket accepts. Default `20`. They share
+	 * PGlite's one session, one message batch at a time (see `socket-fix.ts`),
+	 * so this buys no parallelism: it is room for every pool `next dev` creates
+	 * (one per module graph and process) and for a `psql` alongside. At `1`,
+	 * pglite-socket's own default, the second pool is refused and its query
+	 * fails with "Connection terminated unexpectedly".
+	 */
+	maxConnections?: number;
 }
 
 export interface PgliteServer {
@@ -120,8 +130,9 @@ const applyDependencyMigrations = async (
  * Boot PGlite, apply migrations (on a fresh/in-memory db), and expose it over a
  * TCP socket so a normal `pg.Pool` connects via `DATABASE_URL` with no app code
  * changes. Reused by both `startPgliteDev` (persisted) and `createTestDb`
- * (in-memory). The socket server is single-connection — keep the consuming pool
- * at `max: 1` (createPool does this for local hosts).
+ * (in-memory). The socket accepts several connections but serves them from one
+ * session, one batch at a time, so a pool above `max: 1` gains nothing
+ * (createPool caps local hosts at 1).
  */
 export const createPgliteServer = async (
 	options: PgliteServerOptions = {},
@@ -153,7 +164,13 @@ export const createPgliteServer = async (
 	await applyDependencyMigrations(db, options.dependencyMigrations ?? []);
 	await (options.migrate ?? defaultMigrate(migrationsFolder))(db);
 
-	const server = new PGLiteSocketServer({ db, host, port });
+	const server = new PGLiteSocketServer({
+		db,
+		host,
+		port,
+		maxConnections: options.maxConnections ?? 20,
+	});
+	isolateConnections(server, db);
 	await server.start();
 	const databaseUrl = `postgresql://postgres:postgres@${host}:${port}/postgres`;
 	const stop = async (): Promise<void> => {
