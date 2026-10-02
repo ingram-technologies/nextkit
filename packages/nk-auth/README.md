@@ -159,6 +159,20 @@ database applies 0002 and 0003 back to back, and where 0002 refuses a provider,
 set `issuer` to any placeholder: the value is never read again. Dropping the
 column is a later, optional delta, possible once no 1.7.2 site remains.
 
+**From 1.7.5, Better Auth checks the schema before every endpoint.** The first
+call into any endpoint, `getSession` included, compares the database with what
+the configuration writes, and while it fails every auth call throws "Database
+schema mismatch". It fails on a missing table or column, and also on a column
+Better Auth does not write that is NOT NULL with no default. So a site that
+owns its auth tables in its own chain (not this shipped one) must make sure no
+such column survives: a 0002-style NOT NULL `account.issuer` with no 0003-style
+relax breaks sign-in outright, not just sign-up. The check runs once per
+process and caches a clean result. It needs a database: a unit test that
+reaches a real `getSession` without one now throws instead of returning
+`null`, so mock the session seam there. `advanced.database.validateSchema:
+false` turns the check off, but it is the guard that turns this drift into a
+loud error instead of failed inserts, so keep it on in production.
+
 > **Adopting from the old copy-in model?** Earlier versions told you to `cp` the
 > baseline into your own `drizzle/` chain. If you already did, keep that file
 > (deleting an applied migration causes journal drift) and just add the auth-chain
