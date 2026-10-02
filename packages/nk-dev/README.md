@@ -81,8 +81,9 @@ tsc), so versions stay under your control. nk only orchestrates.
   skips files that already exist.
 - **`nk doctor [--fix]`** — report drift from the canonical nk-dev toolchain
   (superseded deps, config `extends`, package.json scripts, the agent-guide
-  import (from any CLAUDE.md up to the repository root), a stale `.prettierignore`, an unsealed migration chain and the DDL in
-  it drizzle can't model, a page under `app/auth/` shadowing a Better Auth
+  import (from any CLAUDE.md up to the repository root), a stale
+  `.prettierignore`, an unsealed migration chain and the DDL in it drizzle
+  can't model, a page under `app/auth/` shadowing a Better Auth
   endpoint — static segments beat the `[...all]` catch-all, so such a page
   silently 405s the endpoint, a page or layout whose `openGraph` carries no
   image — its own object replaces the inherited one, so the card unfurls as a
@@ -116,8 +117,9 @@ tsc), so versions stay under your control. nk only orchestrates.
   apply → `nk format` + `nk type-check`) and its syntactic-not-semantic limits
   live in the codemod skill, `skills/ts-codemod.md`.
 - **`nk check`** — `oxlint` + `oxfmt --check` + `knip` (only when the repo has a
-  knip config) + the agent-guide import gate (any CLAUDE.md from the site up to the repository root) + the migration seal. The CI gate;
-  runs every checker and reports them all before failing.
+  knip config) + the agent-guide import gate (any CLAUDE.md from the site up
+  to the repository root) + the migration seal. The CI gate; runs every
+  checker and reports them all before failing.
 - **`nk type-check`** — `next typegen && tsc --noEmit`, with recovery: when
   every error sits inside generated types (`.next/types`, `.next/dev/types` —
   a deleted route or a killed dev server leaves them stale, and `next typegen`

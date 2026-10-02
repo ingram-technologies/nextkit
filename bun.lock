@@ -119,7 +119,7 @@
     },
     "packages/nk-db": {
       "name": "@ingram-tech/nk-db",
-      "version": "2.2.0",
+      "version": "2.3.0",
       "bin": {
         "nk-pglite-dev": "./dist/pglite/dev.js",
         "nk-pg-migrate": "./dist/migrate-bin.js",
