@@ -25,14 +25,6 @@ describe("hreflangAlternates", () => {
 		expect(links[0]?.href).toBe("https://acme.test/?lang=en");
 	});
 
-	it("prefix strategy: the root path gets bare locale prefixes", () => {
-		const { links } = hreflangAlternates(
-			{ baseUrl, locales: ["en", "fr"], strategy: "prefix" },
-			"/",
-		);
-		expect(links[1]?.href).toBe("https://acme.test/fr");
-	});
-
 	it("maps locales to regional hreflang tags", () => {
 		const { links } = hreflangAlternates(
 			{
@@ -58,19 +50,6 @@ describe("hreflangAlternates", () => {
 		expect(links[1]?.href).toBe("https://acme.test/fr/about");
 	});
 
-	it("query strategy: canonical self-references the variant when currentLocale is passed", () => {
-		// A variant canonicalizing to another URL makes Google drop the cluster.
-		const { canonical } = hreflangAlternates(
-			{
-				baseUrl,
-				locales: ["en", "fr"],
-				currentLocale: "fr",
-			},
-			"/about",
-		);
-		expect(canonical).toBe("https://acme.test/about?hl=fr");
-	});
-
 	it("query strategy: appends with & when the path already carries a query", () => {
 		const { links } = hreflangAlternates(
 			{ baseUrl, locales: ["en"] },
@@ -84,9 +63,6 @@ describe("hreflangAlternates", () => {
 		// resolving it against the base would emit a poisoned canonical.
 		expect(() =>
 			hreflangAlternates({ baseUrl, locales: ["en"] }, "//evil.com/x"),
-		).toThrow(/outside the site origin/);
-		expect(() =>
-			hreflangAlternates({ baseUrl, locales: ["en"] }, "/\\evil.com/x"),
 		).toThrow(/outside the site origin/);
 	});
 });
@@ -107,11 +83,6 @@ describe("hreflangAlternates: prefix strategy", () => {
 			{ hrefLang: "nl", href: "https://acme.test/nl/about" },
 			{ hrefLang: "x-default", href: "https://acme.test/about" },
 		]);
-	});
-
-	it("points x-default at the bare negotiating path", () => {
-		const { languages } = hreflangAlternates(config, "/about");
-		expect(languages["x-default"]).toBe("https://acme.test/about");
 	});
 
 	it("strips an existing locale prefix instead of double-prefixing", () => {

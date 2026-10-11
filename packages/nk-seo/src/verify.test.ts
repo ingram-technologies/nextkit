@@ -1,7 +1,7 @@
 import { defineLocaleRouting } from "@ingram-tech/nk-i18n";
 import { describe, expect, it } from "vitest";
 import { hreflangAlternates, type HreflangConfig } from "./alternates.js";
-import { verifyHreflangCluster } from "./verify.js";
+import { assertHreflangCluster, verifyHreflangCluster } from "./verify.js";
 
 const routing = defineLocaleRouting({
 	baseUrl: "https://acme.test",
@@ -133,5 +133,86 @@ describe("verifyHreflangCluster", () => {
 			}),
 		});
 		expect(problems[0]?.problem).toMatch(/2 <link rel=canonical> tags/);
+	});
+
+	it("reports a failed request instead of throwing", async () => {
+		const problems = await verifyHreflangCluster(routing, ["/pricing"], {
+			fetch: () => Promise.reject(new Error("ECONNREFUSED")),
+		});
+		// One problem per advertised URL, each naming the network error.
+		expect(problems).toHaveLength(3);
+		for (const problem of problems) {
+			expect(problem.problem).toMatch(/request failed: ECONNREFUSED/);
+		}
+	});
+
+	it.each([404, 500])("catches an advertised URL that returns %i", async (status) => {
+		const problems = await verifyHreflangCluster(routing, ["/pricing"], {
+			fetch: serve({
+				"https://acme.test/pricing": html(page("/pricing", undefined)),
+				"https://acme.test/pricing?hl=en": html(page("/pricing", "en")),
+				"https://acme.test/pricing?hl=fr": () =>
+					new Response("err", { status }),
+			}),
+		});
+		expect(problems).toHaveLength(1);
+		expect(problems[0]?.url).toBe("https://acme.test/pricing?hl=fr");
+		expect(problems[0]?.problem).toMatch(new RegExp(`returned ${status}`));
+	});
+
+	it("catches a page with no canonical at all", async () => {
+		const bare = page("/pricing", "fr").replace(/<link rel="canonical"[^>]*>/, "");
+		const problems = await verifyHreflangCluster(routing, ["/pricing"], {
+			fetch: serve({
+				"https://acme.test/pricing": html(page("/pricing", undefined)),
+				"https://acme.test/pricing?hl=en": html(page("/pricing", "en")),
+				"https://acme.test/pricing?hl=fr": html(bare),
+			}),
+		});
+		expect(problems).toHaveLength(1);
+		expect(problems[0]?.problem).toMatch(/no <link rel=canonical>/);
+	});
+
+	it("skips the html lang check when checkHtmlLang is false", async () => {
+		const routes = {
+			"https://acme.test/pricing": html(page("/pricing", undefined)),
+			"https://acme.test/pricing?hl=en": html(page("/pricing", "en")),
+			"https://acme.test/pricing?hl=fr": () =>
+				html(page("/pricing", "fr", { lang: "fr-BE" })),
+		};
+		expect(
+			await verifyHreflangCluster(routing, ["/pricing"], {
+				fetch: serve(routes),
+				checkHtmlLang: false,
+			}),
+		).toEqual([]);
+	});
+});
+
+describe("assertHreflangCluster", () => {
+	it("resolves for a sound cluster", async () => {
+		await expect(
+			assertHreflangCluster(routing, ["/pricing"], {
+				fetch: serve({
+					"https://acme.test/pricing": html(page("/pricing", undefined)),
+					"https://acme.test/pricing?hl=en": html(page("/pricing", "en")),
+					"https://acme.test/pricing?hl=fr": html(page("/pricing", "fr")),
+				}),
+			}),
+		).resolves.toBeUndefined();
+	});
+
+	it("throws one error listing every problem, not just the first", async () => {
+		const error = await assertHreflangCluster(routing, ["/pricing"], {
+			fetch: serve({
+				"https://acme.test/pricing": html(page("/pricing", undefined)),
+				// ?hl=en and ?hl=fr both 404 (unrouted in the stub).
+			}),
+		}).catch((caught: unknown) => caught);
+		expect(error).toBeInstanceOf(Error);
+		const message = error instanceof Error ? error.message : "";
+		expect(message).toMatch(/2 hreflang problem/);
+		expect(message).toContain("https://acme.test/pricing?hl=en");
+		expect(message).toContain("https://acme.test/pricing?hl=fr");
 	});
 });

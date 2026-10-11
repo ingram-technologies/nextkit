@@ -899,6 +899,7 @@ export function createSeo(config: SeoConfig) {
 			}
 			const publisher = input?.publisher ?? config.organization;
 			return website({
+				...input,
 				name,
 				url: absolute(input?.url ?? config.baseUrl),
 				...(publisher ? { publisher: resolveOrg(publisher) } : {}),

@@ -1,3 +1,4 @@
+import { defineLocaleRouting } from "@ingram-tech/nk-i18n";
 import { describe, expect, it } from "vitest";
 import { createMetadata, ogImageMetadata } from "./metadata.js";
 
@@ -68,8 +69,16 @@ describe("createMetadata", () => {
 			description: "D",
 			path: "/blog/post",
 			type: "article",
+			openGraph: { title: "Share title", description: "Share blurb" },
 		});
-		expect(meta.openGraph).toMatchObject({ type: "article" });
+		expect(meta.openGraph).toMatchObject({
+			type: "article",
+			title: "Share title",
+			description: "Share blurb",
+			// Merged, not replaced: the generated fields the page didn't set survive.
+			url: "https://example.test/blog/post",
+			siteName: "Acme",
+		});
 	});
 
 	it("merges per-page alternates over the canonical instead of replacing it", () => {
@@ -144,19 +153,17 @@ describe("createMetadata with hreflang", () => {
 		);
 	});
 
-	it("accepts the nk-i18n routing object shape, extra fields included", () => {
-		const routingLike = {
+	it("accepts a real nk-i18n routing object, extra fields included", () => {
+		const routing = defineLocaleRouting({
 			baseUrl: "https://example.test",
-			locales: ["en", "fr"] as const,
-			strategy: "query" as const,
-			param: "hl",
-			hrefLangTags: undefined,
+			locales: ["en", "fr"],
+			defaultLocale: "en",
 			cookieName: "locale",
-		};
+		});
 		const meta = createMetadata({
-			baseUrl: routingLike.baseUrl,
+			baseUrl: routing.baseUrl,
 			siteName: "Acme",
-			hreflang: routingLike,
+			hreflang: routing,
 		})({ title: "T", description: "D", path: "/pricing" });
 		expect(meta.alternates?.languages).toEqual({
 			en: "https://example.test/pricing?hl=en",

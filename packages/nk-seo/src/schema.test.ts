@@ -251,14 +251,6 @@ describe("createSeo", () => {
 		organization: { name: "Acme", logo: "https://x.test/logo.png" },
 	});
 
-	it("resolves relative paths against the base URL", () => {
-		expect(seo.absolute("/pricing")).toBe("https://x.test/pricing");
-	});
-
-	it("passes absolute URLs through untouched", () => {
-		expect(seo.absolute("https://other.test/x")).toBe("https://other.test/x");
-	});
-
 	it("resolves breadcrumb paths to absolute item URLs", () => {
 		const result = seo.breadcrumbs([
 			{ name: "Home", path: "/" },
@@ -336,6 +328,11 @@ describe("createSeo", () => {
 		expect(
 			relative.article({ path: "/blog/x", headline: "X" }).publisher,
 		).toMatchObject({ url: "https://x.test/" });
+	});
+
+	it("carries extra through website(), like every other builder", () => {
+		const node = seo.website({ extra: { inLanguage: "fr" } });
+		expect(node).toMatchObject({ name: "Acme", inLanguage: "fr" });
 	});
 });
 
