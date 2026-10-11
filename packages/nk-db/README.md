@@ -305,6 +305,21 @@ const { pool, db, reset, close } = await createTestDb({ migrationsFolder: "drizz
 // beforeEach(reset); afterAll(close);
 ```
 
+A harness that boots PGlite itself (say, from a `dumpDataDir` snapshot) and
+builds its own `PGLiteSocketServer` applies the same connection fix
+`createPgliteServer` does, before `start()`:
+
+```ts
+import { isolateConnections } from "@ingram-tech/nk-db/pglite";
+
+const server = new PGLiteSocketServer({ db, port, maxConnections: 20 });
+isolateConnections(server, db);
+await server.start();
+```
+
+Without it, two connections' extended-protocol batches interleave, and an
+error inside a batch makes `pg` read every later result one statement late.
+
 ## Gotchas it bakes in
 
 - **Local pool is capped at `max:1`** — PGlite is one Postgres session. The

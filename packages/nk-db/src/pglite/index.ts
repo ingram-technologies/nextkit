@@ -18,6 +18,10 @@ import type { Pool } from "pg";
 import { resetPublicTables } from "./reset.js";
 import { isolateConnections } from "./socket-fix.js";
 
+/** For a harness that builds its own `PGLiteSocketServer` (e.g. from a
+ *  snapshot): apply the same multi-connection fix `createPgliteServer` does. */
+export { isolateConnections };
+
 export interface PgliteServerOptions {
 	/** Persisted data dir; omit for an in-memory database (tests). */
 	dataDir?: string;
