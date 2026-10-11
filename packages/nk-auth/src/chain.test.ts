@@ -104,6 +104,24 @@ describe("assertAuthChainApplied", () => {
 		expect(await assertAuthChainApplied(unrecorded.pool)).toBeNull();
 	});
 
+	it("skips a journal this role cannot read instead of throwing", async () => {
+		// A least-privilege auth role with no USAGE on `drizzle`: to_regclass
+		// raised "permission denied" here and 500'd every session read.
+		const restricted = await createTestDb({
+			migrate: async () => {},
+			dependencyMigrations: [{ folder: partial, table: AUTH_MIGRATIONS_TABLE }],
+		});
+		try {
+			await restricted.pool.query("create role auth_only");
+			await restricted.pool.query("revoke all on schema drizzle from public");
+			await restricted.pool.query("set role auth_only");
+			// Lagging, but unverifiable through this role: no throw either way.
+			expect(await assertAuthChainApplied(restricted.pool)).toBeNull();
+		} finally {
+			await restricted.close();
+		}
+	});
+
 	it("memoizes per process and skips anything that is not a pg pool", async () => {
 		let calls = 0;
 		const counting = {

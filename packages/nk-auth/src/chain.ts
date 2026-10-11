@@ -59,8 +59,11 @@ export interface AuthChainCheckOptions {
  * Returns the runner's status when it is, or `null` when the database has no
  * nk-auth journal table at all: a site that owns Better Auth's tables in its
  * own chain (a squashed baseline) never records this one, and that is not a
- * deployment mistake. Throws {@link AuthChainNotAppliedError} when the journal
- * exists but lags the installed package.
+ * deployment mistake. Also `null` when this role cannot read the journal (a
+ * least-privilege auth role with no access to the `drizzle` schema): it could
+ * not have applied the chain either, so there is nothing to verify through it.
+ * Throws {@link AuthChainNotAppliedError} when the journal exists but lags the
+ * installed package.
  *
  * `createAuthHelpers` runs this once per process on the first session read
  * when the instance's `database` is a `pg` Pool; call it yourself from
@@ -72,11 +75,19 @@ export const assertAuthChainApplied = async (
 ): Promise<MigrationStatus | null> => {
 	const schema = options.migrationsSchema ?? "drizzle";
 	const table = options.migrationsTable ?? AUTH_MIGRATIONS_TABLE;
-	const { rows } = await pool.query<{ present: string | null }>(
-		"select to_regclass($1) as present",
-		[`"${schema}"."${table}"`],
+	// Look the journal up in pg_catalog, which every role can read:
+	// `to_regclass` raises "permission denied" instead of returning null when the
+	// role lacks USAGE on the schema, and that broke every session read on a
+	// site whose auth role has no business in `drizzle`.
+	const { rows } = await pool.query<{ readable: boolean }>(
+		`select has_schema_privilege(n.oid, 'USAGE')
+			and has_table_privilege(c.oid, 'SELECT') as readable
+		from pg_catalog.pg_class c
+		join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+		where n.nspname = $1 and c.relname = $2`,
+		[schema, table],
 	);
-	if (rows[0]?.present === null || rows[0]?.present === undefined) return null;
+	if (rows[0]?.readable !== true) return null;
 	const status = await inspectMigrations({
 		pool,
 		migrationsFolder: authMigrationsFolder(),
