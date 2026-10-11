@@ -62,10 +62,11 @@ describe("serializeEmailCatalog", () => {
 	it("emits a versioned manifest that round-trips", () => {
 		const cat = defineEmailCatalog([entry()]);
 		const json = serializeEmailCatalog(cat, { product: "Acme" });
-		const parsed = JSON.parse(json) as EmailCatalog;
-		expect(parsed.version).toBe(EMAIL_CATALOG_VERSION);
-		expect(parsed.product).toBe("Acme");
-		expect(parsed.entries[0]?.key).toBe("welcome");
+		expect(JSON.parse(json)).toEqual({
+			version: EMAIL_CATALOG_VERSION,
+			product: "Acme",
+			entries: [entry()],
+		});
 	});
 
 	it("omits product when not given and can emit compact JSON", () => {

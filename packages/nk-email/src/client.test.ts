@@ -49,6 +49,25 @@ describe("fromAddress", () => {
 			/control characters or newlines/,
 		);
 	});
+
+	it.each([
+		["a newline", "hi\r\nBcc: victim@example.com"],
+		["a control character", "hi\x00"],
+		["DEL", "hi\x7f"],
+		["an at sign", "a@evil.test"],
+		["an angle bracket", "a>b"],
+		["a space", "a b"],
+		["a comma", "a,b"],
+		["a quote", 'a"b'],
+	])("rejects a local part containing %s", (_label, localPart) => {
+		expect(() => fromAddress("Ingram", localPart)).toThrow(/local part/);
+	});
+
+	it("accepts a dot-atom local part", () => {
+		expect(fromAddress("Ingram", "no-reply.billing+x")).toContain(
+			"<no-reply.billing+x@mail.example.com>",
+		);
+	});
 });
 
 describe("keys", () => {
@@ -63,7 +82,15 @@ describe("keys", () => {
 	it("lists every missing variable in one error", () => {
 		process.env.CLOUDFLARE_ACCOUNT_ID = undefined;
 		process.env.EMAIL_FROM_DOMAIN = undefined;
-		expect(() => keys()).toThrow(/CLOUDFLARE_ACCOUNT_ID, EMAIL_FROM_DOMAIN/);
+		let message = "";
+		try {
+			keys();
+		} catch (error) {
+			message = String(error);
+		}
+		expect(message).toContain("CLOUDFLARE_ACCOUNT_ID");
+		expect(message).toContain("EMAIL_FROM_DOMAIN");
+		expect(message).not.toContain("CLOUDFLARE_EMAIL_API_TOKEN");
 	});
 
 	it("isConfigured reflects presence of all three vars", () => {
@@ -119,14 +146,13 @@ describe("sendEmail", () => {
 			subject: "Hi",
 			text: "t",
 			listUnsubscribe: { url: "https://x.test/u", mailto: "bye@x.test" },
-			headers: { "X-Campaign": "welcome" },
+			headers: { "List-Unsubscribe": "<custom>", "X-Campaign": "welcome" },
 		});
 
 		const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
 		const payload = JSON.parse(init.body as string);
 		expect(payload.headers).toEqual({
-			"List-Unsubscribe":
-				"<https://x.test/u>, <mailto:bye@x.test?subject=unsubscribe>",
+			"List-Unsubscribe": "<custom>",
 			"List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
 			"X-Campaign": "welcome",
 		});

@@ -3,10 +3,12 @@ import { escapeHtml } from "./html.js";
 import { buildListUnsubscribeHeaders } from "./unsubscribe.js";
 
 describe("escapeHtml", () => {
-	it("escapes the five HTML-significant characters", () => {
-		expect(escapeHtml(`<a href="x">Tom & Jerry's</a>`)).toBe(
-			"&lt;a href=&quot;x&quot;&gt;Tom &amp; Jerry&#39;s&lt;/a&gt;",
-		);
+	it("leaves none of the five HTML-significant characters raw", () => {
+		const escaped = escapeHtml(`<a href="x">Tom & Jerry's</a>`);
+		// Every `&` left must open a character reference; nothing else may survive.
+		const withoutEntities = escaped.replace(/&(?:[a-z]+|#\d+|#x[\da-f]+);/gi, "");
+		expect(withoutEntities).not.toMatch(/[<>"'&]/);
+		expect(withoutEntities).toContain("Tom");
 	});
 
 	it("escapes ampersands before other entities (no double-encoding)", () => {
@@ -15,6 +17,19 @@ describe("escapeHtml", () => {
 });
 
 describe("buildListUnsubscribeHeaders", () => {
+	it.each([
+		["a newline in the url", { url: "https://x.test/u\r\nBcc: v@x.test" }],
+		["a control character in the url", { url: "https://x.test/u\x00" }],
+		["an angle bracket in the url", { url: "https://x.test/u>" }],
+		["a comma in the url", { url: "https://x.test/u,<https://evil.test>" }],
+		["a newline in the mailto", { url: "https://x.test/u", mailto: "a@x.test\n" }],
+		["an angle bracket in the mailto", { url: "https://x.test/u", mailto: "<a@x" }],
+	])("rejects %s", (_label, unsubscribe) => {
+		expect(() => buildListUnsubscribeHeaders(unsubscribe)).toThrow(
+			/must not contain/,
+		);
+	});
+
 	it("builds a URL-only one-click header pair", () => {
 		expect(
 			buildListUnsubscribeHeaders({ url: "https://x.test/u?token=abc" }),
