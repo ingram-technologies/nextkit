@@ -62,6 +62,45 @@ describe("createBlog", () => {
 		await expect(blog.posts()).rejects.toThrow(/duplicate slug "a"/);
 	});
 
+	it("fails on a draft that collides with a live post, even with drafts off", async () => {
+		// Otherwise the clash only surfaces in previews, and publishing the draft
+		// later silently replaces a live URL.
+		await expect(
+			createBlog({
+				source: memory(post("a.md"), post("b.md", "slug: a\ndraft: true")),
+			}).posts(),
+		).rejects.toThrow(/duplicate slug "a"/);
+		await expect(
+			createBlog({ source: memory(post("a.md"), post("_a.md")) }).posts(),
+		).rejects.toThrow(/duplicate slug "a"/);
+	});
+
+	it("orders same-day posts by slug then lang, whatever the file order", async () => {
+		const files = [
+			post("b.md"),
+			post("a.fr.md", "lang: fr\nslug: a"),
+			post("a.md"),
+		];
+		const order = async (source: RawPostFile[]) =>
+			(
+				await createBlog({
+					source: memory(...source),
+					defaultLang: "en",
+				}).posts()
+			).map((p) => `${p.slug}:${p.lang}`);
+		expect(await order(files)).toEqual(["a:en", "a:fr", "b:en"]);
+		expect(await order([...files].reverse())).toEqual(await order(files));
+	});
+
+	it("computes reading time with the configured wordsPerMinute", async () => {
+		const body = Array.from({ length: 30 }, () => "word").join(" ");
+		const blog = createBlog({
+			source: memory(post("a.md", "", body)),
+			wordsPerMinute: 10,
+		});
+		expect((await blog.post("a"))?.readingTimeMinutes).toBe(3);
+	});
+
 	it("throws on invalid frontmatter by default, skips when configured", async () => {
 		const bad = file("bad.md", "title: X");
 		await expect(createBlog({ source: memory(bad) }).posts()).rejects.toThrow(

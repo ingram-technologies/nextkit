@@ -32,6 +32,10 @@ export interface BlogSeoConfig {
 	defaultLang?: string;
 }
 
+/** The configured origin without a trailing slash, so joins never emit `//`. */
+const siteOrigin = (config: BlogSeoConfig): string =>
+	config.baseUrl.replace(/\/+$/, "");
+
 /** `/fr` for a non-default language, `""` for the default (or no language). */
 const langPrefix = (lang: string | undefined, config: BlogSeoConfig): string =>
 	config.defaultLang !== undefined &&
@@ -42,7 +46,7 @@ const langPrefix = (lang: string | undefined, config: BlogSeoConfig): string =>
 
 /** Absolute URL of the blog index in `lang`: `/blog`, `/fr/blog`. */
 export function blogIndexUrl(lang: string | undefined, config: BlogSeoConfig): string {
-	return `${config.baseUrl}${langPrefix(lang, config)}${config.basePath}`;
+	return `${siteOrigin(config)}${langPrefix(lang, config)}${config.basePath}`;
 }
 
 /** Absolute URL of a post, prefixed by its language when that isn't the default. */
@@ -71,10 +75,7 @@ export function blogPostAlternates(
 	translations: readonly BlogPostPreview[],
 	config: BlogSeoConfig,
 ): BlogPostAlternates {
-	const canonical = toAbsoluteUrl(
-		post.canonical ?? postUrl(post, config),
-		config.baseUrl,
-	);
+	const canonical = toAbsoluteUrl(post.canonical ?? postUrl(post, config), config);
 	const versions = translations.filter((version) => version.lang !== undefined);
 	if (versions.length < 2) return { canonical, languages: {} };
 
@@ -93,10 +94,10 @@ export function blogPostAlternates(
 // rather than being origin-checked: a post's image can live on a CDN and its
 // `canonical` can be a cross-origin syndication override, both legitimately
 // off-origin — so this must not throw the way the canonical-link resolver does.
-const toAbsoluteUrl = (url: string, baseUrl: string): string =>
+const toAbsoluteUrl = (url: string, config: BlogSeoConfig): string =>
 	/^https?:\/\//.test(url)
 		? url
-		: `${baseUrl}${url.startsWith("/") ? "" : "/"}${url}`;
+		: `${siteOrigin(config)}${url.startsWith("/") ? "" : "/"}${url}`;
 
 /** BlogPosting JSON-LD for a post — the nk-seo bridge. */
 export function blogPostArticle(
@@ -108,11 +109,11 @@ export function blogPostArticle(
 		type: "BlogPosting",
 		headline: post.title,
 		description: post.description,
-		url: toAbsoluteUrl(post.canonical ?? postUrl(post, config), config.baseUrl),
+		url: toAbsoluteUrl(post.canonical ?? postUrl(post, config), config),
 		datePublished: post.date,
 		dateModified: post.updated,
 		authors: post.authors.map((name) => ({ name })),
-		image: post.image ? toAbsoluteUrl(post.image, config.baseUrl) : undefined,
+		image: post.image ? toAbsoluteUrl(post.image, config) : undefined,
 		keywords: post.tags.length ? post.tags : undefined,
 		publisher: config.publisher,
 		...(post.lang ? { extra: { inLanguage: post.lang } } : {}),
@@ -126,7 +127,7 @@ export function blogPostBreadcrumbs(
 	config: BlogSeoConfig,
 ): WithContext<BreadcrumbListNode> {
 	return breadcrumbList([
-		{ name: "Home", url: `${config.baseUrl}${langPrefix(post.lang, config)}` },
+		{ name: "Home", url: `${siteOrigin(config)}${langPrefix(post.lang, config)}` },
 		{ name: config.blogName ?? "Blog", url: blogIndexUrl(post.lang, config) },
 		{ name: post.title, url: postUrl(post, config) },
 	]);

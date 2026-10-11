@@ -48,6 +48,27 @@ describe("seo bridge", () => {
 		expect(syndicated.url).toBe("https://other.example/orig");
 	});
 
+	it("never joins a trailing-slash baseUrl into a `//` path", () => {
+		const slashed = { ...config, baseUrl: "https://example.com/" };
+		const urls = [
+			blogIndexUrl(undefined, slashed),
+			postUrl(post, slashed),
+			blogPostArticle(post, slashed).url,
+			blogPostArticle(post, slashed).image,
+			blogPostArticle({ ...post, canonical: "/elsewhere" }, slashed).url,
+			blogPostAlternates(post, [post], slashed).canonical,
+			...blogPostBreadcrumbs(post, slashed).itemListElement.map(
+				(item) => item.item,
+			),
+		];
+		for (const url of urls) {
+			expect(url).toMatch(/^https:\/\/example\.com/);
+			expect(url?.slice("https://".length)).not.toContain("//");
+		}
+		// Same addresses as the slash-free config, not merely slash-free ones.
+		expect(postUrl(post, slashed)).toBe(postUrl(post, config));
+	});
+
 	it("builds Home → Blog → Post breadcrumbs", () => {
 		const node = blogPostBreadcrumbs(post, { ...config, blogName: "Posts" });
 		expect(node.itemListElement.map((item) => item.name)).toEqual([
@@ -94,6 +115,20 @@ describe("multilingual seo", () => {
 			},
 		});
 		expect(blogPostAlternates(fr, [fr], ml).languages).toEqual({});
+	});
+
+	it("omits x-default when no version is in the default language", () => {
+		const nl: BlogPostPreview = { ...fr, slug: "wat-is", lang: "nl" };
+		const { languages } = blogPostAlternates(fr, [fr, nl], ml);
+		expect(Object.keys(languages).sort()).toEqual(["fr", "nl"]);
+	});
+
+	it("uses the post's canonical override as the alternates canonical", () => {
+		const syndicated = { ...fr, canonical: "/orig/cest-quoi" };
+		const alternates = blogPostAlternates(syndicated, [en, syndicated], ml);
+		expect(alternates.canonical).toBe("https://example.com/orig/cest-quoi");
+		// The cluster still lists each version at its own address.
+		expect(alternates.languages.fr).toBe("https://example.com/fr/blog/cest-quoi");
 	});
 
 	it("marks the article language and localizes the crumbs", () => {

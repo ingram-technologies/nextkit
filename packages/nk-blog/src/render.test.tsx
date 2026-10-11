@@ -54,13 +54,27 @@ describe("MdxBody", () => {
 
 	it("renders bespoke components with enforcement off", async () => {
 		const element = await MdxBody({
-			content: "<Chart />\n\n{1 + 1}",
+			content: "<Chart />\n\n{6 * 7}",
 			components: unstyled,
 			bespoke: { Chart: () => <svg data-chart /> },
 		});
 		const html = renderToStaticMarkup(element);
 		expect(html).toContain("data-chart");
-		expect(html).toContain("2");
+		// The expression was evaluated, not echoed: no literal source survives.
+		expect(html).toContain("42");
+		expect(html).not.toContain("6 * 7");
+	});
+
+	it("keeps enforcement on for an empty bespoke map", async () => {
+		// A site spreading a possibly-empty registry must not switch off the
+		// trust boundary by accident.
+		await expect(
+			MdxBody({
+				content: "{process.env.SECRET}",
+				components: unstyled,
+				bespoke: {},
+			}),
+		).rejects.toThrow(/not allowed in limited MDX/);
 	});
 });
 

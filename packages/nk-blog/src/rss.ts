@@ -28,9 +28,11 @@ const escapeXml = (value: string): string =>
  * with `export const dynamic = "force-static"`) so it renders at build.
  */
 export function generateRss(config: RssConfig, posts: BlogPostPreview[]): string {
+	// A trailing-slash siteUrl would otherwise join into `https://x.com//posts`.
+	const blogUrl = `${config.siteUrl.replace(/\/+$/, "")}${config.basePath}`;
 	const items = posts
 		.map((post) => {
-			const url = `${config.siteUrl}${config.basePath}/${post.slug}`;
+			const url = `${blogUrl}/${post.slug}`;
 			return [
 				"\t\t<item>",
 				`\t\t\t<title>${escapeXml(post.title)}</title>`,
@@ -54,7 +56,7 @@ export function generateRss(config: RssConfig, posts: BlogPostPreview[]): string
 		'<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">',
 		"\t<channel>",
 		`\t\t<title>${escapeXml(config.title)}</title>`,
-		`\t\t<link>${escapeXml(config.siteUrl + config.basePath)}</link>`,
+		`\t\t<link>${escapeXml(blogUrl)}</link>`,
 		`\t\t<description>${escapeXml(config.description ?? config.title)}</description>`,
 		`\t\t<language>${escapeXml(config.language ?? "en")}</language>`,
 		`\t\t<atom:link href="${escapeXml(config.feedUrl)}" rel="self" type="application/rss+xml"/>`,
