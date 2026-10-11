@@ -135,8 +135,7 @@ export function findings(cwd) {
 	const delegates = (cmd) => isWorkspaceRoot && DELEGATES_RE.test(cmd ?? "");
 	const root = workspaceRootOf(cwd);
 	const isNextApp = NEXT_CONFIGS.some((f) => existsSync(resolve(cwd, f)));
-	const runsTsc = (cmd) =>
-		!isNextApp && !isWorkspaceRoot && /\btsc\b/.test(cmd ?? "");
+	const runsTsc = (cmd) => root !== null && !isNextApp && /\btsc\b/.test(cmd ?? "");
 	for (const [name, wanted] of Object.entries(CANONICAL_SCRIPTS)) {
 		if (
 			(name === "lint" || name === "format") &&
