@@ -1,63 +1,18 @@
-import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it } from "vitest";
-import plugin from "../lib/oxlint-plugins/index.js";
+import { describe, expect, it } from "vitest";
+import { lint as lintRule, ruleIds } from "./oxlint-harness.js";
 
-const pluginPath = join(
-	dirname(fileURLToPath(import.meta.url)),
-	"../lib/oxlint-plugins/index.js",
-);
+const RULE = "nextkit/no-deferred-current-target";
 
-const dirs = [];
-afterEach(() => {
-	for (const dir of dirs.splice(0)) {
-		rmSync(dir, { recursive: true, force: true });
-	}
-});
-
-// End-to-end through the real oxlint binary: validates the jsPlugins wiring,
-// visitor names (incl. :exit), and traversal — not just the rule's logic.
-const lint = (source) => {
-	const dir = mkdtempSync(join(tmpdir(), "nk-oxlint-dct-"));
-	dirs.push(dir);
-	writeFileSync(
-		join(dir, ".oxlintrc.json"),
-		JSON.stringify({
-			jsPlugins: [pluginPath],
-			rules: { "nextkit/no-deferred-current-target": "error" },
-		}),
-	);
-	writeFileSync(join(dir, "fixture.tsx"), source);
-	try {
-		execFileSync("oxlint", ["-c", ".oxlintrc.json", "fixture.tsx"], {
-			cwd: dir,
-			encoding: "utf8",
-		});
-		return "";
-	} catch (error) {
-		return String(error.stdout ?? "");
-	}
-};
+const lint = (source) =>
+	lintRule("no-deferred-current-target", source, { filename: "fixture.tsx" });
 
 describe("no-deferred-current-target", () => {
-	it("is exported by the combined nextkit plugin alongside the base-ui rule", () => {
-		expect(Object.keys(plugin.rules)).toEqual(
-			expect.arrayContaining([
-				"no-deferred-current-target",
-				"no-radix-props-on-base-ui",
-			]),
-		);
-	});
-
 	it("flags a read inside a setState updater", () => {
 		const out = lint(`
 			export const f = (set) => (event) =>
 				set((current) => ({ ...current, name: event.currentTarget.value }));
 		`);
-		expect(out).toContain("no-deferred-current-target");
+		expect(ruleIds(out)).toEqual([RULE]);
 	});
 
 	it("flags a read inside a setTimeout callback", () => {
@@ -66,7 +21,7 @@ describe("no-deferred-current-target", () => {
 				setTimeout(() => console.log(event.currentTarget.textContent), 100);
 			};
 		`);
-		expect(out).toContain("no-deferred-current-target");
+		expect(ruleIds(out)).toEqual([RULE]);
 	});
 
 	it("does not flag a synchronous read in the handler body", () => {
@@ -76,7 +31,7 @@ describe("no-deferred-current-target", () => {
 				set((current) => ({ ...current, name }));
 			};
 		`);
-		expect(out).toBe("");
+		expect(out).toEqual([]);
 	});
 
 	it("does not flag a callback param that shadows the handler's event", () => {
@@ -85,7 +40,7 @@ describe("no-deferred-current-target", () => {
 				on((event) => event.currentTarget.value);
 			};
 		`);
-		expect(out).toBe("");
+		expect(out).toEqual([]);
 	});
 
 	it("does not flag a local declared inside the callback", () => {
@@ -97,6 +52,6 @@ describe("no-deferred-current-target", () => {
 				}, 100);
 			};
 		`);
-		expect(out).toBe("");
+		expect(out).toEqual([]);
 	});
 });

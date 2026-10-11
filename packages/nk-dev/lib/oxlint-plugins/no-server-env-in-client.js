@@ -19,6 +19,18 @@
 
 const CLIENT_SAFE = /^NEXT_PUBLIC_/;
 
+/** The key a destructuring property reads, or null when it is computed. */
+const propertyKeyName = (property) => {
+	if (property.type !== "Property" || property.computed) return null;
+	if (property.key.type === "Identifier") return property.key.name;
+	if (property.key.type === "Literal" && typeof property.key.value === "string") {
+		return property.key.value;
+	}
+	return null;
+};
+
+const isClientSafe = (name) => name === "NODE_ENV" || CLIENT_SAFE.test(name);
+
 /** Whether the file opens with the "use client" directive. */
 const isClientFile = (program) => {
 	for (const statement of program.body) {
@@ -30,16 +42,18 @@ const isClientFile = (program) => {
 	return false;
 };
 
+/** Whether `node` is `process.env` itself. */
+const isProcessEnv = (node) =>
+	node.type === "MemberExpression" &&
+	!node.computed &&
+	node.object.type === "Identifier" &&
+	node.object.name === "process" &&
+	node.property.type === "Identifier" &&
+	node.property.name === "env";
+
 /** The variable name in `process.env.FOO` / `process.env["FOO"]`, or null. */
 const envVarName = (node) => {
-	const object = node.object;
-	if (object.type !== "MemberExpression" || object.computed) return null;
-	if (object.object.type !== "Identifier" || object.object.name !== "process") {
-		return null;
-	}
-	if (object.property.type !== "Identifier" || object.property.name !== "env") {
-		return null;
-	}
+	if (!isProcessEnv(node.object)) return null;
 	if (!node.computed && node.property.type === "Identifier") {
 		return node.property.name;
 	}
@@ -63,6 +77,8 @@ const noServerEnvInClient = {
 	},
 	create(context) {
 		let client = false;
+		const report = (node, name) =>
+			context.report({ node, messageId: "serverEnvInClient", data: { name } });
 		return {
 			Program(node) {
 				client = isClientFile(node);
@@ -71,12 +87,18 @@ const noServerEnvInClient = {
 				if (!client) return;
 				const name = envVarName(node);
 				if (name === null) return;
-				if (name === "NODE_ENV" || CLIENT_SAFE.test(name)) return;
-				context.report({
-					node,
-					messageId: "serverEnvInClient",
-					data: { name },
-				});
+				if (isClientSafe(name)) return;
+				report(node, name);
+			},
+			// `const { STRIPE_SECRET_KEY } = process.env` reads the same var.
+			VariableDeclarator(node) {
+				if (!client || node.id.type !== "ObjectPattern") return;
+				if (!node.init || !isProcessEnv(node.init)) return;
+				for (const property of node.id.properties) {
+					const name = propertyKeyName(property);
+					if (name === null || isClientSafe(name)) continue;
+					report(property.key, name);
+				}
 			},
 		};
 	},

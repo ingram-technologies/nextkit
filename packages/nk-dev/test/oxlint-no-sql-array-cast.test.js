@@ -1,43 +1,8 @@
-import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
+import { lint as lintRule, ruleIds } from "./oxlint-harness.js";
 
-const pluginPath = join(
-	dirname(fileURLToPath(import.meta.url)),
-	"../lib/oxlint-plugins/index.js",
-);
-
-const dirs = [];
-afterEach(() => {
-	for (const dir of dirs.splice(0)) {
-		rmSync(dir, { recursive: true, force: true });
-	}
-});
-
-const lint = (source, filename = "fixture.ts") => {
-	const dir = mkdtempSync(join(tmpdir(), "nk-oxlint-sql-array-"));
-	dirs.push(dir);
-	writeFileSync(
-		join(dir, ".oxlintrc.json"),
-		JSON.stringify({
-			jsPlugins: [pluginPath],
-			rules: { "nextkit/no-sql-array-cast": "error" },
-		}),
-	);
-	writeFileSync(join(dir, filename), source);
-	try {
-		execFileSync("oxlint", ["-c", ".oxlintrc.json", filename], {
-			cwd: dir,
-			encoding: "utf8",
-		});
-		return "";
-	} catch (error) {
-		return String(error.stdout ?? "");
-	}
-};
+const RULE = "nextkit/no-sql-array-cast";
+const lint = (source) => lintRule("no-sql-array-cast", source);
 
 /**
  * Drizzle expands an interpolated array into separate bound parameters, so the
@@ -45,28 +10,36 @@ const lint = (source, filename = "fixture.ts") => {
  * are both happy, which is why it needs a rule.
  */
 describe("nextkit/no-sql-array-cast", () => {
-	it("flags an array cast on an interpolation", () => {
+	it("flags an array cast on an interpolation and names the type", () => {
 		const out = lint("const q = sql`select ${ids}::uuid[]`;");
-		expect(out).toContain("no-sql-array-cast");
-		expect(out).toContain("uuid[]");
+		expect(ruleIds(out)).toEqual([RULE]);
+		expect(out[0].message).toContain("uuid[]");
+	});
+
+	it("flags the cast with whitespace around ::, which Postgres accepts", () => {
+		const out = lint("const q = sql`select ${ids} :: uuid[]`;");
+		expect(ruleIds(out)).toEqual([RULE]);
+		expect(out[0].message).toContain("uuid[]");
 	});
 
 	it("flags a quoted or schema-qualified type too", () => {
-		const out = lint('const q = sql`select ${xs}::public."Kind"[]`;');
-		expect(out).toContain("no-sql-array-cast");
+		expect(ruleIds(lint('const q = sql`select ${xs}::public."Kind"[]`;'))).toEqual([
+			RULE,
+		]);
 	});
 
 	it("allows a scalar cast", () => {
-		expect(lint("const q = sql`select ${id}::uuid`;")).toBe("");
+		expect(lint("const q = sql`select ${id}::uuid`;")).toEqual([]);
+		expect(lint("const q = sql`select ${id} ::uuid`;")).toEqual([]);
 	});
 
 	it("allows an array constructor", () => {
-		expect(lint("const q = sql`select array[${sql.join(parts)}]::uuid[]`;")).toBe(
-			"",
-		);
+		expect(
+			lint("const q = sql`select array[${sql.join(parts)}]::uuid[]`;"),
+		).toEqual([]);
 	});
 
 	it("leaves other tagged templates alone", () => {
-		expect(lint("const q = gql`select ${ids}::uuid[]`;")).toBe("");
+		expect(lint("const q = gql`select ${ids}::uuid[]`;")).toEqual([]);
 	});
 });

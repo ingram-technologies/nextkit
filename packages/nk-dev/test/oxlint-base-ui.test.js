@@ -1,76 +1,54 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
-import plugin from "../lib/oxlint-plugins/base-ui.js";
+import { describe, expect, it } from "vitest";
+import { lint as lintRule, ruleIds } from "./oxlint-harness.js";
 
-const rule = plugin.rules["no-radix-props-on-base-ui"];
+const RULE = "nextkit/no-radix-props-on-base-ui";
+const BASE_UI = { dependencies: { "@base-ui/react": "^1.6.0" } };
 
-// Minimal stand-ins for the oxlint JSXAttribute node the visitor reads.
-const attr = (component, prop) => ({
-	type: "JSXAttribute",
-	name: { type: "JSXIdentifier", name: prop },
-	parent: {
-		type: "JSXOpeningElement",
-		name: { type: "JSXIdentifier", name: component },
-	},
-});
-
-const runOn = (dir, node) => {
-	const reports = [];
-	const context = {
-		physicalFilename: join(dir, "Component.tsx"),
-		report: (diagnostic) => reports.push(diagnostic),
-	};
-	const visitor = rule.create(context);
-	visitor.JSXAttribute?.(node);
-	return reports;
-};
+const lint = (source, { packageJson = BASE_UI, filename = "fixture.tsx" } = {}) =>
+	lintRule("no-radix-props-on-base-ui", source, { filename, packageJson });
 
 describe("no-radix-props-on-base-ui", () => {
-	let dir;
-	afterEach(() => {
-		if (dir) rmSync(dir, { recursive: true, force: true });
-	});
-
-	const projectWith = (deps) => {
-		dir = mkdtempSync(join(tmpdir(), "nk-oxlint-"));
-		writeFileSync(join(dir, "package.json"), JSON.stringify(deps));
-		return dir;
-	};
-
 	it("flags onSelect on a Base UI menu item and names the replacement", () => {
-		const d = projectWith({ dependencies: { "@base-ui/react": "^1.6.0" } });
-		const reports = runOn(d, attr("DropdownMenuItem", "onSelect"));
-		expect(reports).toHaveLength(1);
-		expect(reports[0].message).toContain("onClick");
+		const out = lint("const x = <DropdownMenuItem onSelect={go} />;");
+		expect(ruleIds(out)).toEqual([RULE]);
+		expect(out[0].message).toContain("`onClick`");
 	});
 
 	it("covers the checkbox/radio and menubar/context variants", () => {
-		const d = projectWith({ dependencies: { "@base-ui/react": "^1.6.0" } });
 		for (const component of [
 			"DropdownMenuCheckboxItem",
 			"MenubarItem",
 			"ContextMenuRadioItem",
 		]) {
-			expect(runOn(d, attr(component, "onSelect"))).toHaveLength(1);
+			expect(ruleIds(lint(`const x = <${component} onSelect={go} />;`))).toEqual([
+				RULE,
+			]);
 		}
 	});
 
 	it("does not flag the already-correct onClick", () => {
-		const d = projectWith({ dependencies: { "@base-ui/react": "^1.6.0" } });
-		expect(runOn(d, attr("DropdownMenuItem", "onClick"))).toHaveLength(0);
+		expect(lint("const x = <DropdownMenuItem onClick={go} />;")).toEqual([]);
 	});
 
 	it("does not flag onSelect on cmdk CommandItem (a legitimate API)", () => {
-		const d = projectWith({ dependencies: { "@base-ui/react": "^1.6.0" } });
-		expect(runOn(d, attr("CommandItem", "onSelect"))).toHaveLength(0);
+		expect(lint("const x = <CommandItem onSelect={go} />;")).toEqual([]);
 	});
 
 	it("is inert on projects that do not depend on @base-ui/react (Radix)", () => {
-		const d = projectWith({
-			dependencies: { "@radix-ui/react-dropdown-menu": "^2.0.0" },
+		expect(
+			lint("const x = <DropdownMenuItem onSelect={go} />;", {
+				packageJson: {
+					dependencies: { "@radix-ui/react-dropdown-menu": "^2.0.0" },
+				},
+			}),
+		).toEqual([]);
+	});
+
+	it("finds the project's package.json from a nested file", () => {
+		// The gate walks up from the file's directory to the nearest manifest.
+		const out = lint("const x = <DropdownMenuItem onSelect={go} />;", {
+			filename: "src/components/ui/menu.tsx",
 		});
-		expect(runOn(d, attr("DropdownMenuItem", "onSelect"))).toHaveLength(0);
+		expect(ruleIds(out)).toEqual([RULE]);
 	});
 });

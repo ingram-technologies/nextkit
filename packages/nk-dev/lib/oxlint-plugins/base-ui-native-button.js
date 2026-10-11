@@ -29,13 +29,18 @@
 //     value, or a spread that might carry one, still reports: a spread is not
 //     an explicit `nativeButton={false}`.
 //
-// Which components count: only the ones that actually accept `nativeButton`.
-// In @base-ui/react 1.8.0 that is Button, PopoverTrigger, Switch and the menu
-// items; every other *Trigger builds on useButton internally but does not
-// expose the prop, so demanding it there produces code that does not compile.
-// An earlier revision keyed on the `Button`/`Trigger` name suffixes and was
-// wrong on both counts: it reported design-system Buttons (which render a
-// native <button>) and Triggers that have no such prop.
+// Which components count: only the ones whose `nativeButton` defaults to true.
+// In @base-ui/react 1.8.0 Button and Popover.Trigger extend `NativeButtonProps`
+// (default true). Menu items and Switch take the prop too, but extend
+// `NonNativeButtonProps`: it defaults to false there, they render a <div> or
+// <span> by default, and `render={<Link />}` on a menu item is already correct.
+// Demanding `nativeButton={false}` on those would flag correct code. Other
+// default-true parts (Menu.Trigger, Dialog.Trigger, Tabs.Tab, ...) are not
+// listed yet; the list is exact names, never `Button`/`Trigger` suffixes, which
+// would report design-system Buttons that render a native <button>.
+//
+// Hosts match by their shadcn wrapper name (`PopoverTrigger`) or by Base UI's
+// namespace form (`Popover.Trigger`), which joins to the same name.
 //
 // The host must also be Base UI's own component. A locally defined
 // `SidebarMenuButton` shares the name and takes no such prop, so the name list
@@ -43,21 +48,17 @@
 
 import { fileUsesBaseUi } from "./base-ui-project.js";
 
-const NATIVE_BUTTON_PROP_COMPONENTS = new Set([
-	"Button",
-	"PopoverTrigger",
-	"Switch",
-	"MenuItem",
-]);
+const NATIVE_BUTTON_PROP_COMPONENTS = new Set(["Button", "PopoverTrigger"]);
 
-/** `<Foo>` -> "Foo", `<Menu.Trigger>` -> "Trigger", otherwise null. */
+/** `<Foo>` -> "Foo", `<Popover.Trigger>` -> "Popover.Trigger", otherwise null. */
 const componentNameOf = (opening) => {
-	const name = opening.name;
-	if (name.type === "JSXIdentifier") return name.name;
-	if (name.type === "JSXMemberExpression" && name.property.type === "JSXIdentifier") {
-		return name.property.name;
-	}
-	return null;
+	const jsxName = (name) => {
+		if (name.type === "JSXIdentifier") return name.name;
+		if (name.type !== "JSXMemberExpression") return null;
+		const object = jsxName(name.object);
+		return object === null ? null : `${object}.${name.property.name}`;
+	};
+	return jsxName(opening.name);
 };
 
 /**
@@ -71,10 +72,14 @@ const componentNameOf = (opening) => {
  * Those set `nativeButton={false}` on their own inner button, so the mistake
  * is contained in the wrapper rather than at every call site.
  */
-const rendersNativeButton = (name) =>
-	name === "button" || (/^[A-Z]/.test(name) && name.endsWith("Button"));
+const rendersNativeButton = (name) => {
+	const last = name.slice(name.lastIndexOf(".") + 1);
+	return last === "button" || (/^[A-Z]/.test(last) && last.endsWith("Button"));
+};
 
-const isButtonLike = (name) => name !== null && NATIVE_BUTTON_PROP_COMPONENTS.has(name);
+/** `Popover.Trigger` and `PopoverTrigger` are the same host. */
+const isButtonLike = (name) =>
+	name !== null && NATIVE_BUTTON_PROP_COMPONENTS.has(name.replaceAll(".", ""));
 
 /** The JSX element literal passed to `render`, or null. */
 const renderedElement = (attribute) => {

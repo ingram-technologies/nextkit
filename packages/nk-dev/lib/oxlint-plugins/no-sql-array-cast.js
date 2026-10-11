@@ -14,7 +14,8 @@
 // Casting a *column* to an array type is legitimate and indistinguishable
 // syntactically, so that case takes a justified disable comment.
 
-const ARRAY_CAST = /^::\s*"?[A-Za-z_][\w."]*"?\s*\[\s*\]/;
+// Postgres allows whitespace around `::`, so `${ids} :: uuid[]` is the same cast.
+const ARRAY_CAST = /^\s*::\s*("?[A-Za-z_][\w."]*"?\s*\[\s*\])/;
 
 const noSqlArrayCast = {
 	meta: {
@@ -41,7 +42,7 @@ const noSqlArrayCast = {
 					context.report({
 						node: node.quasi.expressions[i - 1] ?? node,
 						messageId: "sqlArrayCast",
-						data: { type: match[0].slice(2).trim() },
+						data: { type: match[1] },
 					});
 				}
 			},

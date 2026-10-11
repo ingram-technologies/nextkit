@@ -1,44 +1,19 @@
-import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
+import { lint as lintRule, ruleIds } from "./oxlint-harness.js";
 
-const pluginPath = join(
-	dirname(fileURLToPath(import.meta.url)),
-	"../lib/oxlint-plugins/index.js",
-);
+const RULE = "nextkit/no-unvalidated-request-body";
 
-const dirs = [];
-afterEach(() => {
-	for (const dir of dirs.splice(0)) {
-		rmSync(dir, { recursive: true, force: true });
-	}
-});
-
-const lint = (source, file = "app/api/invoices/route.ts") => {
-	const dir = mkdtempSync(join(tmpdir(), "nk-oxlint-body-"));
-	dirs.push(dir);
-	writeFileSync(
-		join(dir, ".oxlintrc.json"),
-		JSON.stringify({
-			jsPlugins: [pluginPath],
-			rules: { "nextkit/no-unvalidated-request-body": "error" },
-		}),
+/** Lints a POST handler whose body is `lines`, as a route file by default. */
+const lintHandler = (lines, filename = "app/api/invoices/route.ts") =>
+	lintRule(
+		"no-unvalidated-request-body",
+		[
+			"export async function POST(req: Request) {",
+			...lines.map((line) => `\t${line}`),
+			"}",
+		].join("\n"),
+		{ filename },
 	);
-	mkdirSync(join(dir, dirname(file)), { recursive: true });
-	writeFileSync(join(dir, file), source);
-	try {
-		execFileSync("oxlint", ["-c", ".oxlintrc.json", file], {
-			cwd: dir,
-			encoding: "utf8",
-		});
-		return "";
-	} catch (error) {
-		return String(error.stdout ?? "");
-	}
-};
 
 /**
  * `json()` is typed `any`, so a cast on the parsed body asserts a shape the
@@ -47,63 +22,61 @@ const lint = (source, file = "app/api/invoices/route.ts") => {
  */
 describe("nextkit/no-unvalidated-request-body", () => {
 	it("flags a cast on the parsed body", () => {
-		const out = lint(
-			"export async function POST(req: Request) {\n" +
-				"\tconst body = (await req.json()) as { total: number };\n" +
-				"\treturn Response.json(body);\n" +
-				"}",
-		);
-		expect(out).toContain("no-unvalidated-request-body");
+		const out = lintHandler([
+			"const body = (await req.json()) as { total: number };",
+			"return Response.json(body);",
+		]);
+		expect(ruleIds(out)).toEqual([RULE]);
 	});
 
 	it("flags a type annotation doing the same work", () => {
-		const out = lint(
-			"export async function POST(req: Request) {\n" +
-				"\tconst body: { total: number } = await req.json();\n" +
-				"\treturn Response.json(body);\n" +
-				"}",
-		);
-		expect(out).toContain("no-unvalidated-request-body");
+		const out = lintHandler([
+			"const body: { total: number } = await req.json();",
+			"return Response.json(body);",
+		]);
+		expect(ruleIds(out)).toEqual([RULE]);
 	});
 
 	it("flags an as-unknown-as launder", () => {
-		const out = lint(
-			"export async function POST(req: Request) {\n" +
-				"\tconst body = (await req.json()) as unknown as { total: number };\n" +
-				"\treturn Response.json(body);\n" +
-				"}",
-		);
-		expect(out).toContain("no-unvalidated-request-body");
+		const out = lintHandler([
+			"const body = (await req.json()) as unknown as { total: number };",
+			"return Response.json(body);",
+		]);
+		expect(ruleIds(out)).toEqual([RULE]);
 	});
 
 	it("allows parsing with a schema", () => {
-		const out = lint(
-			"export async function POST(req: Request) {\n" +
-				"\tconst body = schema.parse(await req.json());\n" +
-				"\treturn Response.json(body);\n" +
-				"}",
-		);
-		expect(out).toBe("");
+		const out = lintHandler([
+			"const body = schema.parse(await req.json());",
+			"return Response.json(body);",
+		]);
+		expect(out).toEqual([]);
 	});
 
-	it("allows casting to unknown on the way into a parser", () => {
-		const out = lint(
-			"export async function POST(req: Request) {\n" +
-				"\tconst raw = (await req.json()) as unknown;\n" +
-				"\treturn Response.json(schema.parse(raw));\n" +
-				"}",
-		);
-		expect(out).toBe("");
+	it("allows unknown on the way into a parser, as a cast or an annotation", () => {
+		expect(
+			lintHandler([
+				"const raw = (await req.json()) as unknown;",
+				"return Response.json(schema.parse(raw));",
+			]),
+		).toEqual([]);
+		expect(
+			lintHandler([
+				"const raw: unknown = await req.json();",
+				"return Response.json(schema.parse(raw));",
+			]),
+		).toEqual([]);
 	});
 
 	it("says nothing about a response body outside a route", () => {
-		const out = lint(
+		const out = lintRule(
+			"no-unvalidated-request-body",
 			"export const load = async () => {\n" +
 				"\tconst res = await fetch('/x');\n" +
 				"\treturn (await res.json()) as { total: number };\n" +
 				"};",
-			"src/lib/client.ts",
+			{ filename: "src/lib/client.ts" },
 		);
-		expect(out).toBe("");
+		expect(out).toEqual([]);
 	});
 });

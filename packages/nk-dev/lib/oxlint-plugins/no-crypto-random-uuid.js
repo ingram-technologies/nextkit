@@ -34,18 +34,26 @@
 
 const NODE_CRYPTO_MODULES = new Set(["crypto", "node:crypto"]);
 
-/** `crypto.randomUUID` or `globalThis.crypto.randomUUID`, and not shadowed. */
-const isGlobalCryptoRandomUuid = (callee, scope) => {
+/** Whether a binding is `import crypto from "node:crypto"` / `import * as c`. */
+const isNodeCryptoModuleBinding = (def) =>
+	def.type === "ImportBinding" &&
+	(def.node.type === "ImportDefaultSpecifier" ||
+		def.node.type === "ImportNamespaceSpecifier") &&
+	NODE_CRYPTO_MODULES.has(def.parent?.source?.value);
+
+/**
+ * `crypto.randomUUID` on the global (`crypto`, `globalThis.crypto`) or on the
+ * node:crypto module imported whole (`import crypto from "node:crypto"`,
+ * `import * as c from "crypto"`): every spelling that mints a v4.
+ */
+const isCryptoRandomUuid = (callee, scope) => {
 	if (callee.type !== "MemberExpression") return false;
 	if (callee.computed) return false;
 	if (callee.property.type !== "Identifier") return false;
 	if (callee.property.name !== "randomUUID") return false;
 
 	const object = callee.object;
-	let root;
-	if (object.type === "Identifier" && object.name === "crypto") {
-		root = object;
-	} else if (
+	if (
 		object.type === "MemberExpression" &&
 		!object.computed &&
 		object.object.type === "Identifier" &&
@@ -55,17 +63,19 @@ const isGlobalCryptoRandomUuid = (callee, scope) => {
 	) {
 		// `globalThis.crypto` can't be shadowed by a local binding.
 		return true;
-	} else {
-		return false;
 	}
+	if (object.type !== "Identifier") return false;
 
-	// A local `crypto` (a mock, an injected dependency) is not the global one.
 	for (let current = scope; current; current = current.upper) {
-		const variable = current.variables?.find((v) => v.name === root.name);
+		const variable = current.variables?.find((v) => v.name === object.name);
 		if (!variable) continue;
-		return variable.defs.length === 0;
+		// No defs: the implicit global. Otherwise the module imported whole is
+		// the same v4 mint; any other local (a mock, an injected dependency) is
+		// not.
+		if (variable.defs.length === 0) return object.name === "crypto";
+		return variable.defs.some(isNodeCryptoModuleBinding);
 	}
-	return true;
+	return object.name === "crypto";
 };
 
 const noCryptoRandomUuid = {
@@ -101,7 +111,7 @@ const noCryptoRandomUuid = {
 					callee.type === "Identifier" && importedNames.has(callee.name);
 				if (
 					!isImported &&
-					!isGlobalCryptoRandomUuid(callee, sourceCode.getScope(node))
+					!isCryptoRandomUuid(callee, sourceCode.getScope(node))
 				) {
 					return;
 				}

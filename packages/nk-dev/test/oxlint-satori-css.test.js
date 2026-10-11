@@ -1,57 +1,24 @@
-import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it } from "vitest";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+import { lint as lintRule, ruleIds } from "./oxlint-harness.js";
 
-const pluginPath = join(
-	dirname(fileURLToPath(import.meta.url)),
-	"../lib/oxlint-plugins/index.js",
-);
+const RULE = "nextkit/satori-css";
 
-const dirs = [];
-afterEach(() => {
-	for (const dir of dirs.splice(0)) {
-		rmSync(dir, { recursive: true, force: true });
-	}
-});
-
-/** Lints `source` at `relativePath` — the rule keys off both path and imports. */
-const lint = (relativePath, source) => {
-	const dir = mkdtempSync(join(tmpdir(), "nk-oxlint-satori-"));
-	dirs.push(dir);
-	writeFileSync(
-		join(dir, ".oxlintrc.json"),
-		JSON.stringify({
-			jsPlugins: [pluginPath],
-			rules: { "nextkit/satori-css": "error" },
-		}),
-	);
-	mkdirSync(join(dir, dirname(relativePath)), { recursive: true });
-	writeFileSync(join(dir, relativePath), source);
-	try {
-		execFileSync("oxlint", ["-c", ".oxlintrc.json", relativePath], {
-			cwd: dir,
-			encoding: "utf8",
-		});
-		return "";
-	} catch (error) {
-		return String(error.stdout ?? "");
-	}
-};
+/** Lints `source` at `filename`; the rule keys off both path and imports. */
+const lint = (filename, source) => lintRule("satori-css", source, { filename });
 
 const OG_IMPORT = `import { ImageResponse } from "next/og";\n`;
 
 describe("satori-css", () => {
-	it("flags style properties satori silently drops", () => {
+	it("flags each style property satori silently drops, by name", () => {
 		const out = lint(
 			"lib/card.tsx",
 			`${OG_IMPORT}export const card = () =>
 				new ImageResponse(<div style={{ display: "flex", transition: "all 1s", backdropFilter: "blur(4px)" }} />);`,
 		);
-		expect(out).toContain("satori does not implement `transition`");
-		expect(out).toContain("satori does not implement `backdropFilter`");
+		expect(ruleIds(out)).toEqual([RULE, RULE]);
+		expect(out[0].message).toContain("`transition`");
+		expect(out[1].message).toContain("`backdropFilter`");
 	});
 
 	it("accepts the properties satori does implement, including kebab-case keys and CSS variables", () => {
@@ -62,19 +29,21 @@ describe("satori-css", () => {
 					<div style={{ display: "flex", padding: 48, "--accent": "#fff", boxShadow: "0 0 1px #000", WebkitTextStrokeColor: "#000", "background-clip": "text" }} />,
 				);`,
 		);
-		expect(out).toBe("");
+		expect(out).toEqual([]);
 	});
 
-	it("flags calc(), which satori drops", () => {
+	it("flags calc() on a supported property and names the property", () => {
 		const out = lint(
 			"lib/card.tsx",
 			`${OG_IMPORT}export const card = () =>
 				new ImageResponse(<div style={{ display: "flex", width: "calc(100% - 20px)" }} />);`,
 		);
-		expect(out).toContain("does not support `calc()`");
+		expect(ruleIds(out)).toEqual([RULE]);
+		expect(out[0].message).toContain("`width`");
+		expect(out[0].message).toContain("calc()");
 	});
 
-	it("flags a multi-child element that never declares display", () => {
+	it("flags a multi-child element that never declares display, with its child count", () => {
 		const out = lint(
 			"lib/card.tsx",
 			`${OG_IMPORT}export const card = () =>
@@ -82,10 +51,13 @@ describe("satori-css", () => {
 					<div>
 						<span style={{ display: "flex" }} />
 						<span style={{ display: "flex" }} />
+						<span style={{ display: "flex" }} />
 					</div>,
 				);`,
 		);
-		expect(out).toContain("2 children but no `display`");
+		expect(ruleIds(out)).toEqual([RULE]);
+		expect(out[0].message).toMatch(/\b3\b/);
+		expect(out[0].message).toContain("`display`");
 	});
 
 	it("accepts a single-child element with no display", () => {
@@ -94,10 +66,11 @@ describe("satori-css", () => {
 			`${OG_IMPORT}export const card = () =>
 				new ImageResponse(<div><span style={{ display: "flex" }} /></div>);`,
 		);
-		expect(out).toBe("");
+		expect(out).toEqual([]);
 	});
 
-	it("flags text mixed with element siblings", () => {
+	it("flags text mixed with element siblings once", () => {
+		// The parent declares display, so this is the text rule alone.
 		const out = lint(
 			"lib/card.tsx",
 			`${OG_IMPORT}export const card = () =>
@@ -108,7 +81,7 @@ describe("satori-css", () => {
 					</div>,
 				);`,
 		);
-		expect(out).toContain("text node next to element siblings");
+		expect(ruleIds(out)).toEqual([RULE]);
 	});
 
 	it("leaves conditional children alone — they may collapse to nothing", () => {
@@ -124,7 +97,7 @@ describe("satori-css", () => {
 					</div>,
 				);`,
 		);
-		expect(out).toBe("");
+		expect(out).toEqual([]);
 	});
 
 	it("stays silent in files that are not satori-bound", () => {
@@ -138,7 +111,7 @@ describe("satori-css", () => {
 				</div>
 			);`,
 		);
-		expect(out).toBe("");
+		expect(out).toEqual([]);
 	});
 
 	it("lints an opengraph-image file even without a next/og import", () => {
@@ -148,7 +121,8 @@ describe("satori-css", () => {
 				return <div style={{ display: "flex", cursor: "pointer" }} />;
 			}`,
 		);
-		expect(out).toContain("satori does not implement `cursor`");
+		expect(ruleIds(out)).toEqual([RULE]);
+		expect(out[0].message).toContain("`cursor`");
 	});
 
 	it("leaves spread styles and unknown style expressions alone", () => {
@@ -162,6 +136,6 @@ describe("satori-css", () => {
 					</div>,
 				);`,
 		);
-		expect(out).toBe("");
+		expect(out).toEqual([]);
 	});
 });
