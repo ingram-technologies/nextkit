@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type FormSchema } from "./handler.js";
 import { formEndpoint } from "./paths.js";
 import { createFormsHandler, defineForm } from "./registry.js";
@@ -19,6 +19,17 @@ const emailSchema: FormSchema<{ email: string }> = {
 		return { success: false };
 	},
 };
+
+// An honest submission here carries no timing token, so a BOT_PROTECTION_SECRET
+// leaking in from the shell would silently drop it and fail for the wrong reason.
+const ORIGINAL_SECRET = process.env.BOT_PROTECTION_SECRET;
+beforeEach(() => {
+	delete process.env.BOT_PROTECTION_SECRET;
+});
+afterEach(() => {
+	if (ORIGINAL_SECRET === undefined) delete process.env.BOT_PROTECTION_SECRET;
+	else process.env.BOT_PROTECTION_SECRET = ORIGINAL_SECRET;
+});
 
 const post = (path: string, body: unknown): Request =>
 	new Request(`https://acme.test${path}`, {

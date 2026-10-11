@@ -1,16 +1,20 @@
 import { describe, expect, it } from "vitest";
+import { escapeHtml } from "@ingram-tech/nk-email";
 import { renderNotificationEmail } from "./email.js";
 
 describe("renderNotificationEmail", () => {
-	it("escapes user input in the HTML output", () => {
+	it("escapes every interpolated string in the HTML output", () => {
+		const payload = `<x"'&>`;
 		const { html } = renderNotificationEmail({
-			heading: "New inquiry",
-			fields: [{ label: "Name", value: "<script>alert(1)</script>" }],
-			message: "1 < 2 & 3 > 2",
+			heading: payload,
+			fields: [{ label: payload, value: payload }],
+			message: payload,
+			footer: payload,
 		});
-		expect(html).not.toContain("<script>");
-		expect(html).toContain("&lt;script&gt;");
-		expect(html).toContain("1 &lt; 2 &amp; 3 &gt; 2");
+		expect(html).not.toContain(payload);
+		// All five inputs made it in, escaped (a dropped value would also pass the
+		// line above).
+		expect(html.split(escapeHtml(payload))).toHaveLength(6);
 	});
 
 	it("drops empty, blank, and missing fields", () => {

@@ -144,27 +144,34 @@ describe("verifyHuman", () => {
 });
 
 describe("graceful degradation without BOT_PROTECTION_SECRET", () => {
-	it("disables the timing layer instead of throwing/dropping", async () => {
-		const saved = process.env.BOT_PROTECTION_SECRET;
-		delete process.env.BOT_PROTECTION_SECRET;
-		vi.spyOn(console, "warn").mockImplementation(() => {});
-		try {
-			expect(createFormToken()).toBe("");
-			// No token at all — still passes, because honeypot is the only
-			// active gate when the secret is missing.
-			const fd = new FormData();
-			fd.set(HONEYPOT_FIELD, "");
-			expect(await verifyHuman({ formData: fd })).toEqual({ ok: true });
-			// Honeypot still rejects.
-			const spam = new FormData();
-			spam.set(HONEYPOT_FIELD, "filled");
-			expect(await verifyHuman({ formData: spam })).toMatchObject({
-				ok: false,
-				reason: "honeypot",
-			});
-		} finally {
-			process.env.BOT_PROTECTION_SECRET = saved;
-			vi.restoreAllMocks();
-		}
-	});
+	it.each([
+		["unset", undefined],
+		["holding no actual secret", " , "],
+	])(
+		"disables the timing layer instead of throwing/dropping when %s",
+		async (_label, value) => {
+			const saved = process.env.BOT_PROTECTION_SECRET;
+			if (value === undefined) delete process.env.BOT_PROTECTION_SECRET;
+			else process.env.BOT_PROTECTION_SECRET = value;
+			vi.spyOn(console, "warn").mockImplementation(() => {});
+			try {
+				expect(createFormToken()).toBe("");
+				// No token at all — still passes, because honeypot is the only
+				// active gate when the secret is missing.
+				const fd = new FormData();
+				fd.set(HONEYPOT_FIELD, "");
+				expect(await verifyHuman({ formData: fd })).toEqual({ ok: true });
+				// Honeypot still rejects.
+				const spam = new FormData();
+				spam.set(HONEYPOT_FIELD, "filled");
+				expect(await verifyHuman({ formData: spam })).toMatchObject({
+					ok: false,
+					reason: "honeypot",
+				});
+			} finally {
+				process.env.BOT_PROTECTION_SECRET = saved;
+				vi.restoreAllMocks();
+			}
+		},
+	);
 });

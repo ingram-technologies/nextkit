@@ -32,5 +32,9 @@ export const getSecret = (): string => {
 export const getSecrets = (): string[] =>
 	parse(process.env.BOT_PROTECTION_SECRET ?? "");
 
-/** Whether the signed-timing layer is configured. */
-export const isConfigured = (): boolean => Boolean(process.env.BOT_PROTECTION_SECRET);
+/**
+ * Whether the signed-timing layer is configured. Judged on the parsed list, not
+ * the raw string: a value with no actual secret in it (`","`) must disable the
+ * layer like an unset one, not leave it on with nothing to sign or verify with.
+ */
+export const isConfigured = (): boolean => getSecrets().length > 0;

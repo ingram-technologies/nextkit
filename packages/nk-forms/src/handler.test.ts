@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type FormSchema, handleFormSubmission } from "./handler.js";
 
 // A minimal structural schema — proves nk-forms needs no Zod dependency.
@@ -18,6 +18,17 @@ const schema: FormSchema<{ email: string }> = {
 		return { success: false };
 	},
 };
+
+// An honest submission here carries no timing token, so a BOT_PROTECTION_SECRET
+// leaking in from the shell would silently drop it and fail for the wrong reason.
+const ORIGINAL_SECRET = process.env.BOT_PROTECTION_SECRET;
+beforeEach(() => {
+	delete process.env.BOT_PROTECTION_SECRET;
+});
+afterEach(() => {
+	if (ORIGINAL_SECRET === undefined) delete process.env.BOT_PROTECTION_SECRET;
+	else process.env.BOT_PROTECTION_SECRET = ORIGINAL_SECRET;
+});
 
 const post = (body: unknown): Request =>
 	new Request("https://acme.test/api/contact", {
@@ -45,6 +56,19 @@ describe("handleFormSubmission", () => {
 			{ schema, onSubmit },
 		);
 		// Same 200 body as success — a bot must not learn it was dropped.
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({ success: true });
+		expect(onSubmit).not.toHaveBeenCalled();
+	});
+
+	it("answers a honeypot hit with success even when its data is invalid", async () => {
+		// The bot gate runs before validation: a 400 here would tell a bot that
+		// its payload, not its honeypot, was the problem.
+		const onSubmit = vi.fn();
+		const res = await handleFormSubmission(
+			post({ nope: 1, contact_detail: "i am a bot" }),
+			{ schema, onSubmit },
+		);
 		expect(res.status).toBe(200);
 		expect(await res.json()).toEqual({ success: true });
 		expect(onSubmit).not.toHaveBeenCalled();
@@ -80,6 +104,20 @@ describe("handleFormSubmission", () => {
 			},
 		});
 		expect(res.status).toBe(500);
+	});
+
+	it("rate-limits before reading the body, so a malformed flood still gets 429", async () => {
+		const bad = new Request("https://acme.test/api/contact", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: "{not json",
+		});
+		const res = await handleFormSubmission(bad, {
+			schema,
+			onSubmit: vi.fn(),
+			rateLimit: () => ({ ok: false }),
+		});
+		expect(res.status).toBe(429);
 	});
 
 	it("returns 400 on a malformed body", async () => {
