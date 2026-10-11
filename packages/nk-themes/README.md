@@ -21,7 +21,7 @@ system following, and no transition flash.
 
 ## Setup
 
-Mount the provider in the root `app/layout.tsx`, wrapping the app. The
+Mount the provider in the root `src/app/layout.tsx`, wrapping the app. The
 `<html>` needs `suppressHydrationWarning` because the mode class is set before
 React hydrates.
 

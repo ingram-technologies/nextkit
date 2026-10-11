@@ -15,12 +15,11 @@ const ENDPOINT_RE = /createAuthEndpoint\(\s*"([^"]+)"/g;
 
 /** The `app/auth/[...all]` mount dir, or null when the site has no auth mount. */
 function findMount(cwd) {
-	for (const appDir of ["src/app", "app"]) {
-		const catchAll = resolve(cwd, appDir, "auth", "[...all]");
-		for (const ext of ["ts", "js", "tsx", "jsx"]) {
-			if (existsSync(join(catchAll, `route.${ext}`))) {
-				return { appDir, authDir: resolve(cwd, appDir, "auth") };
-			}
+	const appDir = "src/app";
+	const catchAll = resolve(cwd, appDir, "auth", "[...all]");
+	for (const ext of ["ts", "js", "tsx", "jsx"]) {
+		if (existsSync(join(catchAll, `route.${ext}`))) {
+			return { appDir, authDir: resolve(cwd, appDir, "auth") };
 		}
 	}
 	return null;

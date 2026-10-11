@@ -48,7 +48,7 @@ by a shared secret — do not add one.
 One file registers every form:
 
 ```ts
-// app/internal/forms/[form]/route.ts
+// src/app/internal/forms/[form]/route.ts
 import {
 	createFormsHandler,
 	defineForm,

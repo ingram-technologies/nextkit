@@ -10,7 +10,7 @@ import { join, relative, resolve } from "node:path";
 // this check catches it before the site is even run. Textual, like the
 // endpoint-shadow check: we grep the site's sources, never execute them.
 
-const SOURCE_DIRS = ["src", "app", "lib", "proxy.ts", "middleware.ts"];
+const SOURCE_DIRS = ["src", "lib", "proxy.ts", "middleware.ts"];
 const SOURCE_FILES = /\.(ts|tsx|js|jsx|mjs)$/;
 const SKIP_DIRS = new Set(["node_modules", ".next", "dist", "build"]);
 

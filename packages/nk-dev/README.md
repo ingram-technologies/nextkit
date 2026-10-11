@@ -83,7 +83,8 @@ tsc), so versions stay under your control. nk only orchestrates.
   (superseded deps, config `extends`, package.json scripts, the agent-guide
   import (from any CLAUDE.md up to the repository root), a stale
   `.prettierignore`, an unsealed migration chain and the DDL in it drizzle
-  can't model, a page under `app/auth/` shadowing a Better Auth
+  can't model, routes in a root `app/` instead of `src/app/`, a page under
+  `src/app/auth/` shadowing a Better Auth
   endpoint — static segments beat the `[...all]` catch-all, so such a page
   silently 405s the endpoint, a page or layout whose `openGraph` carries no
   image — its own object replaces the inherited one, so the card unfurls as a

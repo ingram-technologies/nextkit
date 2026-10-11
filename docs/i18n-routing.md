@@ -164,7 +164,7 @@ export const resolveLocale = cache(
 ```
 
 ```tsx
-// app/layout.tsx — pathname comes from the header localeProxy set
+// src/app/layout.tsx — pathname comes from the header localeProxy set
 <html lang={routing.htmlLang(locale)}>
 	<head>
 		<HreflangLinks {...(await hreflangConfigFor(routing))} />

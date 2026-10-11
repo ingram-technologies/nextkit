@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { checkAgentGuideImport, ensureGuideImport } from "./agent-guide.js";
+import { appDirFindings } from "./app-dir.js";
 import { authNextFindings } from "./auth-next.js";
 import { authShadowFindings } from "./auth-shadow.js";
 import { authVersionFindings } from "./auth-version.js";
@@ -334,6 +335,9 @@ export function findings(cwd) {
 
 	// 14. No page/layout declares an Open Graph card without an image in reach.
 	out.push(...ogImageFindings(cwd));
+
+	// 15. Routes live in src/app/, never a root app/.
+	out.push(...appDirFindings(cwd, pkg));
 
 	return out;
 }

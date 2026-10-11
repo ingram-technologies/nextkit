@@ -68,7 +68,7 @@ one-off edit in one file, just edit the file.
 - **`$$$ARGS`** — matches **zero or more** nodes (argument lists, statements,
   JSX children). This is what makes rewrites arity-agnostic.
 - **`-l ts` / `-l tsx`** — the language. Use `tsx` for anything with JSX (most of
-  a Next.js `app/`), `ts` for plain `.ts`. Getting this wrong makes patterns
+  a Next.js `src/app/`), `ts` for plain `.ts`. Getting this wrong makes patterns
   silently fail to parse.
 - **`-p` pattern**, **`-r` rewrite**, **`-U`** apply, **`-i`** interactive
   (approve each edit). Scope by passing paths: `nk ast-grep run ... src/app`.

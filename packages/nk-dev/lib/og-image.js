@@ -18,11 +18,8 @@ const CARRIES_IMAGE = /\bimages\s*[:,}]|\bogImageMetadata\s*\(/;
 
 /** The site's app directory, or null when it has none. */
 function findAppDir(cwd) {
-	for (const rel of ["src/app", "app"]) {
-		const dir = resolve(cwd, rel);
-		if (existsSync(dir)) return dir;
-	}
-	return null;
+	const dir = resolve(cwd, "src/app");
+	return existsSync(dir) ? dir : null;
 }
 
 /**

@@ -97,7 +97,7 @@ URLs: default-language posts live at `basePath`, others at `/<lang><basePath>`
 (nk-i18n's prefix shape). Unlike nk-i18n's negotiated pages the default
 language is not prefixed: a post is one document in one language with exactly
 one address, so there is no language-neutral bare URL to reserve. Route the
-other languages with a `[lang]` segment (`app/[lang]/blog/[slug]/page.tsx`,
+other languages with a `[lang]` segment (`src/app/[lang]/blog/[slug]/page.tsx`,
 `generateStaticParams` over `blog.posts()` minus the default language) so the
 posts stay fully static. `blogPostArticle` sets `inLanguage`; a per-language
 feed is `generateRss({ ...config, basePath: "/fr/blog", language: "fr" },

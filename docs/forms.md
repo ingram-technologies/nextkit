@@ -25,7 +25,7 @@ the server machinery and a headless client hook, not the UI.
 ## Where forms live
 
 `/internal/forms/<name>`, served by one `createFormsHandler({ name: defineForm(…) })`
-route at `app/internal/forms/[form]/route.ts`. Forms are not API: `/api/…` is
+route at `src/app/internal/forms/[form]/route.ts`. Forms are not API: `/api/…` is
 the versioned, documented contract, and a form POST has one consumer, no schema
 promise and no version. The registry also removes the per-form route file — the
 name gives the URL, the log label and the rate-limit namespace, so adding a form

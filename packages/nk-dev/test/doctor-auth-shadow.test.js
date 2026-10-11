@@ -137,17 +137,6 @@ describe("nk doctor: Better Auth endpoint shadowing", () => {
 		expect(shadowFindings()).toEqual([]);
 	});
 
-	it("handles a bare app/ directory (no src/)", () => {
-		writeBetterAuth();
-		writeMount("app");
-		write("app/auth/reset-password/page.tsx");
-		expect(
-			shadowFindings().find(
-				(x) => x.id === "auth:endpoint-shadow:/reset-password",
-			),
-		).toBeDefined();
-	});
-
 	it("reports a plugin endpoint collision as a warning", () => {
 		writeBetterAuth();
 		write(

@@ -251,7 +251,7 @@ export const auth = betterAuth({
 ```
 
 ```ts
-// app/auth/[...all]/route.ts — a standard Next.js route handler.
+// src/app/auth/[...all]/route.ts — a standard Next.js route handler.
 // Lives at /auth (set via `basePath: authBasePath`), NOT /api/auth: auth is a
 // user-facing surface (sign-in, OAuth callbacks), not an internal machine API.
 import { toNextJsHandler } from "better-auth/next-js";
@@ -381,7 +381,7 @@ JWT's `sub` (and payload `id`) is the public id too. RLS needs nothing: nk-db's
 `auth.uid()` policies hold either way.
 
 ```tsx
-// app/dashboard/page.tsx — gate a protected page (validated, DB-backed).
+// src/app/dashboard/page.tsx — gate a protected page (validated, DB-backed).
 import { requireUser } from "@/lib/auth/session";
 export default async function Dashboard() {
 	// -> /login?next=/dashboard when signed out (and ?stale=1 when the cookie is
@@ -390,7 +390,7 @@ export default async function Dashboard() {
 	return <main>Hi {user.email}</main>;
 }
 
-// app/login/page.tsx — gate the sign-in page HERE, never in middleware. Honor
+// src/app/login/page.tsx — gate the sign-in page HERE, never in middleware. Honor
 // `next` so sign-in returns the user to where they were headed.
 import { redirectIfAuthenticated } from "@/lib/auth/session";
 import { safeNext } from "@ingram-tech/nk-auth/server";
@@ -456,7 +456,7 @@ cookie). To still end a sign-in eventually, add `sessionLifetime({ maxAge })`
 to the instance's `plugins`: refreshes are clamped to `createdAt + maxAge`.
 
 ```tsx
-// app/(app)/SessionRenewal.tsx
+// src/app/(app)/SessionRenewal.tsx
 "use client";
 export const SessionRenewal = () => {
 	authClient.useSession();
@@ -521,7 +521,7 @@ password credential until it sets one. `hasCredentialAccount()` drives the
 `getLinkedProviders()` when you need the full list.
 
 ```tsx
-// app/settings/security/page.tsx (server component)
+// src/app/settings/security/page.tsx (server component)
 import { hasCredentialAccount } from "@/lib/auth/session";
 export default async function Security() {
 	return (await hasCredentialAccount()) ? <ChangePassword /> : <SetPassword />;

@@ -7,18 +7,21 @@ package. Stay a thin, standard Next.js app (bun · oxlint + oxfmt · strict TS).
 ## Hard rules
 
 - **Public contact/signup forms MUST use `@ingram-tech/nk-forms`** — one
-  `createFormsHandler` registry at `app/internal/forms/[form]/route.ts`
+  `createFormsHandler` registry at `src/app/internal/forms/[form]/route.ts`
   (rate-limit → bot gate → validate → escaped-email deliver → uniform 200)
   and `useFormSubmit(formEndpoint(name))` + `HoneypotInput` client-side.
   Forms are plumbing, not API: never mount one under `/api/…` (see Route & URL
   conventions). For guarding a *non-form* endpoint (a checkout, an authed
   route), call nk-forms' `checkBot` / `verifyHuman` directly instead of the
   pipeline. Never ship a public form without the bot gate.
+- **Routes live in `src/app/`, never a root `app/`.** Next prefers a root
+  `app/` and silently ignores `src/app/` when both exist, and nk's checks and
+  lint rules only look in `src/app/`. `nk doctor` rejects a root `app/`.
 - **Send email only via `@ingram-tech/nk-email`** — never add another mail client.
 - **Never trust an external request body's shape — validate it with Zod, never
   `as`-cast it.** Every `/api` route and webhook handler takes untrusted input;
   an `as` cast is a lie the type-checker can't catch at runtime.
-  `nextkit/no-unvalidated-request-body` enforces this in `app/**/route.ts`:
+  `nextkit/no-unvalidated-request-body` enforces this in `src/app/**/route.ts`:
   cast the parsed body to `unknown` on the way into a schema, never to a shape.
 - Format/lint with **oxlint + oxfmt** via `nk` (`@ingram-tech/nk-dev`); don't
   reintroduce ESLint or Prettier (SQL isn't formatted — it's generated). nk-dev
@@ -39,7 +42,7 @@ package. Stay a thin, standard Next.js app (bun · oxlint + oxfmt · strict TS).
 Keep the URL namespace honest about **who calls each route**:
 
 - **`/auth/…` — sign-in, via `@ingram-tech/nk-auth`.** Better Auth mounts here
-  through `basePath: authBasePath` (handler at `app/auth/[...all]/route.ts`,
+  through `basePath: authBasePath` (handler at `src/app/auth/[...all]/route.ts`,
   client `createAuthClient({ basePath: authBasePath })`) — **not** the framework
   default `/api/auth`. So **login / social OAuth callbacks are
   `<site>/auth/callback/<provider>`** (e.g. Google `…/auth/callback/google`) —

@@ -97,10 +97,10 @@ describe("nk doctor: Open Graph card without an image", () => {
 		expect(ogFindings()).toEqual([]);
 	});
 
-	it("handles a bare app/ directory and keeps dynamic segments in the route", () => {
-		write("app/layout.tsx", CARD);
-		write("app/opengraph-image.tsx", "export default () => {};");
-		write("app/blog/[slug]/page.tsx", CARD);
+	it("keeps dynamic segments in the route", () => {
+		write("src/app/layout.tsx", CARD);
+		write("src/app/opengraph-image.tsx", "export default () => {};");
+		write("src/app/blog/[slug]/page.tsx", CARD);
 		expect(ogFindings().map((f) => f.id)).toEqual([
 			"og:image-missing:/blog/[slug]",
 		]);

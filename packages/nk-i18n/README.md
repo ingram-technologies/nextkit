@@ -79,7 +79,7 @@ Render the context once, in the root layout, with the server-resolved locale.
 A server component can render it directly (React 19.3):
 
 ```tsx
-// app/layout.tsx
+// src/app/layout.tsx
 import { LocaleContext } from "@ingram-tech/nk-i18n/client";
 
 <LocaleContext value={locale}>{children}</LocaleContext>;

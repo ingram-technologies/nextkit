@@ -9,7 +9,7 @@ SEO primitives for Next.js:
    publisher.
 2. **`createMetadata`** — a Next `Metadata` factory: canonical + OpenGraph +
    Twitter card from one title/description/path.
-3. **`createSitemap` / `createRobots`** — `app/sitemap.ts` and `app/robots.ts`
+3. **`createSitemap` / `createRobots`** — `src/app/sitemap.ts` and `src/app/robots.ts`
    route helpers; `createRobots` blanket-disallows non-production hosts so
    Vercel preview / branch URLs never get indexed.
 4. **`ogImageResponse`** (`@ingram-tech/nk-seo/og`) — a branded `next/og` share
@@ -136,10 +136,10 @@ export const pageMetadata = createMetadata({
 	twitterSite: "@acme",
 });
 
-// app/layout.tsx — metadataBase + default title (+ template when configured):
+// src/app/layout.tsx — metadataBase + default title (+ template when configured):
 export const metadata = pageMetadata.root({ description: "The Acme platform." });
 
-// app/services/page.tsx
+// src/app/services/page.tsx
 export const metadata = pageMetadata({
 	title: "Services",
 	description: "AI deployment and custom agents.",
@@ -186,7 +186,7 @@ only on pages that don't go through `pageMetadata`.
 ## Sitemap & robots
 
 ```ts
-// app/sitemap.ts
+// src/app/sitemap.ts
 import { createSitemap } from "@ingram-tech/nk-seo";
 
 export default () =>
@@ -205,7 +205,7 @@ alternates — `languages: { en: "/about", fr: "/fr/about" }` — mirroring what
 `<HreflangLinks>` emits on the page itself.
 
 ```ts
-// app/robots.ts
+// src/app/robots.ts
 import { createRobots } from "@ingram-tech/nk-seo";
 
 export default () =>
@@ -226,7 +226,7 @@ domain for the same content.
 package root and `/components` never carry the renderer.
 
 ```tsx
-// app/opengraph-image.tsx  (and re-export from app/twitter-image.tsx)
+// src/app/opengraph-image.tsx  (and re-export from src/app/twitter-image.tsx)
 import { ogImageResponse } from "@ingram-tech/nk-seo/og";
 
 export const size = { width: 1200, height: 630 };
@@ -277,7 +277,7 @@ the URL). `nk doctor` flags both shapes.
 
 **Locale-negotiating middleware eats the image route.** A site that redirects
 any path lacking a locale prefix also redirects `/opengraph-image`, so the card
-URL never resolves. Put the file at `app/[locale]/opengraph-image.tsx` instead:
+URL never resolves. Put the file at `src/app/[locale]/opengraph-image.tsx` instead:
 it dodges the redirect and gives per-locale cards from `params`.
 
 The template follows the two Satori structural rules: every node with more than
