@@ -1,5 +1,13 @@
 # @ingram-tech/nk-db
 
+## 2.4.0
+
+### Minor Changes
+
+- 9684a19: Export `isolateConnections` from `@ingram-tech/nk-db/pglite`, so a harness that
+  builds its own `PGLiteSocketServer` (booted from a snapshot, say) gets the same
+  multi-connection fix `createPgliteServer` applies.
+
 ## 2.3.0
 
 ### Minor Changes
