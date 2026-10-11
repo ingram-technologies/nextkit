@@ -89,6 +89,45 @@ describe("nk doctor: Open Graph card without an image", () => {
 		expect(ogFindings()).toEqual([]);
 	});
 
+	it("trusts a card passed to a metadata helper, which can add the image", () => {
+		// nk-seo's createMetadata merges its defaultImage into the override.
+		write(
+			"src/app/agents/page.tsx",
+			'export const metadata = createPageMetadata({ title: "A", openGraph: { description: "d" } });',
+		);
+		write(
+			"src/app/posts/[slug]/page.tsx",
+			`export async function generateMetadata() {
+				if (!post) return {};
+				return pageMetadata({ title: post.title, openGraph: { type: "article" } });
+			}`,
+		);
+		expect(ogFindings()).toEqual([]);
+	});
+
+	it("still flags a card the file builds itself, in any return shape", () => {
+		write(
+			"src/app/a/page.tsx",
+			`export async function generateMetadata(): Promise<Metadata> {
+				const t = "{brace} in copy";
+				return { title: t, openGraph: { title: t } };
+			}`,
+		);
+		write(
+			"src/app/b/page.tsx",
+			'export const generateMetadata = async () => ({ twitter: { card: "summary" } });',
+		);
+		write(
+			"src/app/c/page.tsx",
+			'export const metadata: Metadata = { other: {}, openGraph: { title: "C" } };',
+		);
+		expect(ogFindings().map((f) => f.id)).toEqual([
+			"og:image-missing:/a",
+			"og:image-missing:/b",
+			"og:image-missing:/c",
+		]);
+	});
+
 	it("skips _private folders and @slot trees", () => {
 		write("src/app/layout.tsx", CARD);
 		write("src/app/opengraph-image.tsx", "export default () => {};");

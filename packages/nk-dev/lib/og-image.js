@@ -13,8 +13,50 @@ import { join, resolve } from "node:path";
 
 const PAGE_OR_LAYOUT = /^(layout|page)\.(tsx|jsx|ts|js)$/;
 const IMAGE_FILE = /^opengraph-image\d*\.(tsx|jsx|ts|js|png|jpe?g|gif)$/;
-const DECLARES_CARD = /\b(openGraph|twitter)\s*:/;
+const CARD_KEY = /\b(openGraph|twitter)\s*:/g;
 const CARRIES_IMAGE = /\bimages\s*[:,}]|\bogImageMetadata\s*\(/;
+
+/** Blank out string and template literals, keeping offsets, so braces inside
+ *  copy (`"{name}"`) don't confuse the bracket walk below. */
+const blankStrings = (src) =>
+	src.replace(/(["'`])(?:\\.|(?!\1)[\s\S])*\1/g, (m) => " ".repeat(m.length));
+
+/**
+ * Whether the card key at `at` sits in a metadata object the file builds
+ * itself (`export const metadata = { ... }`, `return { ... }`, `=> ({ ... })`)
+ * rather than in an argument to a call (`createPageMetadata({ openGraph })`).
+ * A call can add the image (nk-seo's `createMetadata` merges `defaultImage`
+ * into the override), and a text check cannot see what it adds, so only a
+ * literal the file returns is provably missing one.
+ */
+function inOwnLiteral(src, at) {
+	let depth = 0;
+	for (let i = at - 1; i >= 0; i--) {
+		const c = src[i];
+		if (c === ")" || c === "]" || c === "}") {
+			depth++;
+			continue;
+		}
+		if (c !== "(" && c !== "[" && c !== "{") continue;
+		if (depth > 0) {
+			depth--;
+			continue;
+		}
+		if (c === "[") continue; // an element of an array: keep walking out
+		const before = src.slice(0, i).trimEnd();
+		if (/(=>|\breturn|[^=!<>]=)$/.test(before)) return true;
+		if (c === "(") return false; // a call argument
+		if (/[:,{(]$/.test(before)) continue; // a nested object: keep walking out
+		return true; // a statement or function body: the literal is the file's own
+	}
+	return true;
+}
+
+/** Whether the file returns a card (openGraph/twitter) of its own building. */
+const declaresOwnCard = (src) => {
+	const code = blankStrings(src);
+	return [...code.matchAll(CARD_KEY)].some((m) => inOwnLiteral(code, m.index));
+};
 
 /** The site's app directory, or null when it has none. */
 function findAppDir(cwd) {
@@ -47,7 +89,7 @@ function collect(cwd, dir, segments, nearest, out) {
 		if (!PAGE_OR_LAYOUT.test(entry.name)) continue;
 		if (here) continue; // the file convention wins in its own segment
 		const src = readFileSync(full, "utf8");
-		if (!DECLARES_CARD.test(src) || CARRIES_IMAGE.test(src)) continue;
+		if (!declaresOwnCard(src) || CARRIES_IMAGE.test(src)) continue;
 		out.push({
 			file: full.slice(cwd.length + 1),
 			route: `/${segments.join("/")}`,
