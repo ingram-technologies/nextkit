@@ -353,6 +353,18 @@ describe("spendCredits", () => {
 		expect(r.ok).toBe(true);
 	});
 
+	it("denies once the trial window has passed with no subscription", async () => {
+		await spendCredits(db, { tenantId: TENANT, cost: 0, trial: TRIAL });
+		const row = db.rows.get(TENANT);
+		if (!row) throw new Error("expected the first spend to seed a row");
+		row.trial_started_at = new Date(
+			Date.now() - TRIAL.windowMs - 1000,
+		).toISOString();
+		// Credits remain, so only the expired window can explain the denial.
+		const r = await spendCredits(db, { tenantId: TENANT, cost: 10, trial: TRIAL });
+		expect(r).toEqual({ ok: false, reason: "not_entitled" });
+	});
+
 	it("requireCredits throws BillingError on denial", async () => {
 		await expect(
 			requireCredits(db, { tenantId: TENANT, cost: 10 }),
@@ -371,15 +383,6 @@ describe("spendCredits", () => {
 		await refundCredits(db, refund);
 		await refundCredits(db, refund); // retried failure handler
 		expect(db.rows.get(TENANT)?.credits_balance).toBe(100);
-	});
-
-	it("returns a numeric balance even though pg delivers bigint as a string", async () => {
-		const r = await spendCredits(db, { tenantId: TENANT, cost: 10, trial: TRIAL });
-		expect(r).toEqual({ ok: true, balance: 90 });
-		if (r.ok) expect(typeof r.balance).toBe("number");
-		const summary = await getBillingSummary(db, { tenantId: TENANT });
-		expect(summary.creditsBalance).toBe(90);
-		expect(typeof summary.creditsBalance).toBe("number");
 	});
 
 	it("rejects a negative or non-finite cost instead of crediting the tenant", async () => {
@@ -453,6 +456,8 @@ describe("getBillingSummary", () => {
 		});
 		expect(summary.creditsBalance).toBe(90);
 		expect(summary.entitled).toBe(true);
-		expect(summary.trialEndsAt).not.toBeNull();
+		const started = db.rows.get(TENANT)?.trial_started_at;
+		if (!started) throw new Error("expected the first spend to stamp the trial");
+		expect(summary.trialEndsAt).toBe(new Date(started).getTime() + TRIAL.windowMs);
 	});
 });

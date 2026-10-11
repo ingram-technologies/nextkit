@@ -7,7 +7,11 @@ import { debitBalance, readBalance } from "./balance.js";
  *  balance and Stripe happily lets it go positive — which is exactly the case
  *  debitBalance must detect and reverse. */
 function fakeStripe(startingBalance: number) {
-	const state = { balance: startingBalance, transactions: [] as number[] };
+	const state = {
+		balance: startingBalance,
+		transactions: [] as number[],
+		idempotencyKeys: [] as (string | undefined)[],
+	};
 	const stripe = {
 		customers: {
 			retrieve: () =>
@@ -19,7 +23,9 @@ function fakeStripe(startingBalance: number) {
 			createBalanceTransaction: (
 				_customerId: string,
 				params: { amount: number },
+				options?: { idempotencyKey?: string },
 			) => {
+				state.idempotencyKeys.push(options?.idempotencyKey);
 				state.balance += params.amount;
 				state.transactions.push(params.amount);
 				return Promise.resolve({ ending_balance: state.balance });
@@ -63,6 +69,27 @@ describe("debitBalance", () => {
 		// The overdraw was compensated: debit +250, reversal -250.
 		expect(state.transactions).toEqual([250, -250]);
 		expect(state.balance).toBe(-100);
+	});
+
+	it("keys the debit and its reversal apart, deterministically from the tag", async () => {
+		const overdraw = async (idempotencyTag: string) => {
+			const { state, stripe } = fakeStripe(-100);
+			await expect(
+				debitBalance({ ...opts(250), idempotencyTag }, stripe),
+			).rejects.toThrow();
+			return state.idempotencyKeys;
+		};
+		const [debit, reversal] = await overdraw("op_1");
+		// Sharing a key would make Stripe replay the debit as the "reversal".
+		expect(debit).toBeTruthy();
+		expect(reversal).toBeTruthy();
+		expect(debit).not.toBe(reversal);
+		// A retry of the same action reuses both keys, so it cannot double-apply.
+		expect(await overdraw("op_1")).toEqual([debit, reversal]);
+		// A different action gets keys of its own.
+		const other = await overdraw("op_2");
+		expect(other).not.toContain(debit);
+		expect(other).not.toContain(reversal);
 	});
 
 	it("rejects zero, negative, and non-integer amounts up front", async () => {

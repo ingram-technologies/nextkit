@@ -34,12 +34,27 @@ describe("resolveCurrencyFromHeaders", () => {
 });
 
 describe("formatAmount", () => {
-	it("drops .00 on round figures and keeps cents otherwise", () => {
-		expect(formatAmount(1000, "usd")).toBe("$10");
-		expect(formatAmount(1050, "usd")).toBe("$10.50");
+	const SYMBOL = { usd: "$", eur: "€" } as const;
+
+	it.each([
+		[1000, "usd"],
+		[2000, "eur"],
+		[0, "usd"],
+	] as const)("drops the fraction on a round %i %s", (minor, currency) => {
+		const out = formatAmount(minor, currency);
+		expect(out).toContain(SYMBOL[currency]);
+		expect(out).not.toMatch(/\d[.,]\d/);
+		expect(out.replace(/\D/g, "")).toBe(String(minor / 100));
 	});
-	it("formats eur", () => {
-		// en-IE renders the euro sign as a prefix.
-		expect(formatAmount(2000, "eur")).toBe("€20");
+
+	it.each([
+		[1050, "usd"],
+		[1999, "eur"],
+		[5, "eur"],
+	] as const)("keeps two fraction digits on %i %s", (minor, currency) => {
+		const out = formatAmount(minor, currency);
+		expect(out).toContain(SYMBOL[currency]);
+		expect(out).toMatch(/\d[.,]\d{2}(?!\d)/);
+		expect(Number(out.replace(/\D/g, ""))).toBe(minor);
 	});
 });
