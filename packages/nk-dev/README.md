@@ -89,6 +89,9 @@ tsc), so versions stay under your control. nk only orchestrates.
   silently 405s the endpoint, a page or layout whose `openGraph` carries no
   image — its own object replaces the inherited one, so the card unfurls as a
   blank placeholder); `--fix` applies the auto-fixable findings.
+  In a workspace it judges each package for its role: the root may fan
+  `type-check`/`ci` out to members, a member inherits nk-dev and `lint`/`format`
+  from the root, and only a Next app is asked for `nk type-check`.
 - **`nk dev`** — start the Next dev server on the golden-path local database
   (see [`db-package.md`](https://github.com/ingram-technologies/nextkit/blob/main/docs/db-package.md)):
   - **PGlite** — if `@ingram-tech/nk-db`'s `nk-pglite-dev` bin resolves, hand off

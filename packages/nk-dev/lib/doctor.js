@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, relative, resolve, sep } from "node:path";
 import { checkAgentGuideImport, ensureGuideImport } from "./agent-guide.js";
 import { appDirFindings } from "./app-dir.js";
 import { authNextFindings } from "./auth-next.js";
@@ -56,6 +56,59 @@ function readJson(file) {
 	}
 }
 
+/** A package.json `workspaces` field as a list of patterns. */
+function workspacePatterns(pkg) {
+	const ws = pkg?.workspaces;
+	if (Array.isArray(ws)) return ws;
+	if (Array.isArray(ws?.packages)) return ws.packages;
+	return [];
+}
+
+/** True if `rel` (a `/`-separated path) matches a workspace pattern: a `*`
+ *  segment matches any one segment, `**` any depth. */
+function matchesWorkspace(rel, pattern) {
+	const want = pattern.replace(/^\.\//, "").replace(/\/$/, "").split("/");
+	const have = rel.split("/");
+	if (want.at(-1) === "**") {
+		return want.slice(0, -1).every((seg, i) => seg === "*" || seg === have[i]);
+	}
+	return (
+		want.length === have.length &&
+		want.every((seg, i) => seg === "*" || seg === have[i])
+	);
+}
+
+/**
+ * The workspace root that lists `cwd` as a member, or null. Walks up from the
+ * parent directory: the first package.json declaring `workspaces` decides.
+ */
+function workspaceRootOf(cwd) {
+	let dir = dirname(cwd);
+	for (;;) {
+		const pkg = readJson(resolve(dir, "package.json"));
+		if (pkg && workspacePatterns(pkg).length > 0) {
+			const rel = relative(dir, cwd).split(sep).join("/");
+			return workspacePatterns(pkg).some((p) => matchesWorkspace(rel, p))
+				? { dir, pkg }
+				: null;
+		}
+		const parent = dirname(dir);
+		if (parent === dir) return null;
+		dir = parent;
+	}
+}
+
+const NEXT_CONFIGS = [
+	"next.config.ts",
+	"next.config.mjs",
+	"next.config.js",
+	"next.config.cjs",
+];
+
+/** A script that runs the same script in every workspace member. */
+const DELEGATES_RE =
+	/(^|\s)(--filter|-F|--recursive|-r|--workspaces|-ws)(\s|=|$)|\bturbo\s+run\b/;
+
 /** Write JSON in the house style (tabs, trailing newline). */
 function writeJson(file, value) {
 	writeFileSync(file, `${JSON.stringify(value, null, "\t")}\n`);
@@ -74,8 +127,23 @@ export function findings(cwd) {
 	if (!pkg) return out; // not a package — nothing to reconcile
 
 	// 1. Scripts point at `nk`. Accept either `type-check` or `typecheck` key.
+	//    In a workspace: the root may fan `type-check` out to its members; a
+	//    member leaves `lint`/`format` to a root that runs them; and only a Next
+	//    app wants `nk type-check` (it runs `next typegen`), a library runs tsc.
 	const scripts = pkg.scripts ?? {};
+	const isWorkspaceRoot = workspacePatterns(pkg).length > 0;
+	const delegates = (cmd) => isWorkspaceRoot && DELEGATES_RE.test(cmd ?? "");
+	const root = workspaceRootOf(cwd);
+	const isNextApp = NEXT_CONFIGS.some((f) => existsSync(resolve(cwd, f)));
+	const runsTsc = (cmd) =>
+		!isNextApp && !isWorkspaceRoot && /\btsc\b/.test(cmd ?? "");
 	for (const [name, wanted] of Object.entries(CANONICAL_SCRIPTS)) {
+		if (
+			(name === "lint" || name === "format") &&
+			root?.pkg.scripts?.[name] === wanted
+		) {
+			continue;
+		}
 		const key =
 			name === "type-check" &&
 			scripts["typecheck"] !== undefined &&
@@ -84,6 +152,7 @@ export function findings(cwd) {
 				: name;
 		const current = scripts[key];
 		if (current === wanted) continue;
+		if (name === "type-check" && (delegates(current) || runsTsc(current))) continue;
 		// Only flag `check` as missing if the repo has scripts at all; a repo
 		// truly without a check script still wants one on the nk model.
 		out.push({
@@ -104,9 +173,11 @@ export function findings(cwd) {
 		});
 	}
 
-	// 2. Superseded deps still declared.
+	// 2. Superseded deps still declared. A workspace member inherits nk-dev
+	//    from the root that declares it (one toolchain, hoisted).
 	const deps = { ...pkg.dependencies, ...pkg.devDependencies };
-	if (deps["@ingram-tech/nk-dev"]) {
+	const rootDeps = { ...root?.pkg.dependencies, ...root?.pkg.devDependencies };
+	if (deps["@ingram-tech/nk-dev"] || rootDeps["@ingram-tech/nk-dev"]) {
 		const superseded = SUPERSEDED_DEPS.filter((d) => d in deps);
 		for (const dep of superseded) {
 			out.push({
@@ -297,7 +368,9 @@ export function findings(cwd) {
 	// 9. A `ci` script exists and runs the house gate. Its full contents are
 	//    the site's call (migrations, i18n, email catalogs, build…), so this only
 	//    warns and never writes — but the dep-upgrade flow and pre-push both
-	//    assume `bun run ci` is the one command that proves a change.
+	//    assume `bun run ci` is the one command that proves a change. A
+	//    workspace root that fans `ci` out to its members passes: each member's
+	//    own `ci` is what this checks when doctor runs there.
 	const ci = scripts["ci"];
 	if (ci === undefined) {
 		out.push({
@@ -306,9 +379,12 @@ export function findings(cwd) {
 			message:
 				'missing `ci` script — the one command that proves a change (e.g. "nk check && nk type-check && nk test")',
 		});
-	} else {
+	} else if (!delegates(ci)) {
 		const missing = ["nk check", "nk type-check"].filter(
-			(cmd) => !ci.includes(cmd) && !ci.includes(`bun run ${cmd.slice(3)}`),
+			(cmd) =>
+				!ci.includes(cmd) &&
+				!ci.includes(`bun run ${cmd.slice(3)}`) &&
+				!(cmd === "nk type-check" && runsTsc(ci)),
 		);
 		if (missing.length > 0) {
 			out.push({
