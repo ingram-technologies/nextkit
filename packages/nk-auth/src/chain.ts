@@ -2,6 +2,7 @@ import { inspectMigrations, type MigrationStatus } from "@ingram-tech/nk-db/migr
 import { createRequire } from "node:module";
 import { dirname } from "node:path";
 import type { Pool } from "pg";
+import { SHIPPED_AUTH_CHAIN } from "./shipped-chain.js";
 
 /**
  * The migration chain this package ships: `migrations/` in the installed
@@ -53,6 +54,58 @@ export interface AuthChainCheckOptions {
 	migrationsSchema?: string;
 }
 
+const journalOf = (options: AuthChainCheckOptions) => ({
+	schema: options.migrationsSchema ?? "drizzle",
+	table: options.migrationsTable ?? AUTH_MIGRATIONS_TABLE,
+});
+
+/**
+ * Whether this role can read the journal table. Looked up in pg_catalog, which
+ * every role can read: `to_regclass` raises "permission denied" instead of
+ * returning null when the role lacks USAGE on the schema, and that broke every
+ * session read on a site whose auth role has no business in `drizzle`.
+ */
+const journalReadable = async (
+	pool: Pool,
+	schema: string,
+	table: string,
+): Promise<boolean> => {
+	const { rows } = await pool.query<{ readable: boolean }>(
+		`select has_schema_privilege(n.oid, 'USAGE')
+			and has_table_privilege(c.oid, 'SELECT') as readable
+		from pg_catalog.pg_class c
+		join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+		where n.nspname = $1 and c.relname = $2`,
+		[schema, table],
+	);
+	return rows[0]?.readable === true;
+};
+
+const quoteIdent = (name: string): string => `"${name.replaceAll('"', '""')}"`;
+
+/**
+ * The same verdict as {@link assertAuthChainApplied}, decided against
+ * {@link SHIPPED_AUTH_CHAIN} instead of the `migrations/` folder: a shipped
+ * file is pending when its hash is not recorded (the set difference nk-db's
+ * runner uses). It never touches the filesystem, so it is safe inside a
+ * site's server bundle, where it runs on the first session read.
+ */
+const assertShippedChainRecorded = async (
+	pool: Pool,
+	options: AuthChainCheckOptions,
+): Promise<void> => {
+	const { schema, table } = journalOf(options);
+	if (!(await journalReadable(pool, schema, table))) return;
+	const { rows } = await pool.query<{ hash: string }>(
+		`select hash from ${quoteIdent(schema)}.${quoteIdent(table)}`,
+	);
+	const recorded = new Set(rows.map((row) => row.hash));
+	const pending = SHIPPED_AUTH_CHAIN.filter((file) => !recorded.has(file.hash));
+	if (pending.length > 0) {
+		throw new AuthChainNotAppliedError(pending.map((file) => file.tag));
+	}
+};
+
 /**
  * Verify the shipped auth chain is fully applied to the database behind `pool`.
  *
@@ -73,21 +126,8 @@ export const assertAuthChainApplied = async (
 	pool: Pool,
 	options: AuthChainCheckOptions = {},
 ): Promise<MigrationStatus | null> => {
-	const schema = options.migrationsSchema ?? "drizzle";
-	const table = options.migrationsTable ?? AUTH_MIGRATIONS_TABLE;
-	// Look the journal up in pg_catalog, which every role can read:
-	// `to_regclass` raises "permission denied" instead of returning null when the
-	// role lacks USAGE on the schema, and that broke every session read on a
-	// site whose auth role has no business in `drizzle`.
-	const { rows } = await pool.query<{ readable: boolean }>(
-		`select has_schema_privilege(n.oid, 'USAGE')
-			and has_table_privilege(c.oid, 'SELECT') as readable
-		from pg_catalog.pg_class c
-		join pg_catalog.pg_namespace n on n.oid = c.relnamespace
-		where n.nspname = $1 and c.relname = $2`,
-		[schema, table],
-	);
-	if (rows[0]?.readable !== true) return null;
+	const { schema, table } = journalOf(options);
+	if (!(await journalReadable(pool, schema, table))) return null;
 	const status = await inspectMigrations({
 		pool,
 		migrationsFolder: authMigrationsFolder(),
@@ -114,7 +154,7 @@ export const authChainCheck = (
 	if (!isPool(database)) return async () => {};
 	let checked: Promise<void> | undefined;
 	return () => {
-		checked ??= assertAuthChainApplied(database, options).then(() => undefined);
+		checked ??= assertShippedChainRecorded(database, options);
 		return checked;
 	};
 };

@@ -8,6 +8,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { readJournal } from "@ingram-tech/nk-db/migrate";
 import { createTestDb, type TestDb } from "@ingram-tech/nk-db/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -17,6 +18,7 @@ import {
 	AuthChainNotAppliedError,
 	authChainCheck,
 } from "./chain.js";
+import { SHIPPED_AUTH_CHAIN } from "./shipped-chain.js";
 
 interface Journal {
 	entries: Array<{ idx: number; tag: string }>;
@@ -120,6 +122,29 @@ describe("assertAuthChainApplied", () => {
 		} finally {
 			await restricted.close();
 		}
+	});
+
+	it("carries the shipped chain in code, file for file", () => {
+		// The runtime check reads SHIPPED_AUTH_CHAIN, never migrations/ (the files
+		// are not reliably on disk inside a server bundle). A new migration that
+		// is not added there would pass the check on a database that lacks it.
+		expect(SHIPPED_AUTH_CHAIN).toEqual(
+			readJournal(authMigrationsFolder()).map(({ tag, hash }) => ({ tag, hash })),
+		);
+	});
+
+	it("gives the per-process check the same verdicts without reading migrations/", async () => {
+		await expect(authChainCheck(complete.pool)()).resolves.toBeUndefined();
+		await expect(authChainCheck(unrecorded.pool)()).resolves.toBeUndefined();
+		const failure = await authChainCheck(lagging.pool)().then(
+			() => null,
+			(error: unknown) => error,
+		);
+		expect((failure as AuthChainNotAppliedError).pending).toEqual(
+			shippedJournal()
+				.entries.filter((entry) => entry.idx >= 2)
+				.map((entry) => entry.tag),
+		);
 	});
 
 	it("memoizes per process and skips anything that is not a pg pool", async () => {
