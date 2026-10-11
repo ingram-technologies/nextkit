@@ -22,6 +22,17 @@ describe("pagination", () => {
 		});
 	});
 
+	it.each([
+		[0, 20, 0],
+		[40, 20, 2],
+		[41, 20, 3],
+		[1, 20, 1],
+	])("total %i at limit %i is %i pages", (total, limit, totalPages) => {
+		expect(paginate([], { page: 1, limit, total }).pagination.totalPages).toBe(
+			totalPages,
+		);
+	});
+
 	it("paginationQuery applies defaults and coerces string params", () => {
 		expect(paginationQuery.parse({})).toEqual({ page: 1, limit: 20 });
 		expect(paginationQuery.parse({ page: "2", limit: "5" })).toEqual({

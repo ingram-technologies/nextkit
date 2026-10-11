@@ -5,30 +5,20 @@ import { createRequireAuth, type AuthEnv } from "./auth.js";
 import { HttpError, jsonContent } from "./errors.js";
 import { createRouter } from "./router.js";
 
-// A router whose handlers throw — exercises the per-router onError gotcha: a
+// A router whose handler throws — exercises the per-router onError gotcha: a
 // mounted OpenAPIHono does NOT bubble thrown errors to the parent's onError, so
-// createRouter must attach its own. If it doesn't, these render as bare 500s.
-const throwingRoutes = createRouter()
-	.openapi(
-		createRoute({
-			method: "get",
-			path: "/boom",
-			responses: { 404: { description: "nope" } },
-		}),
-		() => {
-			throw new HttpError(404, "Not here", { hint: "gone" });
-		},
-	)
-	.openapi(
-		createRoute({
-			method: "get",
-			path: "/crash",
-			responses: { 200: { description: "ok" } },
-		}),
-		() => {
-			throw new Error("kaboom");
-		},
-	);
+// createRouter must attach its own. If it doesn't, this renders as a bare 500.
+// (The non-HttpError crash → 500 envelope is covered in errors.test.ts.)
+const throwingRoutes = createRouter().openapi(
+	createRoute({
+		method: "get",
+		path: "/boom",
+		responses: { 404: { description: "nope" } },
+	}),
+	() => {
+		throw new HttpError(404, "Not here", { hint: "gone" });
+	},
+);
 
 // A validated route to exercise the defaultHook → 400 envelope path.
 const validatedRoutes = createRouter().openapi(
@@ -55,13 +45,6 @@ describe("createApiApp + createRouter", () => {
 			error: "Not here",
 			details: { hint: "gone" },
 		});
-	});
-
-	it("renders a non-HttpError crash as a 500 envelope", async () => {
-		const app = buildApp();
-		const res = await app.request("/api/v1/crash");
-		expect(res.status).toBe(500);
-		expect(await res.json()).toEqual({ error: "Internal server error" });
 	});
 
 	it("turns a Zod validation failure into a 400 envelope with details", async () => {

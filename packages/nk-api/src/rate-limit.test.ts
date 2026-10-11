@@ -13,6 +13,8 @@ describe("checkRateLimit", () => {
 	});
 
 	it("allows up to the limit then blocks, decrementing remaining", () => {
+		// Frozen clock: a slow run must not let the window roll over mid-test.
+		vi.useFakeTimers();
 		const key = freshKey();
 		expect(checkRateLimit({ key, limit: 2, windowMs: 1000 })).toMatchObject({
 			success: true,
@@ -53,6 +55,14 @@ describe("getClientKey", () => {
 	it("falls back to x-real-ip then to unknown", () => {
 		expect(getClientKey(new Headers({ "x-real-ip": "9.9.9.9" }))).toBe("9.9.9.9");
 		expect(getClientKey(new Headers())).toBe("unknown");
+	});
+
+	it("caps a client-controlled key at 64 chars", () => {
+		// Off-Vercel these headers are attacker-supplied; unbounded keys would
+		// bloat the bucket map.
+		const long = "a".repeat(500);
+		expect(getClientKey(new Headers({ "x-forwarded-for": long }))).toHaveLength(64);
+		expect(getClientKey(new Headers({ "x-real-ip": long }))).toHaveLength(64);
 	});
 });
 

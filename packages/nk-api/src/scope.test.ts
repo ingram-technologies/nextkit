@@ -67,6 +67,17 @@ describe("createResourceScope", () => {
 		expect(await res.json()).toEqual({ orgId: VALID, role: "owner" });
 	});
 
+	it("admits a role exactly equal to the required minimum", async () => {
+		const app = buildApp({
+			user: { id: "u1" },
+			resolveRole: () => Promise.resolve("admin"),
+			minRole: "admin",
+		});
+		const res = await app.request(`/api/v1/orgs/${VALID}/thing`);
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({ orgId: VALID, role: "admin" });
+	});
+
 	it("403s when the role is below the required minimum", async () => {
 		const app = buildApp({
 			user: { id: "u1" },
