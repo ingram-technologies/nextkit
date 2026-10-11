@@ -25,12 +25,10 @@ describe("defineLocaleRouting: query strategy", () => {
 		expect(routing.bareUrl("/pricing")).toBe("https://acme.test/pricing");
 	});
 
-	it("reads back the locale it writes, for every locale", () => {
-		for (const locale of routing.locales) {
-			expect(routing.localeFromUrl(routing.urlForLocale("/x", locale))).toBe(
-				locale,
-			);
-		}
+	it("replaces a locale the path already names, keeping other params", () => {
+		const url = new URL(routing.urlForLocale("/p?hl=fr&q=vat%20id", "en"));
+		expect(url.searchParams.getAll("hl")).toEqual(["en"]);
+		expect(url.searchParams.get("q")).toBe("vat id");
 	});
 
 	it("treats the bare path as naming no locale", () => {
@@ -77,6 +75,10 @@ describe("defineLocaleRouting: prefix strategy", () => {
 		);
 	});
 
+	it("reads the locale off the pathname, not off the query string", () => {
+		expect(prefixed.urlForLocale("/fr?q=1", "en")).toBe("https://acme.test/en?q=1");
+	});
+
 	it("treats a bare path as naming no locale, so negotiation decides", () => {
 		// This is the whole point: returning the default locale here would make it
 		// the URL signal, which outranks the cookie, so a visitor who chose French
@@ -91,14 +93,6 @@ describe("defineLocaleRouting: prefix strategy", () => {
 		expect(prefixed.localeFromUrl("https://acme.test/fr")).toBe("fr");
 	});
 
-	it("round-trips every locale through its own address", () => {
-		for (const locale of prefixed.locales) {
-			expect(prefixed.localeFromUrl(prefixed.urlForLocale("/x", locale))).toBe(
-				locale,
-			);
-		}
-	});
-
 	it("strips the prefix for the app-facing rewrite", () => {
 		expect(prefixed.stripLocale("/fr/about")).toBe("/about");
 		expect(prefixed.stripLocale("/fr")).toBe("/");
@@ -107,10 +101,23 @@ describe("defineLocaleRouting: prefix strategy", () => {
 		expect(prefixed.stripLocale("/french-press")).toBe("/french-press");
 	});
 
-	it("does not double-prefix an already-prefixed path", () => {
-		expect(prefixed.urlForLocale("/fr/about", "nl" as "fr")).toBe(
-			"https://acme.test/nl/about",
-		);
+	it("relocalising an address equals localising the bare path", () => {
+		// Idempotence over locale switches: a language switcher handed an
+		// already-localized path must not stack prefixes.
+		const relative = (url: string) => {
+			const parsed = new URL(url);
+			return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+		};
+		for (const path of ["/", "/about", "/en/about", "/fr", "/fr?q=1", "/x#top"]) {
+			for (const a of prefixed.locales) {
+				for (const b of prefixed.locales) {
+					const switched = relative(prefixed.urlForLocale(path, a));
+					expect(prefixed.urlForLocale(switched, b)).toBe(
+						prefixed.urlForLocale(path, b),
+					);
+				}
+			}
+		}
 	});
 
 	it("is identity under the query strategy", () => {
@@ -131,17 +138,28 @@ describe("locale precedence", () => {
 		).toBe("fr");
 	});
 
-	it("falls through the chain in order", () => {
-		const signals = {
-			account: "fr",
-			cookie: "nl",
-			acceptLanguage: "nl-NL",
-			country: "NL",
-		};
-		expect(resolveLocaleFromSignals(routing, signals)).toBe("fr");
-		expect(resolveLocaleFromSignals(routing, { ...signals, account: null })).toBe(
-			"nl",
+	// docs/i18n-routing.md "The precedence chain": url, account, cookie,
+	// Accept-Language, country, default. Neighbouring signals name different
+	// locales, so skipping or reordering any one of them changes the answer.
+	const chain = {
+		url: "fr",
+		account: "nl",
+		cookie: "en",
+		acceptLanguage: "fr-BE",
+		country: "NL",
+	};
+	it.each([
+		[0, "fr"],
+		[1, "nl"],
+		[2, "en"],
+		[3, "fr"],
+		[4, "nl"],
+		[5, "en"],
+	])("with the top %i signals dropped, resolves to %s", (dropped, expected) => {
+		const signals = Object.fromEntries(
+			LOCALE_PRECEDENCE.slice(dropped).map((key) => [key, chain[key]]),
 		);
+		expect(resolveLocaleFromSignals(routing, signals)).toBe(expected);
 	});
 
 	it("negotiates Accept-Language rather than matching it literally", () => {
@@ -260,28 +278,37 @@ describe("hreflang tags and html lang", () => {
 	it("falls back to the plain locale when no tag is set", () => {
 		expect(routing.htmlLang("fr")).toBe("fr");
 	});
-
-	it("carries the tags on the routing object, so no second config is needed", () => {
-		// A site with regional tags used to build one object for serving and
-		// another for hreflang, which is precisely the drift this prevents.
-		expect(regional.hrefLangTags).toEqual({
-			en: "en-BE",
-			fr: "fr-BE",
-			nl: "nl-BE",
-		});
-	});
 });
 
-describe("cookie name", () => {
-	it("lives on routing, so middleware and resolver cannot disagree", () => {
-		expect(routing.cookieName).toBe("locale");
-		expect(
-			defineLocaleRouting({
-				baseUrl: "https://acme.test",
-				locales: ["en"],
-				defaultLocale: "en",
-				cookieName: "lang",
-			}).cookieName,
-		).toBe("lang");
-	});
+describe("relocalising round-trips", () => {
+	const strategies = [
+		routing,
+		defineLocaleRouting({
+			baseUrl: "https://acme.test",
+			locales: ["en", "fr", "nl"],
+			defaultLocale: "en",
+			strategy: "prefix",
+		}),
+	];
+	const inputs = [
+		"/",
+		"/p",
+		"/p?hl=fr",
+		"/p?q=1&hl=nl&page=2",
+		"/p?hl=fr&hl=nl",
+		"/fr/p",
+		"/nl?q=1",
+		"/p#top",
+	];
+
+	it.each(strategies.map((r) => [r.strategy, r] as const))(
+		"%s: the address for a locale names exactly that locale",
+		(_strategy, r) => {
+			for (const input of inputs) {
+				for (const locale of r.locales) {
+					expect(r.localeFromUrl(r.urlForLocale(input, locale))).toBe(locale);
+				}
+			}
+		},
+	);
 });

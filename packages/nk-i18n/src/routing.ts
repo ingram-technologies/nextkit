@@ -284,14 +284,26 @@ export function defineLocaleRouting<const L extends string>(
 	};
 
 	const urlForLocale = (pathname: string, locale: L): string => {
-		const base = stripLocale(pathname);
+		// Parse first, so the locale is read from the real pathname and any query
+		// or fragment rides along instead of being mistaken for part of the path.
+		const url = new URL(bareUrl(pathname));
 		// Every locale gets its own address, the default included: the bare path
 		// is the negotiating entry point and belongs to none of them.
 		if (strategy === "prefix") {
-			return absolute(`/${locale}${base === "/" ? "" : base}`, baseUrl);
+			const base = stripLocale(url.pathname);
+			url.pathname = `/${locale}${base === "/" ? "" : base}`;
+			return url.toString();
 		}
-		const bare = bareUrl(base);
-		return `${bare}${bare.includes("?") ? "&" : "?"}${param}=${locale}`;
+		// Replace, never append: a second `?hl=` would leave the first one to win
+		// on read-back, so relocalising `?hl=fr` to `en` would still name French.
+		// Other params are kept verbatim rather than re-serialised.
+		const kept = url.search
+			.slice(1)
+			.split("&")
+			.filter((pair) => pair !== "" && !new URLSearchParams(pair).has(param));
+		kept.push(`${encodeURIComponent(param)}=${encodeURIComponent(locale)}`);
+		url.search = kept.join("&");
+		return url.toString();
 	};
 
 	const localeFromUrl = (url: URL | string): L | undefined => {

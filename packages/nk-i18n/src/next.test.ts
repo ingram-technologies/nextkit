@@ -1,7 +1,35 @@
 import { NextRequest } from "next/server";
-import { describe, expect, it } from "vitest";
-import { LOCALE_URL_HEADER, localeProxy, PATHNAME_HEADER } from "./next.js";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+	createLocaleResolver,
+	getUrlLocale,
+	hreflangConfigFor,
+	LOCALE_URL_HEADER,
+	localeProxy,
+	PATHNAME_HEADER,
+} from "./next.js";
 import { defineLocaleRouting } from "./routing.js";
+
+/** What `next/headers` hands a server component for the current request. */
+const incoming = vi.hoisted(() => ({
+	headers: new Headers(),
+	cookies: new Map<string, string>(),
+}));
+
+vi.mock("next/headers", () => ({
+	headers: async () => incoming.headers,
+	cookies: async () => ({
+		get: (name: string) => {
+			const value = incoming.cookies.get(name);
+			return value === undefined ? undefined : { name, value };
+		},
+	}),
+}));
+
+beforeEach(() => {
+	incoming.headers = new Headers();
+	incoming.cookies = new Map();
+});
 
 const prefixed = defineLocaleRouting({
 	baseUrl: "https://acme.test",
@@ -116,5 +144,43 @@ describe("localeProxy: cookie and header hygiene", () => {
 		});
 		expect(forwarded(response, "x-tenant")).toBe("acme");
 		expect(forwarded(response, LOCALE_URL_HEADER)).toBe("fr");
+	});
+});
+
+describe("server components: the URL header is the only source of currentLocale", () => {
+	const regional = defineLocaleRouting({
+		baseUrl: "https://acme.test",
+		locales: ["en", "fr", "nl"],
+		defaultLocale: "en",
+		hrefLangTags: { en: "en-BE", fr: "fr-BE" },
+	});
+
+	it("takes currentLocale from the header middleware forwarded", async () => {
+		incoming.headers.set(LOCALE_URL_HEADER, "fr");
+		const config = await hreflangConfigFor(regional);
+		expect(config.currentLocale).toBe("fr");
+		// The regional tags come along, so the site builds no second config.
+		expect(config.hrefLangTags).toEqual({ en: "en-BE", fr: "fr-BE" });
+	});
+
+	it("names no locale on the bare path, even for a visitor with a fr cookie", async () => {
+		// The canonical follows the address: a bare path rendering French must
+		// not claim to be the French URL.
+		incoming.cookies.set("locale", "fr");
+		expect((await hreflangConfigFor(regional)).currentLocale).toBeUndefined();
+	});
+
+	it("rejects a header value outside the locale list", async () => {
+		incoming.headers.set(LOCALE_URL_HEADER, "de");
+		expect(await getUrlLocale(regional)).toBeUndefined();
+	});
+});
+
+describe("createLocaleResolver", () => {
+	it("lets the URL header beat both the cookie and the account", async () => {
+		incoming.headers.set(LOCALE_URL_HEADER, "fr");
+		incoming.cookies.set("locale", "nl");
+		const resolve = createLocaleResolver(query, { account: () => "nl" });
+		expect(await resolve()).toBe("fr");
 	});
 });
