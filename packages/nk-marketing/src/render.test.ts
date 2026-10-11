@@ -1,3 +1,4 @@
+import { escapeHtml } from "@ingram-tech/nk-email";
 import { describe, expect, it } from "vitest";
 import {
 	derivePreviewText,
@@ -23,13 +24,19 @@ describe("renderMarketingHtml", () => {
 		expect(html).toContain("you have an account with Acme");
 	});
 
-	it("escapes HTML in content to prevent injection", () => {
+	it("escapes every interpolated string to prevent injection", () => {
+		const payload = `<x"'&>`;
 		const html = renderMarketingHtml({
-			...base,
-			content: "<script>alert(1)</script>",
+			subject: payload,
+			content: payload,
+			cta: { label: payload, href: payload },
+			unsubscribeUrl: payload,
+			previewText: payload,
+			footerReason: payload,
 		});
-		expect(html).not.toContain("<script>alert(1)</script>");
-		expect(html).toContain("&lt;script&gt;");
+		expect(html).not.toContain(payload);
+		// Seven inputs, each present in escaped form: none was dropped to pass.
+		expect(html.split(escapeHtml(payload))).toHaveLength(8);
 	});
 
 	it("renders a CTA button when provided", () => {
@@ -60,6 +67,15 @@ describe("derivePreviewText", () => {
 	it("truncates long lines", () => {
 		const preview = derivePreviewText("x".repeat(200));
 		expect(preview.length).toBe(138); // 137 chars + ellipsis
+		expect(preview.endsWith("…")).toBe(true);
+	});
+
+	it("never splits an emoji when truncating", () => {
+		const preview = derivePreviewText("😀".repeat(200));
+		// A lone surrogate is what renders as U+FFFD in the inbox.
+		expect(preview).not.toMatch(
+			/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/,
+		);
 		expect(preview.endsWith("…")).toBe(true);
 	});
 
