@@ -11,9 +11,14 @@ import { createAuthHelpers, encodeSessionIds } from "./server.js";
 // Request-scoped reads the helpers depend on; reset per test.
 let headerStore = new Headers();
 let cookieList: { name: string; value: string }[] = [];
+// Set to model Next's prerender bailout: `headers()` throws outside a request.
+let headersUnavailable: Error | null = null;
 
 vi.mock("next/headers", () => ({
-	headers: async () => headerStore,
+	headers: async () => {
+		if (headersUnavailable) throw headersUnavailable;
+		return headerStore;
+	},
 	cookies: async () => ({ getAll: () => cookieList }),
 }));
 
@@ -31,6 +36,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 beforeEach(() => {
+	headersUnavailable = null;
 	headerStore = new Headers();
 	cookieList = [];
 });
@@ -291,6 +297,23 @@ describe("createAuthHelpers chain check", () => {
 		await expect(helpers.getSession()).rejects.toBeInstanceOf(
 			AuthChainNotAppliedError,
 		);
+		expect(getSession).not.toHaveBeenCalled();
+	});
+
+	it("reads the request before the database, so a prerender never queries it", async () => {
+		// A page that only calls getSession() is a prerender candidate; the
+		// headers() bailout must come before the chain check's query, or the
+		// build tries to reach a database it does not have.
+		const bailout = new Error("Dynamic server usage: headers");
+		headersUnavailable = bailout;
+		const query = vi.fn();
+		const getSession = vi.fn(async () => session);
+		const helpers = createAuthHelpers({
+			options: { database: { query, connect: vi.fn() } },
+			api: { getSession, listUserAccounts: async () => [] },
+		});
+		await expect(helpers.getSession()).rejects.toBe(bailout);
+		expect(query).not.toHaveBeenCalled();
 		expect(getSession).not.toHaveBeenCalled();
 	});
 

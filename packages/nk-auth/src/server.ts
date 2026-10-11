@@ -177,13 +177,17 @@ export function createAuthHelpers<S extends SessionLike>(
 			? async (): Promise<void> => {}
 			: authChainCheck(auth.options?.database, options.chainCheck);
 	const getSession = cache(async (): Promise<S | null> => {
+		// Request headers first: reading them is what marks the route dynamic, so
+		// a page Next tries to prerender bails out here instead of querying the
+		// database at build time (where there usually is none).
+		const requestHeaders = await headers();
 		await ensureChain();
 		// Never refresh here: a refresh extends the row and re-issues the cookie,
 		// and a server component cannot set cookies, so the row would outlive a
 		// cookie that still expires on its sign-in max-age. Refreshes belong to
 		// the client's `/get-session` (see README, "Session lifetime").
 		const session = await auth.api.getSession({
-			headers: await headers(),
+			headers: requestHeaders,
 			query: { disableRefresh: true },
 		});
 		return session && options.ids
