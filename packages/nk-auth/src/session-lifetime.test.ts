@@ -60,6 +60,22 @@ describe("sessionLifetime", () => {
 		);
 	});
 
+	it("ends a session already past createdAt + maxAge instead of sliding it", async () => {
+		// A row whose expiresAt still lies beyond the ceiling (the plugin added
+		// late, or a suite app with a longer maxAge refreshed it last). The
+		// refresh that hits it clamps expiresAt into the past, so from then on
+		// the session is gone. (That one refreshing read is still answered with
+		// the session: Better Auth returns what the hook wrote without
+		// re-checking it.)
+		const { auth, headers, row, age } = await setup();
+		const createdAt = age(91);
+		await auth.api.getSession({ headers });
+		expect((row.expiresAt as Date).getTime()).toBe(
+			createdAt.getTime() + 90 * DAY_MS,
+		);
+		expect(await auth.api.getSession({ headers })).toBeNull();
+	});
+
 	it("leaves the row alone when refresh is disabled", async () => {
 		const { auth, headers, row, age } = await setup();
 		age(10);

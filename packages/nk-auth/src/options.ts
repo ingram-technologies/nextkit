@@ -64,7 +64,9 @@ export const makePasskeyOptions = (cfg: PasskeyConfig): PasskeyOptions => ({
 /**
  * Derive passkey options from the site's single base URL: `rpID` = the URL's
  * hostname (the WebAuthn effective domain — host only, no scheme or port) and
- * `origin` = the URL itself. This is the common case (one sign-in origin), and
+ * `origin` = the URL's origin (scheme, host and port; any path or trailing slash
+ * dropped, since the browser reports the bare origin and WebAuthn compares it
+ * exactly). This is the common case (one sign-in origin), and
  * it keeps the relying-party id and the registered origin in lockstep so they
  * can't drift. Pass the same value the instance signs sessions for, e.g.:
  *
@@ -77,12 +79,10 @@ export const makePasskeyOptions = (cfg: PasskeyConfig): PasskeyOptions => ({
 export const passkeyOptionsForBaseUrl = (
 	baseURL: string,
 	rpName: string,
-): PasskeyOptions =>
-	makePasskeyOptions({
-		rpId: new URL(baseURL).hostname,
-		rpName,
-		origin: baseURL,
-	});
+): PasskeyOptions => {
+	const url = new URL(baseURL);
+	return makePasskeyOptions({ rpId: url.hostname, rpName, origin: url.origin });
+};
 
 /**
  * Which auth mail is being sent. Switch on this to pick a template — never on

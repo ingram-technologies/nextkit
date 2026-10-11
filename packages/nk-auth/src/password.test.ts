@@ -70,3 +70,31 @@ describe("validateNewPassword", () => {
 		});
 	});
 });
+
+describe("passwordSchema and validateNewPassword agree", () => {
+	// The client form and the server each pick one of the two; at every length
+	// boundary they must give the same verdict, or a password passes one side
+	// and fails the other.
+	const cases: Array<[string, { minLength?: number; maxLength?: number }]> = [
+		["default policy", {}],
+		["overridden policy", { minLength: 12, maxLength: 20 }],
+	];
+	it.each(cases)("at min-1, min, max and max+1 (%s)", (_name, policy) => {
+		const min = policy.minLength ?? DEFAULT_MIN_PASSWORD_LENGTH;
+		const max = policy.maxLength ?? DEFAULT_MAX_PASSWORD_LENGTH;
+		for (const [length, valid] of [
+			[min - 1, false],
+			[min, true],
+			[max, true],
+			[max + 1, false],
+		] as const) {
+			const pw = "x".repeat(length);
+			expect(passwordSchema(policy).safeParse(pw).success, `${length}`).toBe(
+				valid,
+			);
+			expect(validateNewPassword(pw, pw, policy) === null, `${length}`).toBe(
+				valid,
+			);
+		}
+	});
+});

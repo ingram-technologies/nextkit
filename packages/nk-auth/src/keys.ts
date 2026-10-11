@@ -32,13 +32,17 @@ const DEV_SECRET_PLACEHOLDER = "nk-dev-insecure-placeholder-not-for-production";
 
 /**
  * In production the secret is required; everywhere else it defaults to the
- * insecure placeholder. Read NODE_ENV at parse time (not module load) so the
- * same process can be exercised under either mode.
+ * insecure placeholder. An empty value (a bare `BETTER_AUTH_SECRET=` line in a
+ * .env file) counts as unset. Read NODE_ENV at parse time (not module load) so
+ * the same process can be exercised under either mode.
  */
 const secretField = () =>
 	process.env.NODE_ENV === "production"
 		? z.string().min(1)
-		: z.string().min(1).default(DEV_SECRET_PLACEHOLDER);
+		: z
+				.string()
+				.optional()
+				.transform((secret) => secret || DEV_SECRET_PLACEHOLDER);
 
 const buildSchema = () =>
 	z.object({

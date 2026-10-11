@@ -72,11 +72,8 @@ describe("resetPassword creates a credential for a social-only user", () => {
 		seedSocialOnlyUser();
 	});
 
-	it("has no credential account before the reset", () => {
-		expect(credentialAccounts()).toHaveLength(0);
-	});
-
 	it("mints a credential account when the reset token is consumed", async () => {
+		expect(credentialAccounts()).toHaveLength(0);
 		const capture: { token?: string } = {};
 		const auth = makeAuth(capture);
 

@@ -40,8 +40,12 @@ describe("safeNextParam", () => {
 describe("signInUrl", () => {
 	it("drops an unsafe next instead of propagating it", () => {
 		expect(signInUrl("/login", { next: "/\\evil.com" })).toBe("/login");
-		expect(signInUrl("/login", { next: "/ok", stale: true })).toBe(
-			"/login?next=%2Fok&stale=1",
+		const kept = new URL(
+			signInUrl("/login", { next: "/ok", stale: true }),
+			"http://h",
 		);
+		expect(kept.pathname).toBe("/login");
+		expect(kept.searchParams.get("next")).toBe("/ok");
+		expect(kept.searchParams.get("stale")).toBe("1");
 	});
 });

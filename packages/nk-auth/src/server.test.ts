@@ -1,5 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createIdRegistry, uuidv7 } from "@ingram-tech/nk-db/id";
+import { createTestDb, type TestDb } from "@ingram-tech/nk-db/pglite";
+import {
+	AUTH_MIGRATIONS_TABLE,
+	AuthChainNotAppliedError,
+	authMigrationsFolder,
+} from "./chain.js";
 import { createAuthHelpers, encodeSessionIds } from "./server.js";
 
 // Request-scoped reads the helpers depend on; reset per test.
@@ -28,6 +34,16 @@ beforeEach(() => {
 	headerStore = new Headers();
 	cookieList = [];
 });
+
+/** A sign-in destination, parsed: the path and the two params the guards set. */
+const target = (to: string) => {
+	const url = new URL(to, "http://h");
+	return {
+		pathname: url.pathname,
+		next: url.searchParams.get("next"),
+		stale: url.searchParams.get("stale"),
+	};
+};
 
 const session = { user: { id: "u1", email: "a@b.com" }, session: { id: "s1" } };
 const helpers = (
@@ -105,8 +121,8 @@ describe("createAuthHelpers with ids", () => {
 describe("createAuthHelpers", () => {
 	it("getSession / getUser return the validated values", async () => {
 		const { getSession, getUser } = helpers(session);
-		expect(await getSession()).toBe(session);
-		expect(await getUser()).toBe(session.user);
+		expect(await getSession()).toEqual(session);
+		expect(await getUser()).toEqual(session.user);
 	});
 
 	it("reads without refreshing, since a server component cannot set the cookie", async () => {
@@ -146,12 +162,14 @@ describe("createAuthHelpers", () => {
 		warn.mockRestore();
 	});
 
-	it("signInTarget is exported for a site's own guard wrapper", async () => {
+	it("signInTarget carries next and stale for a site's own guard wrapper", async () => {
 		headerStore = new Headers({ "x-nk-auth-path": "/memory?tab=a" });
 		cookieList = [{ name: "better-auth.session_token", value: "dead" }];
-		await expect(helpers(null).signInTarget()).resolves.toBe(
-			"/login?next=%2Fmemory%3Ftab%3Da&stale=1",
-		);
+		expect(target(await helpers(null).signInTarget())).toEqual({
+			pathname: "/login",
+			next: "/memory?tab=a",
+			stale: "1",
+		});
 	});
 
 	it("honors a custom nextParam and isSafeNext", async () => {
@@ -160,26 +178,27 @@ describe("createAuthHelpers", () => {
 			nextParam: "redirectTo",
 			isSafeNext: (v) => (v === "/memory" ? "/memory" : null),
 		});
-		await expect(h.signInTarget()).resolves.toBe("/login?redirectTo=%2Fmemory");
+		const custom = new URL(await h.signInTarget(), "http://h");
+		expect(custom.pathname).toBe("/login");
+		expect(custom.searchParams.get("redirectTo")).toBe("/memory");
+		expect(custom.searchParams.get("next")).toBeNull();
 		headerStore = new Headers({ "x-nk-auth-path": "/other" });
-		await expect(
-			helpers(null, { isSafeNext: () => null }).signInTarget(),
-		).resolves.toBe("/login");
+		expect(
+			target(await helpers(null, { isSafeNext: () => null }).signInTarget()),
+		).toEqual({ pathname: "/login", next: null, stale: null });
 	});
 
-	it("requireUser preserves the requested path as next (from the injected header)", async () => {
-		headerStore = new Headers({ "x-nk-auth-path": "/memory" });
-		await expect(helpers(null).requireUser()).rejects.toMatchObject({
-			to: "/login?next=%2Fmemory",
-		});
-	});
-
-	it("requireUser flags stale=1 when a session cookie is present but invalid", async () => {
+	it("requireUser redirects to signInTarget's destination (next + stale for a dead __Secure- cookie)", async () => {
 		headerStore = new Headers({ "x-nk-auth-path": "/memory" });
 		cookieList = [{ name: "__Secure-better-auth.session_token", value: "dead" }];
-		await expect(helpers(null).requireUser()).rejects.toMatchObject({
-			to: "/login?next=%2Fmemory&stale=1",
+		const h = helpers(null);
+		const expected = await h.signInTarget();
+		expect(target(expected)).toEqual({
+			pathname: "/login",
+			next: "/memory",
+			stale: "1",
 		});
+		await expect(h.requireUser()).rejects.toMatchObject({ to: expected });
 	});
 
 	it("honors a custom signInPath", async () => {
@@ -231,5 +250,53 @@ describe("createAuthHelpers", () => {
 			{ providerId: "google" },
 		]);
 		expect(await hasCredentialAccount()).toBe(false);
+	});
+});
+
+describe("createAuthHelpers chain check", () => {
+	let lagging: TestDb;
+
+	beforeAll(async () => {
+		// The whole chain, then the newest journal row forgotten: the database a
+		// site has when it deploys a new nk-auth before running db:migrate.
+		lagging = await createTestDb({
+			migrate: async () => {},
+			dependencyMigrations: [
+				{ folder: authMigrationsFolder(), table: AUTH_MIGRATIONS_TABLE },
+			],
+		});
+		await lagging.pool.query(
+			`delete from "drizzle"."${AUTH_MIGRATIONS_TABLE}" where created_at = (select max(created_at) from "drizzle"."${AUTH_MIGRATIONS_TABLE}")`,
+		);
+	});
+
+	afterAll(async () => {
+		await lagging?.close();
+	});
+
+	const onLagging = (options?: Parameters<typeof createAuthHelpers>[1]) => {
+		const getSession = vi.fn(async () => session);
+		const helpers = createAuthHelpers(
+			{
+				options: { database: lagging.pool },
+				api: { getSession, listUserAccounts: async () => [] },
+			},
+			options,
+		);
+		return { helpers, getSession };
+	};
+
+	it("refuses to read a session on a database that lags the shipped chain", async () => {
+		const { helpers, getSession } = onLagging();
+		await expect(helpers.getSession()).rejects.toBeInstanceOf(
+			AuthChainNotAppliedError,
+		);
+		expect(getSession).not.toHaveBeenCalled();
+	});
+
+	it("skips the check with chainCheck: false", async () => {
+		const { helpers, getSession } = onLagging({ chainCheck: false });
+		await expect(helpers.getSession()).resolves.toEqual(session);
+		expect(getSession).toHaveBeenCalledTimes(1);
 	});
 });

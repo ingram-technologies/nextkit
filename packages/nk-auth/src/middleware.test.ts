@@ -1,25 +1,14 @@
 import { NextRequest } from "next/server";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
 	clearStaleSession,
 	createAuthMiddleware,
 	withAuthPathHeader,
 } from "./middleware.js";
 
-// Control the optimistic cookie-presence check without coupling to better-auth's
-// cookie-name internals: the middleware's logic is what we're testing.
-let cookiePresent = false;
-let seenPrefix: string | undefined;
-vi.mock("better-auth/cookies", () => ({
-	getSessionCookie: (_req: unknown, config?: { cookiePrefix?: string }) => {
-		seenPrefix = config?.cookiePrefix;
-		return cookiePresent ? "token.sig" : null;
-	},
-}));
-
-afterEach(() => {
-	cookiePresent = false;
-});
+// The optimistic check is Better Auth's real `getSessionCookie`, so requests
+// carry the cookie a signed-in browser actually sends.
+const SESSION = "better-auth.session_token=token.sig";
 
 const req = (path: string, init?: { cookie?: string }) =>
 	new NextRequest(new URL(`https://example.com${path}`), {
@@ -81,37 +70,31 @@ describe("createAuthMiddleware — request behavior", () => {
 	});
 
 	it("redirects a cookie-less request off a protected path, preserving next", () => {
-		cookiePresent = false;
 		const url = loc(mw(req("/dashboard")));
 		expect(url?.pathname).toBe("/login");
 		expect(url?.searchParams.get("next")).toBe("/dashboard");
 	});
 
 	it("lets a cookie-less request through on a public path", () => {
-		cookiePresent = false;
 		expect(loc(mw(req("/about")))).toBeNull();
 	});
 
 	it("redirects a cookie-bearing request off the front door to the app", () => {
-		cookiePresent = true;
-		expect(loc(mw(req("/")))?.pathname).toBe("/app");
+		expect(loc(mw(req("/", { cookie: SESSION })))?.pathname).toBe("/app");
 	});
 
 	it("NEVER bounces the sign-in page, even with a cookie (anti-loop)", () => {
 		// A stale-but-present cookie lands on /login and stays, so the validated
 		// server guard can render the form.
-		cookiePresent = true;
-		expect(loc(mw(req("/login")))).toBeNull();
+		expect(loc(mw(req("/login", { cookie: SESSION })))).toBeNull();
 	});
 
 	it("lets a cookie-bearing request through on a protected path (server validates)", () => {
-		cookiePresent = true;
-		expect(loc(mw(req("/app/settings")))).toBeNull();
+		expect(loc(mw(req("/app/settings", { cookie: SESSION })))).toBeNull();
 	});
 
 	it("clears the dead cookie on the stale handshake and keeps next", () => {
 		// The validated guard parks an invalid session at /login?stale=1&next=…
-		cookiePresent = true;
 		const res = mw(
 			req("/login?stale=1&next=/dashboard", {
 				cookie: "__Secure-better-auth.session_token=dead.sig",
@@ -136,12 +119,15 @@ describe("createAuthMiddleware — request behavior", () => {
 			protectedPaths: ["/app"],
 			sessionCookiePrefix: "acme",
 		});
-		mw(req("/app"));
-		expect(seenPrefix).toBe("acme");
+		expect(loc(mw(req("/app", { cookie: "acme.session_token=t.sig" })))).toBeNull();
+		expect(
+			loc(mw(req("/app", { cookie: "__Secure-acme.session_token=t.sig" }))),
+		).toBeNull();
+		// Another app's cookie on the shared parent domain is not this app's session.
+		expect(loc(mw(req("/app", { cookie: SESSION })))?.pathname).toBe("/login");
 	});
 
 	it("does not gate longer path segments sharing a protected prefix", () => {
-		cookiePresent = false;
 		// "/app" must not gate "/application".
 		expect(loc(mw(req("/application")))).toBeNull();
 	});
@@ -151,16 +137,14 @@ describe("createAuthMiddleware — the two halves, composed and standalone", () 
 	const mw = createAuthMiddleware({ protectedPaths: ["/app"], signInPath: "/login" });
 
 	it("forwards the requested path + query to the app on pass-through", () => {
-		cookiePresent = true;
-		const res = mw(req("/app/settings?tab=a"));
+		const res = mw(req("/app/settings?tab=a", { cookie: SESSION }));
 		expect(res.headers.get("x-middleware-request-x-nk-auth-path")).toBe(
 			"/app/settings?tab=a",
 		);
 	});
 
 	it("forwards the caller's own requestHeaders alongside the auth path", () => {
-		cookiePresent = true;
-		const request = req("/app");
+		const request = req("/app", { cookie: SESSION });
 		const requestHeaders = new Headers(request.headers);
 		requestHeaders.set("x-tenant", "acme");
 		const res = mw(request, { requestHeaders });
@@ -199,8 +183,17 @@ describe("createAuthMiddleware — the two halves, composed and standalone", () 
 		).toBe(true);
 	});
 
+	it("clearStaleSession leaves cookies outside the session prefix alone", () => {
+		const res = clearStaleSession(
+			req("/login?stale=1", {
+				cookie: "better-auth.session_token=dead; theme=dark; NEXT_LOCALE=fr",
+			}),
+		);
+		const cleared = (res?.headers.getSetCookie() ?? []).map((c) => c.split("=")[0]);
+		expect(cleared).toEqual(["better-auth.session_token"]);
+	});
+
 	it("honors a custom nextParam and isSafeNext on the cookie-less redirect", () => {
-		cookiePresent = false;
 		const custom = createAuthMiddleware({
 			protectedPaths: ["/app"],
 			nextParam: "redirectTo",

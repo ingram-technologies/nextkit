@@ -41,7 +41,10 @@ describe("authEnv", () => {
 		process.env = { ...VALID, NODE_ENV: "development" };
 		delete process.env.BETTER_AUTH_SECRET;
 		expect(isConfigured()).toBe(true);
-		expect(authEnv().secret).toMatch(/insecure-placeholder/);
+		// Some non-empty secret, and the same one authSecret() resolves: the two
+		// entry points must never sign with different dev secrets.
+		expect(authEnv().secret).not.toBe("");
+		expect(authEnv().secret).toBe(authSecret());
 	});
 
 	it("keeps BETTER_AUTH_SECRET required in production", () => {
@@ -67,7 +70,18 @@ describe("authSecret", () => {
 	it("falls back to the dev placeholder when unset outside production", () => {
 		process.env = { ...original, NODE_ENV: "development" };
 		delete process.env.BETTER_AUTH_SECRET;
-		expect(authSecret()).toMatch(/insecure-placeholder/);
+		expect(authSecret()).not.toBe("");
+	});
+
+	it("treats an empty secret as unset: placeholder in dev, throw in production", () => {
+		// A bare `BETTER_AUTH_SECRET=` line in a .env file yields "", not undefined.
+		process.env = { ...original, NODE_ENV: "development", BETTER_AUTH_SECRET: "" };
+		const fromEmpty = authSecret();
+		delete process.env.BETTER_AUTH_SECRET;
+		expect(fromEmpty).toBe(authSecret());
+
+		process.env = { ...original, NODE_ENV: "production", BETTER_AUTH_SECRET: "" };
+		expect(() => authSecret()).toThrow(/BETTER_AUTH_SECRET/);
 	});
 
 	it("throws when unset in production", () => {

@@ -18,14 +18,22 @@ import {
 	authChainCheck,
 } from "./chain.js";
 
-/** A chain folder holding the shipped files up to and including `upTo`. */
+interface Journal {
+	entries: Array<{ idx: number; tag: string }>;
+}
+
+/** The shipped chain's journal: the spec for what "fully applied" means. */
+const shippedJournal = (): Journal =>
+	JSON.parse(
+		readFileSync(join(authMigrationsFolder(), "meta", "_journal.json"), "utf8"),
+	) as Journal;
+
+/** A chain folder holding the shipped entries with `idx < upTo`. */
 const partialChain = (upTo: number): string => {
 	const root = mkdtempSync(join(tmpdir(), "nkauth-partial-"));
 	const folder = join(root, "migrations");
 	mkdirSync(join(folder, "meta"), { recursive: true });
-	const journal = JSON.parse(
-		readFileSync(join(authMigrationsFolder(), "meta", "_journal.json"), "utf8"),
-	) as { entries: Array<{ idx: number; tag: string }> };
+	const journal = shippedJournal();
 	const entries = journal.entries.filter((entry) => entry.idx < upTo);
 	for (const entry of entries) {
 		copyFileSync(
@@ -73,7 +81,7 @@ describe("assertAuthChainApplied", () => {
 	it("passes on a database with the whole chain applied", async () => {
 		const status = await assertAuthChainApplied(complete.pool);
 		expect(status?.pending).toEqual([]);
-		expect(status?.recorded.length).toBeGreaterThanOrEqual(3);
+		expect(status?.recorded).toHaveLength(shippedJournal().entries.length);
 	});
 
 	it("names the missing migrations on a database that lags the package", async () => {
@@ -82,9 +90,13 @@ describe("assertAuthChainApplied", () => {
 			(error: unknown) => error,
 		);
 		expect(failure).toBeInstanceOf(AuthChainNotAppliedError);
-		expect((failure as AuthChainNotAppliedError).pending).toEqual([
-			"0003_better_auth_1_7_3",
-		]);
+		// The lagging database holds idx 0-1; everything the package ships after
+		// that is pending, in chain order.
+		expect((failure as AuthChainNotAppliedError).pending).toEqual(
+			shippedJournal()
+				.entries.filter((entry) => entry.idx >= 2)
+				.map((entry) => entry.tag),
+		);
 		expect((failure as Error).message).toContain("nk-pg-migrate");
 	});
 

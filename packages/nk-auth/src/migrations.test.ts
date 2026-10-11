@@ -1,4 +1,11 @@
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+	copyFileSync,
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -23,6 +30,13 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 const MIGRATIONS = fileURLToPath(new URL("../migrations", import.meta.url));
 const JOURNAL_TABLE = "__nkauth_migrations";
 const AUTH_TABLES = ["user", "session", "account", "verification", "jwks", "passkey"];
+
+/** The tags the shipped journal lists, in chain order. */
+const SHIPPED_TAGS = (
+	JSON.parse(readFileSync(join(MIGRATIONS, "meta", "_journal.json"), "utf8")) as {
+		entries: Array<{ tag: string }>;
+	}
+).entries.map((entry) => entry.tag);
 
 interface ColumnRow {
 	table_name: string;
@@ -133,11 +147,20 @@ describe("nk-auth migration chain", () => {
 		}
 	});
 
-	it("defaults a new user id to a UUID so auth.uid() RLS casts hold (hardening 1)", async () => {
-		await db.pool.query(
-			`insert into "user" ("name", "email") values ('a', 'a@acme.test')`,
+	it("grants no RLS policy on any auth table, so RLS denies every non-owner role", async () => {
+		// RLS on with zero policies is what makes it deny-all; a delta that adds a
+		// permissive policy would silently open the auth tables to app roles.
+		const { rows } = await db.pool.query<{ tablename: string; policyname: string }>(
+			"select tablename, policyname from pg_policies where schemaname = 'public' and tablename = any($1)",
+			[AUTH_TABLES],
 		);
-		const { rows } = await db.pool.query<{ id: string }>(`select id from "user"`);
+		expect(rows).toEqual([]);
+	});
+
+	it("defaults a new user id to a UUID so auth.uid() RLS casts hold (hardening 1)", async () => {
+		const { rows } = await db.pool.query<{ id: string }>(
+			`insert into "user" ("name", "email") values ('a', 'a@acme.test') returning id`,
+		);
 		expect(rows[0]?.id).toMatch(
 			/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
 		);
@@ -147,7 +170,7 @@ describe("nk-auth migration chain", () => {
 		const { rows } = await db.pool.query<{ n: string }>(
 			`select count(*)::text as n from "drizzle"."${JOURNAL_TABLE}"`,
 		);
-		expect(Number(rows[0]?.n)).toBeGreaterThanOrEqual(2);
+		expect(Number(rows[0]?.n)).toBe(SHIPPED_TAGS.length);
 	});
 });
 
@@ -236,10 +259,10 @@ describe("0002_better_auth_1_7 on a pre-1.7 database", () => {
 			await seedAccount(at, bob, "github", "gh-42");
 
 			const result = await upgrade(at);
-			expect(result.applied).toEqual([
-				"0002_better_auth_1_7",
-				"0003_better_auth_1_7_3",
-			]);
+			// Every shipped delta after the baseline, in order.
+			expect(result.applied).toEqual(
+				SHIPPED_TAGS.slice(SHIPPED_TAGS.indexOf("0001_better_auth") + 1),
+			);
 
 			const { rows } = await at.pool.query<{
 				providerId: string;
