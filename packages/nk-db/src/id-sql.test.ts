@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createDb } from "./drizzle.js";
 import { createIdColumns } from "./id-drizzle.js";
 import { ID758_SQL_STATEMENTS, id758Migration } from "./id-sql.js";
-import { createIdRegistry, uuidv7 } from "./id.js";
+import { createIdRegistry } from "./id.js";
 import { createTestDb, type TestDb } from "./pglite/index.js";
 
 // The whole point of the id work, end to end: with the functions in the
@@ -96,6 +96,8 @@ describe("idColumn end to end", () => {
 
 	it("agrees with the SQL functions on the same row", async () => {
 		const db = createDb(testDb.pool, { invoices });
+		const id = ids.invoice.mint();
+		await db.insert(invoices).values({ id, account_id: ids.account.mint() });
 		const [row] = await db
 			.select({
 				id: invoices.id,
@@ -103,10 +105,8 @@ describe("idColumn end to end", () => {
 				raw: sql<string>`${invoices.id}::text`,
 			})
 			.from(invoices)
-			.limit(1);
-		if (!row) throw new Error("no row");
-		expect(row.viaSql).toBe(row.id);
-		expect(row.raw).toBe(ids.invoice.decode(row.id));
+			.where(eq(invoices.id, id));
+		expect(row).toEqual({ id, viaSql: id, raw: ids.invoice.decode(id) });
 	});
 
 	it("encodes a polymorphic column once the row has resolved its type", async () => {
@@ -124,13 +124,12 @@ describe("idColumn end to end", () => {
 
 	it("raw sql can filter on a public id with id758_decode", async () => {
 		const db = createDb(testDb.pool, { invoices });
-		const [row] = await db.select({ id: invoices.id }).from(invoices).limit(1);
-		if (!row) throw new Error("no row");
-		const { rows } = await testDb.pool.query<{ n: number }>(
-			"select count(*)::int as n from invoices where id = id758_decode($1)",
-			[row.id],
+		const id = ids.invoice.mint();
+		await db.insert(invoices).values({ id, account_id: ids.account.mint() });
+		const { rows } = await testDb.pool.query<{ id: string }>(
+			"select id::text as id from invoices where id = id758_decode($1)",
+			[id],
 		);
-		expect(rows[0]?.n).toBe(1);
-		expect(uuidv7()).not.toBe(row.id);
+		expect(rows).toEqual([{ id: ids.invoice.decode(id) }]);
 	});
 });

@@ -1,21 +1,19 @@
 import { sql } from "drizzle-orm";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createDb, withRlsTransaction } from "./drizzle.js";
+import { isPgError } from "./errors.js";
 import { encodeId, uuidv7 } from "./id.js";
 import { createTestDb, type TestDb } from "./pglite/index.js";
 import { createQueries, type PoolQueries } from "./queries.js";
-import {
-	RLS_CLAIMS_SETTING,
-	RLS_DEFAULT_ROLE,
-	resolveRlsConfig,
-	rlsPreamble,
-} from "./rls.js";
+import { resolveRlsConfig, rlsPreamble } from "./rls.js";
 
 describe("resolveRlsConfig", () => {
 	it("defaults role to authenticated and the GUC to request.jwt.claims", () => {
+		// Pinned literally: these are the Supabase-compatible names existing
+		// `auth.uid()` policies and role grants are written against.
 		const config = resolveRlsConfig({ sub: "u1" });
-		expect(config.role).toBe(RLS_DEFAULT_ROLE);
-		expect(config.claimsSetting).toBe(RLS_CLAIMS_SETTING);
+		expect(config.role).toBe("authenticated");
+		expect(config.claimsSetting).toBe("request.jwt.claims");
 		expect(JSON.parse(config.claimsJson)).toEqual({ sub: "u1" });
 	});
 
@@ -66,12 +64,28 @@ describe("resolveRlsConfig", () => {
 });
 
 describe("rlsPreamble", () => {
-	it("binds the GUC name, claims, and role (never interpolates)", () => {
-		const { text, values } = rlsPreamble(resolveRlsConfig({ sub: "u1" }));
-		expect(text).toBe(
-			"select set_config($1, $2, true), set_config('role', $3, true)",
+	it("binds the GUC name, claims, and role as values, never interpolating them", () => {
+		const role = "x'; drop table notes; --";
+		const claimsSetting = "app.claims'); select 1; --";
+		const config = resolveRlsConfig(
+			{ sub: "u1", note: `it's "quoted"` },
+			{ role, claimsSetting },
 		);
-		expect(values).toEqual([RLS_CLAIMS_SETTING, '{"sub":"u1"}', RLS_DEFAULT_ROLE]);
+		const { text, values } = rlsPreamble(config);
+		for (const hostile of [
+			role,
+			claimsSetting,
+			config.claimsJson,
+			"u1",
+			"quoted",
+		]) {
+			expect(text).not.toContain(hostile);
+		}
+		expect(values).toEqual(
+			expect.arrayContaining([role, claimsSetting, config.claimsJson]),
+		);
+		// One placeholder per bound value, so nothing is left to splice in.
+		expect(text.match(/\$\d+/g)).toHaveLength(values.length);
 	});
 });
 
@@ -106,23 +120,30 @@ describe("RLS enforcement on a direct connection", () => {
 						);
 					create role authenticated;
 					grant select, insert, update, delete on notes to authenticated;
-					insert into notes (owner_id, body) values
-						('${USER_A}', 'a-one'),
-						('${USER_A}', 'a-two'),
-						('${USER_B}', 'b-one');
 				`);
 			},
 		});
 		q = createQueries(testDb.pool);
 	});
 
+	// Every test starts from the same three rows, whatever the previous one wrote.
+	beforeEach(async () => {
+		await testDb.reset();
+		await q.execute(
+			"insert into notes (owner_id, body) values ($1, 'a-one'), ($1, 'a-two'), ($2, 'b-one')",
+			[USER_A, USER_B],
+		);
+	});
+
 	afterAll(async () => {
 		await testDb.close();
 	});
 
+	const countAll = async (): Promise<string | undefined> =>
+		(await q.query<{ count: string }>("select count(*) from notes"))[0]?.count;
+
 	it("a plain query (privileged connection) bypasses RLS and sees all rows", async () => {
-		const all = await q.query<{ count: string }>("select count(*) from notes");
-		expect(all[0]?.count).toBe("3");
+		expect(await countAll()).toBe("3");
 	});
 
 	it("withRls (raw helpers) scopes reads to the acting user", async () => {
@@ -137,11 +158,27 @@ describe("RLS enforcement on a direct connection", () => {
 		expect(bRows.map((r) => r.body)).toEqual(["b-one"]);
 	});
 
+	it("withRls accepts a public-id sub and decodes it before the policy sees it", async () => {
+		const rows = await q.withRls({ sub: encodeId(USER_A, "usr") }, (tx) =>
+			tx.query<{ body: string }>("select body from notes order by body"),
+		);
+		expect(rows.map((r) => r.body)).toEqual(["a-one", "a-two"]);
+	});
+
 	it("withRls resets role/claims after the transaction (no leak across pool checkouts)", async () => {
 		await q.withRls({ sub: USER_A }, (tx) => tx.query("select 1"));
 		// the very next plain query is privileged again
-		const all = await q.query<{ count: string }>("select count(*) from notes");
-		expect(all[0]?.count).toBe("3");
+		expect(await countAll()).toBe("3");
+	});
+
+	it("withRls resets role/claims after a throwing callback too", async () => {
+		await expect(
+			q.withRls({ sub: USER_A }, async (tx) => {
+				await tx.query("select 1");
+				throw new Error("boom");
+			}),
+		).rejects.toThrow("boom");
+		expect(await countAll()).toBe("3");
 	});
 
 	it("withRls scopes a write — the inserted row belongs to the acting user", async () => {
@@ -157,6 +194,23 @@ describe("RLS enforcement on a direct connection", () => {
 			tx.one<{ count: string }>("select count(*) from notes"),
 		);
 		expect(bCount.count).toBe("2");
+		const aCount = await q.withRls({ sub: USER_A }, (tx) =>
+			tx.one<{ count: string }>("select count(*) from notes"),
+		);
+		expect(aCount.count).toBe("2");
+	});
+
+	it("withRls rejects a write on another user's behalf (WITH CHECK)", async () => {
+		const error = await q
+			.withRls({ sub: USER_B }, (tx) =>
+				tx.execute("insert into notes (owner_id, body) values ($1, 'forged')", [
+					USER_A,
+				]),
+			)
+			.catch((e: unknown) => e);
+		// 42501 insufficient_privilege: "new row violates row-level security policy"
+		expect(isPgError(error, "42501")).toBe(true);
+		expect(await countAll()).toBe("3");
 	});
 
 	it("withRlsTransaction (Drizzle) scopes reads to the acting user", async () => {

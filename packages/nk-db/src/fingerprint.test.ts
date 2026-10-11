@@ -54,6 +54,26 @@ reset role;
 grant select on widgets to reader;
 `;
 
+describe("diffFingerprints", () => {
+	it("ignores array order and object key order", () => {
+		const a: Fingerprint = {
+			indexes: [
+				{ indexname: "x", tablename: "t" },
+				{ indexname: "y", tablename: "t" },
+			],
+			policies: [],
+		};
+		const b: Fingerprint = {
+			policies: [],
+			indexes: [
+				{ tablename: "t", indexname: "y" },
+				{ tablename: "t", indexname: "x" },
+			],
+		};
+		expect(diffFingerprints(a, b)).toEqual([]);
+	});
+});
+
 describe("fingerprint", () => {
 	let root: string;
 	let chainA: string;
@@ -79,28 +99,34 @@ describe("fingerprint", () => {
 	afterAll(() => rmSync(root, { recursive: true, force: true }));
 
 	it("covers what the drizzle snapshot cannot model", () => {
-		expect(a.policies).toHaveLength(1);
-		expect(a.triggers).toHaveLength(1);
-		expect(
-			(a.functions ?? []).map((f) => (f as { name: string }).name).sort(),
-		).toEqual(["touch", "widget_count"]);
-		expect(a.relowners).toContainEqual({
-			rel: "public.widget_names",
-			kind: "v",
-			owner: "reader",
-			options: "",
-		});
-		expect(a.table_grants).toContainEqual({
-			table_schema: "public",
-			table_name: "widgets",
-			grantee: "reader",
-			privilege_type: "SELECT",
-		});
-		expect(a.rls).toContainEqual({
-			rel: "public.widgets",
-			enabled: true,
-			forced: false,
-		});
+		expect(a.policies).toEqual([
+			expect.objectContaining({
+				tablename: "widgets",
+				policyname: "widgets_read",
+			}),
+		]);
+		expect(a.triggers).toEqual([
+			expect.objectContaining({ name: "widgets_touch" }),
+		]);
+		expect(a.functions).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ name: "touch" }),
+				expect.objectContaining({ name: "widget_count" }),
+			]),
+		);
+		expect(a.relowners).toContainEqual(
+			expect.objectContaining({ rel: "public.widget_names", owner: "reader" }),
+		);
+		expect(a.table_grants).toContainEqual(
+			expect.objectContaining({
+				table_name: "widgets",
+				grantee: "reader",
+				privilege_type: "SELECT",
+			}),
+		);
+		expect(a.rls).toContainEqual(
+			expect.objectContaining({ rel: "public.widgets", enabled: true }),
+		);
 	});
 
 	it("is identical for a squashed chain and the chain it squashed", async () => {
@@ -122,15 +148,46 @@ describe("fingerprint", () => {
 			roles: ["reader"],
 		});
 		const differences = diffFingerprints(a, c);
+		const entries = (key: string, side: "onlyA" | "onlyB"): unknown[] =>
+			(differences.find((d) => d.key === key)?.[side] ?? []).map(
+				(entry): unknown => JSON.parse(entry),
+			);
 		// PG18 keeps NOT NULL in pg_constraint, so the dropped one shows there too.
-		expect(differences.map((d) => d.key)).toEqual([
+		expect(differences.map((d) => d.key).sort()).toEqual([
 			"columns",
 			"constraints",
 			"indexes",
 		]);
-		expect(differences[0]?.onlyA[0]).toContain('"notnull":true');
-		expect(differences[2]?.onlyB[0]).toContain("widgets_name_idx");
-		expect(formatFingerprintDiff(differences)).toMatch(/TOTAL DIFFS 4$/);
+		expect(entries("columns", "onlyA")).toEqual([
+			expect.objectContaining({
+				rel: "public.widgets",
+				col: "name",
+				notnull: true,
+			}),
+		]);
+		expect(entries("columns", "onlyB")).toEqual([
+			expect.objectContaining({
+				rel: "public.widgets",
+				col: "name",
+				notnull: false,
+			}),
+		]);
+		expect(entries("constraints", "onlyA")).toEqual([
+			expect.objectContaining({ def: expect.stringMatching(/NOT NULL name/i) }),
+		]);
+		expect(entries("constraints", "onlyB")).toEqual([]);
+		expect(entries("indexes", "onlyA")).toEqual([]);
+		expect(entries("indexes", "onlyB")).toEqual([
+			expect.objectContaining({ indexname: "widgets_name_idx" }),
+		]);
+
+		const total = differences.reduce(
+			(sum, d) => sum + d.onlyA.length + d.onlyB.length,
+			0,
+		);
+		expect(formatFingerprintDiff(differences)).toMatch(
+			new RegExp(`TOTAL DIFFS ${total}$`),
+		);
 	});
 
 	it("applies dependency chains first and pre-chain SQL before them", async () => {

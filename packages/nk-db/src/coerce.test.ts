@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { pgNumericToNumber, pgTimestampToIso } from "./coerce.js";
 
@@ -50,8 +50,23 @@ describe("pgNumericToNumber", () => {
 });
 
 describe("pgTimestampToIso offset-less timestamps", () => {
+	// The bug these guard is a host-local parse, which is invisible on a UTC
+	// host (CI). Pin a zone with a non-zero offset so it would actually shift.
+	let savedTz: string | undefined;
+	beforeAll(() => {
+		savedTz = process.env.TZ;
+		process.env.TZ = "America/New_York";
+	});
+	afterAll(() => {
+		if (savedTz === undefined) delete process.env.TZ;
+		else process.env.TZ = savedTz;
+	});
+
 	it("treats a `timestamp without time zone` text form as UTC, not host-local", () => {
-		// Without the fix this shifts by the host timezone (correct only on UTC).
+		// Premise: this host now parses an offset-less ISO time as local, not UTC.
+		expect(new Date("2026-06-21T18:22:08").toISOString()).not.toBe(
+			"2026-06-21T18:22:08.000Z",
+		);
 		expect(pgTimestampToIso("2026-06-21 18:22:08.331494")).toBe(
 			"2026-06-21T18:22:08.331Z",
 		);

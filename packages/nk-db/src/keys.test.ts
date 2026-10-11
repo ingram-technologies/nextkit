@@ -23,19 +23,12 @@ describe("connection-string resolution", () => {
 		}
 	});
 
-	it("resolves DATABASE_URL", () => {
-		process.env.DATABASE_URL = "a";
-		expect(getDatabaseUrl()).toBe("a");
-	});
-
-	it("returns undefined when DATABASE_URL is unset", () => {
-		expect(getDatabaseUrl()).toBeUndefined();
-	});
-
-	it("isConfigured reflects presence", () => {
+	it("isConfigured and getDatabaseUrl reflect DATABASE_URL's presence", () => {
 		expect(isConfigured()).toBe(false);
-		process.env.DATABASE_URL = "x";
+		expect(getDatabaseUrl()).toBeUndefined();
+		process.env.DATABASE_URL = "postgres://x";
 		expect(isConfigured()).toBe(true);
+		expect(getDatabaseUrl()).toBe("postgres://x");
 	});
 
 	it("dbEnv throws a clear error when nothing is set", () => {
@@ -60,4 +53,13 @@ describe("connection-string resolution", () => {
 		const env = dbEnv();
 		expect(env.ssl).toBe(false);
 	});
+
+	it.each(["0", "-1", "abc", "1.5"])(
+		"dbEnv rejects DATABASE_POOL_MAX=%s rather than sizing the pool with it",
+		(value) => {
+			process.env.DATABASE_URL = "postgres://x";
+			process.env.DATABASE_POOL_MAX = value;
+			expect(() => dbEnv()).toThrow(/DATABASE_POOL_MAX/);
+		},
+	);
 });

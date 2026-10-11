@@ -64,8 +64,23 @@ describe("createPool local-socket precedence", () => {
 		const pool = createPool({
 			connectionString: "postgres://u:localhost@db.example.com:5432/app",
 		});
-		// pg fills its own default (10) when we don't force the local max:1.
-		expect(pool.options.max).not.toBe(1);
+		// Classified remote: TLS on (a local socket gets none).
+		expect(pool.options.ssl).toEqual({ rejectUnauthorized: false });
+		await pool.end();
+	});
+});
+
+describe("createPool remote without a CA cert", () => {
+	it("encrypts without chain verification and strips sslmode so pg honors that", async () => {
+		const pool = createPool({
+			connectionString:
+				"postgres://u:p@db.example.com:5432/app?sslmode=require&application_name=web",
+		});
+		expect(pool.options.ssl).toEqual({ rejectUnauthorized: false });
+		const url = new URL(pool.options.connectionString ?? "");
+		expect(url.searchParams.has("sslmode")).toBe(false);
+		expect(url.searchParams.get("application_name")).toBe("web");
+		expect(url.hostname).toBe("db.example.com");
 		await pool.end();
 	});
 });
@@ -78,7 +93,6 @@ describe("createPool without a connection string", () => {
 			// Must not throw at construction — this is what keeps importing an
 			// app's db module (and `next build`) side-effect-free.
 			const pool = createPool();
-			expect(pool).toBeDefined();
 			// A real operation fails fast and legibly.
 			await expect(pool.query("select 1")).rejects.toThrow(/set DATABASE_URL/);
 			await expect(pool.connect()).rejects.toThrow(/set DATABASE_URL/);
