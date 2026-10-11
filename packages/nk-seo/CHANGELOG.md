@@ -1,5 +1,13 @@
 # @ingram-tech/nk-seo
 
+## 0.10.3
+
+### Patch Changes
+
+- 419825a: `createSeo().website()` passes `extra` through to the WebSite node, like every
+  other bound builder. It used to keep only `name`, `url` and `publisher`, so
+  `seo.website({ extra: { inLanguage: "fr" } })` silently dropped `inLanguage`.
+
 ## 0.10.2
 
 ### Patch Changes

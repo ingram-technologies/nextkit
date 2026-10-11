@@ -1,5 +1,15 @@
 # @ingram-tech/nk-forms
 
+## 0.4.2
+
+### Patch Changes
+
+- 3683fea: A `BOT_PROTECTION_SECRET` that holds no actual secret (`","`, or only spaces
+  and commas) now disables the timing layer like an unset one. It used to count
+  as configured, so minting a token threw and every submission was silently
+  dropped as `missing-token`.
+- @ingram-tech/nk-email@0.6.2
+
 ## 0.4.1
 
 ### Patch Changes

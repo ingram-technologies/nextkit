@@ -1,5 +1,16 @@
 # @ingram-tech/nk-blog
 
+## 0.2.1
+
+### Patch Changes
+
+- 8464155: A trailing slash on `baseUrl` (SEO helpers) or `siteUrl` (`generateRss`) no
+  longer produces `//` in generated URLs. `https://example.com/` used to give
+  `https://example.com//blog/<slug>` in post URLs, canonicals, alternates,
+  JSON-LD, breadcrumbs and the RSS item links and guids.
+- Updated dependencies [419825a]
+  - @ingram-tech/nk-seo@0.10.3
+
 ## 0.2.0
 
 ### Minor Changes
