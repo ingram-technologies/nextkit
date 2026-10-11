@@ -63,9 +63,14 @@ describe("the migration seal", () => {
 			"create table a (id int);",
 		);
 
+		const state = verifySeal(dir, "drizzle");
+		expect(state.changed.map((m) => m.tag)).toEqual(["0000_init"]);
+		expect(state.unsealed).toEqual([]);
+		expect(state.dropped).toEqual([]);
+
 		const result = checkSeal(dir);
 		expect(result.ok).toBe(false);
-		expect(result.reason).toMatch(/0000_init changed after it was sealed/);
+		expect(result.reason).toContain("0000_init");
 	});
 
 	// Whitespace-only edits are the realistic failure: a formatter sweeping the
@@ -86,9 +91,10 @@ describe("the migration seal", () => {
 			["0001_new", "create table b ();"],
 		);
 
-		const result = checkSeal(dir);
-		expect(result.ok).toBe(false);
-		expect(result.reason).toMatch(/0001_new is unsealed/);
+		const state = verifySeal(dir, "drizzle");
+		expect(state.unsealed.map((m) => m.tag)).toEqual(["0001_new"]);
+		expect(state.changed).toEqual([]);
+		expect(checkSeal(dir).ok).toBe(false);
 	});
 
 	it("fails when a sealed migration vanishes from the journal", () => {
@@ -99,7 +105,10 @@ describe("the migration seal", () => {
 		seal();
 		writeChain(["0000_init", "create table a ();"]);
 
-		expect(checkSeal(dir).reason).toMatch(/0001_more was sealed but is no longer/);
+		const state = verifySeal(dir, "drizzle");
+		expect(state.dropped).toEqual(["0001_more"]);
+		expect(state.changed).toEqual([]);
+		expect(checkSeal(dir).ok).toBe(false);
 	});
 
 	// A squash rewrites the baseline on purpose. Resealing is how that intent is

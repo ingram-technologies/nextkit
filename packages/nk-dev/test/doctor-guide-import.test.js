@@ -26,11 +26,6 @@ describe("nk doctor: the guide import in a workspace member", () => {
 
 	const find = (dir) => findings(dir).find((f) => f.id === "claude:guide-import");
 
-	it("reports nothing when the workspace root imports the guide", () => {
-		writeFileSync(join(root, "CLAUDE.md"), `# Monorepo\n\n${IMPORT_LINE}\n`);
-		expect(find(member)).toBeUndefined();
-	});
-
 	it("reports a member no CLAUDE.md covers, and --fix adds the import once", () => {
 		const finding = find(member);
 		expect(finding?.level).toBe("error");

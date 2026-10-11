@@ -225,33 +225,41 @@ export function findings(cwd) {
 	//    (even on a clean no-op) and hides journal drift.
 	//    `nk-pg-migrate` (@ingram-tech/nk-db) is the one runner that applies:
 	//    it surfaces the real Postgres error and pre-flights drift.
+	//    The autofix rewrites the whole script, so it is only offered when
+	//    drizzle-kit is the whole script: in a compound one (`build && drizzle-kit
+	//    push`) the other steps are the site's, and only a human can split them.
 	for (const [name, cmd] of Object.entries(scripts)) {
 		if (typeof cmd !== "string") continue;
+		const compound = /[;&|]/.test(cmd);
 		if (/\bdrizzle-kit\s+push\b/.test(cmd)) {
 			out.push({
 				id: `script:drizzle-push:${name}`,
 				level: "error",
 				message: `\`${name}\` runs \`drizzle-kit push\` — it applies schema to the live DB with no migration (drift). Generate a migration and apply it with \`nk-pg-migrate\`.`,
-				fix: (dir) => {
-					const p = resolve(dir, "package.json");
-					const j = readJson(p);
-					delete j.scripts?.[name];
-					writeJson(p, j);
-					return `removed \`${name}\` (drizzle-kit push)`;
-				},
+				fix: compound
+					? undefined
+					: (dir) => {
+							const p = resolve(dir, "package.json");
+							const j = readJson(p);
+							delete j.scripts?.[name];
+							writeJson(p, j);
+							return `removed \`${name}\` (drizzle-kit push)`;
+						},
 			});
 		} else if (/\bdrizzle-kit\s+migrate\b/.test(cmd)) {
 			out.push({
 				id: `script:drizzle-migrate:${name}`,
 				level: "error",
 				message: `\`${name}\` runs \`drizzle-kit migrate\` — apply with \`nk-pg-migrate\` instead (it surfaces the real error and pre-flights journal drift).`,
-				fix: (dir) => {
-					const p = resolve(dir, "package.json");
-					const j = readJson(p);
-					j.scripts[name] = "nk-pg-migrate";
-					writeJson(p, j);
-					return `set \`${name}\` → "nk-pg-migrate"`;
-				},
+				fix: compound
+					? undefined
+					: (dir) => {
+							const p = resolve(dir, "package.json");
+							const j = readJson(p);
+							j.scripts[name] = "nk-pg-migrate";
+							writeJson(p, j);
+							return `set \`${name}\` → "nk-pg-migrate"`;
+						},
 			});
 		}
 	}
@@ -397,6 +405,15 @@ function migrationFindings(cwd) {
 }
 
 /**
+ * The exit code for a report-only `nk doctor` run: non-zero only when there are
+ * model-breaking (error-level) findings, so `nk doctor` can gate CI while
+ * cosmetic warnings don't.
+ */
+export function exitCodeFor(results) {
+	return results.some((r) => r.level === "error") ? 1 : 0;
+}
+
+/**
  * `nk doctor [--fix]` — report drift from the canonical nk-dev model (scripts,
  * dependencies, oxlint/tsconfig extends, the CLAUDE.md guide import, stale knip
  * ignores, forbidden schema-applying drizzle-kit scripts, Prettier leftovers,
@@ -418,7 +435,6 @@ export function doctor(args = []) {
 	}
 
 	if (!fix) {
-		const errors = results.filter((r) => r.level === "error").length;
 		console.log(`nk doctor: ${results.length} finding(s):\n`);
 		for (const r of results) {
 			const mark = r.level === "error" ? "✗" : "•";
@@ -427,9 +443,7 @@ export function doctor(args = []) {
 		console.log(
 			`\n  Run \`nk doctor --fix\` to apply the ${results.filter((r) => r.fix).length} auto-fixable one(s).`,
 		);
-		// Exit non-zero only when there are model-breaking findings, so `nk
-		// doctor` can gate CI while cosmetic warnings don't.
-		process.exit(errors > 0 ? 1 : 0);
+		process.exit(exitCodeFor(results));
 	}
 
 	let applied = 0;

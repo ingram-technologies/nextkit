@@ -16,9 +16,16 @@ export function run(tool, args = [], opts = {}) {
 		}
 		throw res.error;
 	}
-	// A signal-killed child (OOM, SIGSEGV) has status null — that's a failure,
-	// not a pass; `?? 0` would let a crashed linter through the CI gate.
-	return res.status ?? (res.signal ? 1 : 0);
+	return exitStatus(res);
+}
+
+/**
+ * The exit code of a finished `spawnSync` child. A signal-killed child (OOM,
+ * SIGSEGV) has status null — that's a failure, not a pass; `?? 0` would let a
+ * crashed linter through the CI gate.
+ */
+export function exitStatus({ status, signal }) {
+	return status ?? (signal ? 1 : 0);
 }
 
 /**
@@ -47,7 +54,7 @@ export function runCapture(tool, args = [], opts = {}) {
 		throw res.error;
 	}
 	return {
-		status: res.status ?? (res.signal ? 1 : 0),
+		status: exitStatus(res),
 		stdout: res.stdout ?? "",
 		stderr: res.stderr ?? "",
 		output: `${res.stdout ?? ""}${res.stderr ?? ""}`,

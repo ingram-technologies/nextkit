@@ -121,11 +121,13 @@ describe("ensureGuideImport", () => {
 		expect(imports(join(dir, "CLAUDE.md"))).toBe(1);
 	});
 
-	it("appends the import once, however often it runs", () => {
-		writeFileSync(join(dir, "CLAUDE.md"), "# Site\n");
+	it("appends the import once, however often it runs, keeping the content", () => {
+		writeFileSync(join(dir, "CLAUDE.md"), "# Site\n\nHouse rules.\n");
 		ensureGuideImport(dir);
 		ensureGuideImport(dir);
+		const body = readFileSync(join(dir, "CLAUDE.md"), "utf8");
 		expect(imports(join(dir, "CLAUDE.md"))).toBe(1);
+		expect(body).toContain("# Site\n\nHouse rules.");
 	});
 
 	it("adds nothing when an ancestor already imports the guide", () => {

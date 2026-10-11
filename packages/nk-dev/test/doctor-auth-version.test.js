@@ -75,6 +75,28 @@ describe("nk doctor: better-auth pinned to nk-auth's version", () => {
 		).toEqual(["auth:version:@better-auth/passkey", "auth:version:better-auth"]);
 	});
 
+	// A workspace member at apps/<site> resolves nk-auth from the root install.
+	it("finds nk-auth hoisted to the workspace root", () => {
+		const member = join(dir, "apps", "web");
+		mkdirSync(member, { recursive: true });
+		writeFileSync(
+			join(member, "package.json"),
+			JSON.stringify({
+				name: "web",
+				dependencies: {
+					"@ingram-tech/nk-auth": "^0.17.0",
+					"better-auth": "1.7.2",
+				},
+			}),
+		);
+		installNkAuth("1.7.4");
+		expect(
+			findings(member)
+				.filter((f) => f.id.startsWith("auth:version:"))
+				.map((f) => f.id),
+		).toEqual(["auth:version:better-auth"]);
+	});
+
 	it("fixes by pinning the site to nk-auth's version", () => {
 		site({ "@ingram-tech/nk-auth": "^0.17.0", "better-auth": "^1.7.2" });
 		installNkAuth("1.7.4");

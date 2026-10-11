@@ -79,6 +79,27 @@ describe("nk doctor: Better Auth endpoint shadowing", () => {
 		expect(f.level).toBe("error");
 	});
 
+	it("flags a route.ts shadowing an endpoint, not only a page", () => {
+		writeBetterAuth();
+		writeMount();
+		write("src/app/auth/sign-in/email/route.ts");
+		const f = shadowFindings().find(
+			(x) => x.id === "auth:endpoint-shadow:/sign-in/email",
+		);
+		expect(f?.level).toBe("error");
+	});
+
+	it("matches a page [param] segment against an endpoint :param", () => {
+		writeBetterAuth();
+		writeMount();
+		write("src/app/auth/reset-password/[token]/page.tsx");
+		expect(
+			shadowFindings().find(
+				(x) => x.id === "auth:endpoint-shadow:/reset-password/[token]",
+			),
+		).toBeDefined();
+	});
+
 	it("leaves a non-colliding page alone", () => {
 		writeBetterAuth();
 		writeMount();

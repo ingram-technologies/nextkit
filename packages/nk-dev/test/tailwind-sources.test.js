@@ -132,6 +132,24 @@ describe("nk check: workspace packages a stylesheet scans", () => {
 		expect(tailwindCoverageFindings(cwd)).toEqual([]);
 	});
 
+	// Coverage is by path segment: `ui-kit` shares a string prefix with `ui`
+	// but scans none of its files.
+	it("does not count a sibling with a shared name prefix as covering it", () => {
+		write(
+			"packages/ui/src/button.tsx",
+			'export const B = () => <b className="p-1" />;',
+		);
+		write("packages/ui-kit/src/x.tsx");
+		link("@acme/ui", "packages/ui");
+		const cwd = site(
+			{ "@acme/ui": "workspace:*" },
+			'@import "tailwindcss";\n@source "../../../../packages/ui-kit";\n',
+		);
+		expect(tailwindCoverageFindings(cwd)).toEqual([
+			{ name: "@acme/ui", dir: "../../packages/ui" },
+		]);
+	});
+
 	it("ignores a workspace package that writes no class names", () => {
 		write("packages/db/src/schema.ts", "export const schema = {};");
 		link("@acme/db", "packages/db");

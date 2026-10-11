@@ -66,4 +66,20 @@ describe("nk doctor: drizzle-kit must never apply schema", () => {
 		writePkg({ shipit: "bun run build && drizzle-kit push --force" });
 		expect(find("script:drizzle-push:shipit")).toBeDefined();
 	});
+
+	// The fix rewrites the whole script; in a compound one the other steps are
+	// the site's, so it must flag without offering to delete or overwrite them.
+	it.each([
+		["push", "bun run build && drizzle-kit push --force"],
+		["push", "drizzle-kit push; echo done"],
+		["migrate", "drizzle-kit migrate || exit 1"],
+		["migrate", "bun run db:generate && drizzle-kit migrate | tee log"],
+	])("flags a compound `drizzle-kit %s` script with no autofix", (verb, cmd) => {
+		writePkg({ deploy: cmd });
+		const before = readFileSync(join(dir, "package.json"), "utf8");
+		const f = find(`script:drizzle-${verb}:deploy`);
+		expect(f?.level).toBe("error");
+		expect(f.fix).toBeUndefined();
+		expect(readFileSync(join(dir, "package.json"), "utf8")).toBe(before);
+	});
 });
