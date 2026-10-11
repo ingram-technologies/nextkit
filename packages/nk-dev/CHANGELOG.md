@@ -1,5 +1,50 @@
 # @ingram-tech/nk-dev
 
+## 0.20.0
+
+### Minor Changes
+
+- 9f4927e: New `nk doctor` check: a Next site with routes in a root `app/` fails with
+  `layout:root-app-dir`. nextkit sites keep their routes in `src/app/`. Next
+  accepts both and, when both exist, serves `app/` and ignores `src/app/`
+  entirely. There is no autofix: moving the directory touches imports and
+  tsconfig `paths`. The endpoint-shadow, Open Graph and `next`-header checks no
+  longer look in a root `app/`, and the guide states the rule.
+
+### Patch Changes
+
+- 59c6723: ast-grep 0.50 behind `nk ast-grep`. The only behavioural change is that
+  custom language libraries now need an explicit opt-in; the built-in TS/TSX
+  grammars `nk ast-grep` and the codemod skill use are unaffected.
+- a03fcdb: `nk doctor --fix` no longer rewrites a compound script that runs `drizzle-kit
+  push` or `drizzle-kit migrate`. It used to delete the whole script (push) or
+  replace it with `nk-pg-migrate` (migrate), taking the other steps with it, as in
+  `bun run build && drizzle-kit push`. Such scripts are still reported as errors,
+  but have to be fixed by hand. A script that is only the drizzle-kit command is
+  still fixed automatically.
+- b6c1d88: oxfmt 0.72. Its one breaking change moves Markdown to oxc's native formatter;
+  the shipped oxfmtrc ignores `*.md`/`*.mdx`, so sites see no reformat. The
+  rest is formatter fixes, mostly embedded CSS.
+- ce690a2: oxlint plugin fixes:
+  
+  - `nextkit/no-crypto-random-uuid` now flags `randomUUID()` called on the
+    node:crypto module imported whole (`import crypto from "node:crypto"`,
+    `import * as c from "crypto"`). These were treated as a local `crypto`
+    shadowing the global and skipped.
+  - `nextkit/no-sql-array-cast` now catches the cast with whitespace before
+    `::` (`${ids} ::uuid[]`).
+  - `nextkit/no-server-env-in-client` now flags non-public names destructured
+    from `process.env` in a `"use client"` file
+    (`const { STRIPE_SECRET_KEY } = process.env`).
+  - `nextkit/base-ui-native-button` now matches Base UI's namespace form, so
+    `<Popover.Trigger render={<a />} />` is checked like `PopoverTrigger`. It no
+    longer reports `MenuItem` or `Switch`: in Base UI their `nativeButton`
+    defaults to `false`, so rendering a non-button through them was already
+    correct.
+- bda030c: Toolchain refresh: oxlint 1.87, oxlint-tsgolint 7.0.2004, knip 6.41 and
+  jsdom 30.1.2. No rule or config changes in nk-dev's shipped oxlintrc; sites
+  pick up the new versions on their next install.
+
 ## 0.19.0
 
 ### Minor Changes
