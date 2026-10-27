@@ -98,7 +98,7 @@ tsc), so versions stay under your control. nk only orchestrates.
     to it: boot Postgres-in-WASM, apply the `drizzle/` migrations, set
     `DATABASE_URL`, then `next dev --turbopack`. No Docker, no daemon.
   - **Plain** — otherwise just `next dev` (static/marketing sites with no DB).
-- **`nk format` / `nk format --check`** — formats code (JS/TS/JSON/CSS) with
+- **`nk format` / `nk format --check`** — formats code (JS/TS/JSON/CSS/TOML) with
   oxfmt. `--check` verifies without writing (CI). SQL isn't formatted; see
   [Why no SQL formatting?](#why-no-sql-formatting).
 - **`nk lint`** — `oxlint`. nk-dev ships oxlint's type-aware backend

@@ -4,7 +4,7 @@ import { run } from "./run.js";
 /**
  * `nk format` / `nk format --check`.
  *
- * Code (JS/TS/JSON/CSS) goes through oxfmt — the one formatter nk owns. SQL is
+ * Code (JS/TS/JSON/CSS/TOML) goes through oxfmt — the one formatter nk owns. SQL is
  * intentionally NOT formatted: it's almost entirely generated (drizzle
  * migrations, `pg_dump` baselines, pglite fixtures), so a SQL formatter only
  * churns generated files and chokes on psql directives (`\restrict`, …) for no

@@ -19,7 +19,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 
-const FORMATTABLE = /\.(jsx?|mjs|cjs|tsx?|mts|cts|json|jsonc|css|graphql|gql)$/;
+const FORMATTABLE = /\.(jsx?|mjs|cjs|tsx?|mts|cts|json|jsonc|css|graphql|gql|toml)$/;
 
 const git = (args) => execFileSync("git", args, { encoding: "utf8" });
 
