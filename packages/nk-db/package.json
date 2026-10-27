@@ -81,14 +81,14 @@
 		}
 	},
 	"devDependencies": {
-		"@electric-sql/pglite": "^0.5.8",
-		"@electric-sql/pglite-socket": "^0.2.11",
+		"@electric-sql/pglite": "^0.5.12",
+		"@electric-sql/pglite-socket": "^0.2.15",
 		"@ingram-tech/nk-dev": "workspace:*",
 		"@types/node": "^26.6.5",
 		"@types/pg": "^8.23.1",
 		"drizzle-orm": "^0.45.4",
 		"pg": "^8.23.1",
 		"typescript": "^7.0.2",
-		"vitest": "^5.0.3"
+		"vitest": "^5.0.5"
 	}
 }

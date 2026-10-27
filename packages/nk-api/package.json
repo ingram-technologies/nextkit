@@ -48,8 +48,8 @@
 		"@hono/zod-openapi": "^1.6.3",
 		"@ingram-tech/nk-dev": "workspace:*",
 		"@types/node": "^26.6.5",
-		"hono": "^4.13.13",
+		"hono": "^4.13.14",
 		"typescript": "^7.0.2",
-		"vitest": "^5.0.3"
+		"vitest": "^5.0.5"
 	}
 }
