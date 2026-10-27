@@ -1,5 +1,25 @@
 # @ingram-tech/nk-dev
 
+## 0.22.0
+
+### Minor Changes
+
+- 6068256: oxfmt 0.75, which formats TOML: the shipped oxfmtrc no longer ignores
+  `*.toml` and the pre-commit hook passes `.toml` files to oxfmt. A site's TOML
+  files take the house style on the next `nk format` and fail `oxfmt --check`
+  until they do: run `nk format` once after upgrading and commit the result.
+  0.73's other breaking change, a reworked `--migrate prettier`, does not
+  apply: nothing in nk-dev runs it.
+
+### Patch Changes
+
+- 3316520: ast-grep 0.51 for `nk ast-grep`: bug fixes only, including `--update-all`
+  no longer losing files when a write fails.
+- f12088a: Toolchain refresh: oxlint 1.90, oxlint-tsgolint 7.0.2005 (the floor oxlint
+  1.90 now requires), knip 6.43, jsdom 30.1.3 and vitest 5.0.5. No rule or
+  config changes in nk-dev's shipped oxlintrc; sites pick up the new versions
+  on their next install.
+
 ## 0.21.1
 
 ### Patch Changes
