@@ -60,6 +60,10 @@
 			"types": "./dist/client.d.ts",
 			"import": "./dist/client.js"
 		},
+		"./mcp": {
+			"types": "./dist/mcp.d.ts",
+			"import": "./dist/mcp.js"
+		},
 		"./migrations/*": "./migrations/*",
 		"./package.json": "./package.json"
 	},
@@ -75,13 +79,25 @@
 		"zod": "^4.6.4"
 	},
 	"peerDependencies": {
-		"@better-auth/passkey": "1.7.14",
-		"better-auth": "1.7.14",
+		"@better-auth/cimd": "1.7.15",
+		"@better-auth/mcp": "1.7.15",
+		"@better-auth/oauth-provider": "1.7.15",
+		"@better-auth/passkey": "1.7.15",
+		"better-auth": "1.7.15",
 		"next": "^15.0.0 || ^16.0.0",
 		"pg": "^8.13.0",
 		"react": "^18.0.0 || ^19.0.0"
 	},
 	"peerDependenciesMeta": {
+		"@better-auth/cimd": {
+			"optional": true
+		},
+		"@better-auth/mcp": {
+			"optional": true
+		},
+		"@better-auth/oauth-provider": {
+			"optional": true
+		},
 		"@better-auth/passkey": {
 			"optional": true
 		},
@@ -96,13 +112,16 @@
 		}
 	},
 	"devDependencies": {
-		"@better-auth/passkey": "1.7.14",
+		"@better-auth/cimd": "1.7.15",
+		"@better-auth/mcp": "1.7.15",
+		"@better-auth/oauth-provider": "1.7.15",
+		"@better-auth/passkey": "1.7.15",
 		"@ingram-tech/nk-dev": "workspace:*",
 		"@types/bcrypt": "^6.0.0",
 		"@types/node": "^26.6.5",
 		"@types/pg": "^8.23.1",
 		"@types/react": "^19.3.0",
-		"better-auth": "1.7.14",
+		"better-auth": "1.7.15",
 		"next": "^16.4.3",
 		"pg": "^8.23.1",
 		"react": "^19.3.1",

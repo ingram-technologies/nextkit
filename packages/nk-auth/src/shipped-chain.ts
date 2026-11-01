@@ -22,4 +22,8 @@ export const SHIPPED_AUTH_CHAIN: ReadonlyArray<{ tag: string; hash: string }> = 
 		tag: "0003_better_auth_1_7_3",
 		hash: "45152bfe9401ace12ac860ccfc4ae49b6a3ab69cf2460947a964c5f231aa4919",
 	},
+	{
+		tag: "0004_oauth_provider",
+		hash: "8a9ad30feb35a8698da282d66254963270a9669b9d4daa42fc4be56c65fe1cfd",
+	},
 ];

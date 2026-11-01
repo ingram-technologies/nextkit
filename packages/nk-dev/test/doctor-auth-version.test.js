@@ -29,7 +29,11 @@ describe("nk doctor: better-auth pinned to nk-auth's version", () => {
 			join(folder, "package.json"),
 			JSON.stringify({
 				name: "@ingram-tech/nk-auth",
-				peerDependencies: { "better-auth": peer, "@better-auth/passkey": peer },
+				peerDependencies: {
+					"better-auth": peer,
+					"@better-auth/passkey": peer,
+					"@better-auth/mcp": peer,
+				},
 			}),
 		);
 	};
@@ -66,13 +70,18 @@ describe("nk doctor: better-auth pinned to nk-auth's version", () => {
 			"@ingram-tech/nk-auth": "^0.17.0",
 			"better-auth": "1.7.2",
 			"@better-auth/passkey": "1.7.2",
+			"@better-auth/mcp": "^1.7.4",
 		});
 		installNkAuth("1.7.4");
 		expect(
 			authFindings()
 				.map((f) => f.id)
 				.sort(),
-		).toEqual(["auth:version:@better-auth/passkey", "auth:version:better-auth"]);
+		).toEqual([
+			"auth:version:@better-auth/mcp",
+			"auth:version:@better-auth/passkey",
+			"auth:version:better-auth",
+		]);
 	});
 
 	// A workspace member at apps/<site> resolves nk-auth from the root install.

@@ -15,6 +15,7 @@ exactly one Better Auth copy in the app.
 | `nkOrganizationDefaults`, `lastActiveOrganizationHooks`, `lastActiveOrganizationUserField` (`./organization`) | org-plugin defaults + active-org restore/persist |
 | `createAuthPool` (`./pool`) | **deprecated** — alias of `createPool` from [`@ingram-tech/nk-db`](../nk-db); inject your app's shared pool instead |
 | `makeEmailSenders`, `makePasskeyOptions`, `passkeyOptionsForBaseUrl`, `uuidGenerateId` (`./`) | email hooks, passkeys (`passkeyOptionsForBaseUrl` derives `rpID`/`origin` from a single base URL), UUID ids |
+| `mcpAuthServer`, `mcpDiscovery`, `loopbackClientsAsNative` (`./mcp`) | the site as an MCP authorization server (`@better-auth/mcp` + Client ID Metadata Documents), and its root discovery routes; see [MCP authorization server](#mcp-authorization-server) |
 | `sessionLifetime` (`./`) | Better Auth plugin capping a sliding session at `createdAt + maxAge`; see [Gate routes](#5-gate-routes-without-the-redirect-loop), "Session lifetime" |
 | `bcryptPassword` (`./`) | **legacy only** — bcrypt verifier for apps with pre-existing bcrypt hashes. New apps omit it (Better Auth defaults to scrypt). See [Migrating bcrypt passwords to scrypt](#migrating-bcrypt-passwords-to-scrypt) |
 | `createAuthHelpers`, `safeNext` (`./server`) | validated App Router session helpers (`getSession` / `getUser` / `requireSession` / `requireUser` / `signInTarget` / `redirectIfAuthenticated`), request-memoized via React `cache()`, with automatic `next` + stale-cookie signalling; `safeNext` validates a `?next=` param |
@@ -117,7 +118,9 @@ const db = await createTestDb({
 
 `better-auth` and `@better-auth/*` move **only with nk-auth**, and a site pins
 them to the exact version nk-auth's `peerDependencies` names (currently
-`1.7.14`), never a range. `nk doctor` fails on a site whose pin differs, and on
+`1.7.15`), never a range. That covers every `@better-auth/*` package a site
+declares (`passkey`, `mcp`, `oauth-provider`, `cimd`), since they peer on each
+other at the exact same version. `nk doctor` fails on a site whose pin differs, and on
 a range. The reason is the schema: a Better Auth version that changes a table
 ships here as the next `000N_*.sql` in the chain, with `src/migrations.test.ts`
 diffing the applied chain against that version's `getAuthTables()`, so package
@@ -179,6 +182,75 @@ loud error instead of failed inserts, so keep it on in production.
 > invocation above: its DDL is all `… if not exists`, so it no-ops against your
 > existing tables and simply records the nk-auth journal. New auth migrations then
 > flow through the shipped chain from here on.
+
+## MCP authorization server
+
+A site whose people connect their own MCP clients (Claude, Codex, …) signs them
+in through OAuth. `@ingram-tech/nk-auth/mcp` is that setup, once:
+
+```ts
+// src/lib/auth.ts
+import { mcpAuthServer } from "@ingram-tech/nk-auth/mcp";
+import { jwt } from "better-auth/plugins";
+
+export const auth = betterAuth({
+	// ...
+	plugins: [
+		jwt(), // signs the access tokens; a resource server checks them against /auth/jwks
+		...mcpAuthServer({
+			resource: "https://example.com/api/mcp", // tokens are audience-bound to it
+			loginPage: "/login",
+			consentPage: "/consent",
+		}),
+	],
+});
+```
+
+Add `@better-auth/mcp`, `@better-auth/oauth-provider` and `@better-auth/cimd`
+at the version nk-auth pins. The tables are in the chain (`0004_oauth_provider`),
+so `db:migrate` is the whole schema step.
+
+What the preset decides, so a site doesn't rediscover it:
+
+- **Client ID Metadata Documents** (`@better-auth/cimd`, profile
+  `mcp-2026-07-28`), the way MCP now identifies a client, **and** dynamic
+  registration without a credential, which every client older than that still
+  needs. Registration grants nothing; the consent page is where a person decides.
+- **Loopback clients are native.** DCR defaults a client to `web`, which may not
+  redirect to `http://localhost`, and most MCP CLIs omit `application_type`, so
+  without this no CLI can register (RFC 8252 §7.3).
+- **Discovery at the origin root.** The issuer is `<origin>/auth`, and RFC 8414
+  puts its metadata at `/.well-known/oauth-authorization-server/auth`, which the
+  `/auth` handler can't serve. Mount `mcpDiscovery(auth)`'s handlers at
+  `src/app/.well-known/{oauth-authorization-server,openid-configuration,oauth-protected-resource}/[[...path]]/route.ts`.
+
+The consent page is yours: verify the signed query with
+`verifyOAuthQueryParams(query, (await auth.$context).secret)`, name the client
+from `auth.api.getOAuthClientPublic`, never from the URL, and answer with
+`authClient.oauth2.consent({ accept })` (`oauthProviderClient()` from
+`@better-auth/oauth-provider/client` on the auth client).
+
+Protect an MCP route in the same app with `requireMcpAuth(auth, handler, { resource })`
+from `@better-auth/mcp`. A resource server elsewhere verifies the JWT against
+`<origin>/auth/jwks` with issuer `<origin>/auth` and its own URL as audience.
+More than one resource (one per tenant, say) is an `oauthResource` row each; see
+`resources` in the oauth-provider options.
+
+### From the 1.6 `mcp()` or `oidcProvider()` plugin
+
+1.7 removed both. Their grants lived in `oauthApplication`, `oauthAccessToken`
+and `oauthConsent`; `0004` drops those three where it finds the old shape and
+creates the 1.7 tables, so every connected client signs in once more. In order:
+
+1. bump nk-auth, pin `better-auth` and the `@better-auth/*` packages to its
+   version, replace the plugin with `mcpAuthServer`, and drop the site's own
+   copy of the old tables from its chain (a fresh database must not build them);
+2. `db:migrate` against the target database (the old plugin's endpoints stop
+   answering from here until the deploy lands; sign-in is untouched);
+3. deploy.
+
+Endpoints moved from `/auth/mcp/*` to `/auth/oauth2/*`, and `/auth/mcp/get-session`
+is gone: a resource server that introspected there verifies the JWT instead.
 
 ## 2. Configure the server
 
