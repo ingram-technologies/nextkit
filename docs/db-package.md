@@ -376,7 +376,8 @@ A site is not limited to one chain. The runner takes `migrationsFolder` +
 `migrationsTable` per invocation, so an independently-versioned set of migrations
 can be applied against its **own journal table** in the same database. nk-auth
 uses this to **own its auth tables** (`user` / `session` / `account` /
-`verification` / `jwks` / `passkey`, hardened for RLS): it ships an append-only
+`verification` / `jwks` / `passkey` and the OAuth provider's `oauth*` tables,
+hardened for RLS): it ships an append-only
 SQL chain in `packages/nk-auth/migrations/` — with a `meta/_journal.json` — and a
 site applies it straight from `node_modules`, no copy-in:
 

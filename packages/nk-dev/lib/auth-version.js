@@ -7,8 +7,10 @@ import { resolve } from "node:path";
 // its own reopens the gap (1.7.0 added a column the chain lacked; 1.7.3 then
 // rejected the constraint the chain had added), so the site must declare the
 // exact version nk-auth's peerDependencies names — not a range, which
-// `bun update` would silently walk past the next time.
-const AUTH_PACKAGES = ["better-auth", "@better-auth/passkey"];
+// `bun update` would silently walk past the next time. Every `@better-auth/*`
+// package moves with it: they peer on each other at the exact same version.
+const isAuthPackage = (name) =>
+	name === "better-auth" || name.startsWith("@better-auth/");
 
 const readJson = (file) => {
 	try {
@@ -44,9 +46,8 @@ export function authVersionFindings(cwd) {
 	const deps = { ...pkg.dependencies, ...pkg.devDependencies };
 	if (!deps["@ingram-tech/nk-auth"]) return out;
 
-	for (const name of AUTH_PACKAGES) {
-		const declared = deps[name];
-		if (typeof declared !== "string") continue;
+	for (const [name, declared] of Object.entries(deps)) {
+		if (!isAuthPackage(name) || typeof declared !== "string") continue;
 		const wanted = nkAuthPeer(cwd, name);
 		if (wanted === null || !isExact(wanted)) continue;
 		if (declared === wanted) continue;

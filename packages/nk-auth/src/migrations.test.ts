@@ -9,6 +9,8 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { cimd } from "@better-auth/cimd";
+import { mcp } from "@better-auth/mcp";
 import { passkey } from "@better-auth/passkey";
 import { runMigrations } from "@ingram-tech/nk-db/migrate";
 import { createTestDb, type TestDb } from "@ingram-tech/nk-db/pglite";
@@ -29,7 +31,42 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const MIGRATIONS = fileURLToPath(new URL("../migrations", import.meta.url));
 const JOURNAL_TABLE = "__nkauth_migrations";
-const AUTH_TABLES = ["user", "session", "account", "verification", "jwks", "passkey"];
+const OAUTH_TABLES = [
+	"oauthClient",
+	"oauthResource",
+	"oauthClientResource",
+	"oauthRefreshToken",
+	"oauthAccessToken",
+	"oauthConsent",
+	"oauthClientAssertion",
+];
+const AUTH_TABLES = [
+	"user",
+	"session",
+	"account",
+	"verification",
+	"jwks",
+	"passkey",
+	...OAUTH_TABLES,
+];
+
+/** The plugins whose tables the chain ships. A site adding another plugin with
+ *  tables (organization, two-factor, …) owns that schema itself. */
+const shippedTables = () =>
+	getAuthTables({
+		plugins: [
+			jwt(),
+			passkey(),
+			mcp({
+				resource: "http://localhost:3000/mcp",
+				loginPage: "/login",
+				consentPage: "/consent",
+			}),
+			cimd({
+				fetchClientMetadataResource: () => Promise.reject(new Error("unused")),
+			}),
+		],
+	});
 
 /** The tags the shipped journal lists, in chain order. */
 const SHIPPED_TAGS = (
@@ -79,9 +116,7 @@ describe("nk-auth migration chain", () => {
 	});
 
 	it("has no drift from the schema the pinned better-auth expects", async () => {
-		// The plugins whose tables the chain ships. A site adding another plugin
-		// with tables (organization, two-factor, …) owns that schema itself.
-		const expected = getAuthTables({ plugins: [jwt(), passkey()] });
+		const expected = shippedTables();
 		const columns = await columnsOf(db);
 		const missing: string[] = [];
 		const nullable: string[] = [];
@@ -114,7 +149,7 @@ describe("nk-auth migration chain", () => {
 			"1.7.0-1.7.2 keyed accounts on it; 1.7.3 reverted. Nullable since 0003, droppable once no 1.7.2 site remains.",
 	};
 	it("carries no column the pinned better-auth does not model, beyond the listed relics", async () => {
-		const expected = getAuthTables({ plugins: [jwt(), passkey()] });
+		const expected = shippedTables();
 		const modelled = new Set<string>();
 		for (const table of Object.values(expected)) {
 			for (const [name, field] of Object.entries(table.fields)) {
@@ -360,5 +395,124 @@ describe("0003_better_auth_1_7_3 relaxes the 1.7 identity constraint", () => {
 			`select "issuer" from "account" where "id" = 'acct-fay'`,
 		);
 		expect(rows[0]?.issuer).toBe("local:credential");
+	});
+});
+
+/** A chain folder holding the shipped files up to and including `lastTag`,
+ *  byte-identical, so the full chain later sees the same applied hashes. */
+const chainUpTo = (root: string, lastTag: string): string => {
+	const folder = join(root, "migrations");
+	mkdirSync(join(folder, "meta"), { recursive: true });
+	const journal = JSON.parse(
+		readFileSync(join(MIGRATIONS, "meta", "_journal.json"), "utf8"),
+	) as { entries: Array<{ tag: string }> };
+	const entries = journal.entries.slice(
+		0,
+		journal.entries.findIndex((entry) => entry.tag === lastTag) + 1,
+	);
+	for (const { tag } of entries) {
+		copyFileSync(join(MIGRATIONS, `${tag}.sql`), join(folder, `${tag}.sql`));
+	}
+	writeFileSync(
+		join(folder, "meta", "_journal.json"),
+		JSON.stringify({ ...journal, entries }),
+	);
+	return folder;
+};
+
+// 0004 lands on two kinds of live database: one still holding the 1.6 `mcp` /
+// `oidcProvider` plugin's tables (two of whose names it reuses), and one whose
+// site already created the 1.7 tables in its own chain before nk-auth shipped
+// them. Both must come out with exactly the 1.7 shape.
+describe("0004_oauth_provider on a live database", () => {
+	let root: string;
+	let at0003: string;
+
+	beforeAll(() => {
+		root = mkdtempSync(join(tmpdir(), "nkauth-0003-"));
+		at0003 = chainUpTo(root, "0003_better_auth_1_7_3");
+	});
+
+	afterAll(() => {
+		if (root) rmSync(root, { recursive: true, force: true });
+	});
+
+	const bootAt0003 = (): Promise<TestDb> =>
+		createTestDb({
+			migrate: async () => {},
+			dependencyMigrations: [{ folder: at0003, table: JOURNAL_TABLE }],
+		});
+
+	const upgrade = (at: TestDb): ReturnType<typeof runMigrations> =>
+		runMigrations({
+			pool: at.pool,
+			migrationsFolder: MIGRATIONS,
+			migrationsTable: JOURNAL_TABLE,
+		});
+
+	const oauthColumns = async (at: TestDb, table: string): Promise<string[]> =>
+		(await columnsOf(at))
+			.filter((c) => c.table_name === table)
+			.map((c) => c.column_name)
+			.sort();
+
+	it("replaces the 1.6 mcp plugin's tables with the 1.7 shape", async () => {
+		const at = await bootAt0003();
+		try {
+			// The 1.6 plugin's schema, as sites created it next to this chain.
+			await at.pool.query(
+				`create table "oauthApplication" ("id" text primary key, "name" text not null, "clientId" text not null unique, "redirectUrls" text not null, "type" text not null, "createdAt" timestamptz not null, "updatedAt" timestamptz not null)`,
+			);
+			await at.pool.query(
+				`create table "oauthAccessToken" ("id" text primary key, "accessToken" text not null unique, "refreshToken" text not null unique, "clientId" text not null references "oauthApplication" ("clientId") on delete cascade, "scopes" text not null, "createdAt" timestamptz not null, "updatedAt" timestamptz not null)`,
+			);
+			await at.pool.query(
+				`create table "oauthConsent" ("id" text primary key, "clientId" text not null references "oauthApplication" ("clientId") on delete cascade, "userId" text not null, "scopes" text not null, "consentGiven" boolean not null, "createdAt" timestamptz not null, "updatedAt" timestamptz not null)`,
+			);
+			await at.pool.query(
+				`insert into "oauthApplication" values ('a', 'Claude', 'client-1', 'http://localhost/cb', 'public', now(), now())`,
+			);
+
+			expect((await upgrade(at)).applied).toEqual(["0004_oauth_provider"]);
+
+			const tables = (await columnsOf(at)).map((c) => c.table_name);
+			expect(tables).not.toContain("oauthApplication");
+			expect(await oauthColumns(at, "oauthAccessToken")).toContain("token");
+			expect(await oauthColumns(at, "oauthAccessToken")).not.toContain(
+				"accessToken",
+			);
+			expect(await oauthColumns(at, "oauthConsent")).not.toContain(
+				"consentGiven",
+			);
+		} finally {
+			await at.close();
+		}
+	});
+
+	it("keeps the 1.7 tables and their rows where a site already created them", async () => {
+		const at = await bootAt0003();
+		try {
+			// Better Auth's own DDL for the 1.7 tables, as a site's chain created them.
+			const ddl = readFileSync(
+				join(MIGRATIONS, "0004_oauth_provider.sql"),
+				"utf8",
+			)
+				.split("--> statement-breakpoint")
+				.map((statement) => statement.trim())
+				.filter((statement) => statement.startsWith("create table"));
+			for (const statement of ddl) await at.pool.query(statement);
+			await at.pool.query(
+				`insert into "oauthClient" ("id", "clientId", "redirectUris") values ('c', 'client-1', '[]')`,
+			);
+
+			expect((await upgrade(at)).applied).toEqual(["0004_oauth_provider"]);
+
+			const { rows } = await at.pool.query<{ clientId: string }>(
+				`select "clientId" from "oauthClient"`,
+			);
+			expect(rows).toEqual([{ clientId: "client-1" }]);
+		} finally {
+			await at.close();
+		}
 	});
 });
