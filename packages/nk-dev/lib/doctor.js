@@ -2,7 +2,7 @@ import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from "no
 import { dirname, relative, resolve, sep } from "node:path";
 import { checkAgentGuideImport, ensureGuideImport } from "./agent-guide.js";
 import { appDirFindings } from "./app-dir.js";
-import { authNextFindings } from "./auth-next.js";
+import { authNextFindings, authRenewalFindings } from "./auth-next.js";
 import { authShadowFindings } from "./auth-shadow.js";
 import { authVersionFindings } from "./auth-version.js";
 import { ogImageFindings } from "./og-image.js";
@@ -403,6 +403,7 @@ export function findings(cwd) {
 	// 12. If nk-auth's server guards are bound, something sets the header they
 	//     need to preserve `next`.
 	out.push(...authNextFindings(cwd));
+	out.push(...authRenewalFindings(cwd));
 
 	// 13. Better Auth is pinned to the exact version the installed nk-auth was
 	//     released against — its chain carries the schema that version needs.
@@ -498,7 +499,8 @@ export function exitCodeFor(results) {
  * ignores, forbidden schema-applying drizzle-kit scripts, Prettier leftovers,
  * a missing or thin `ci` script, an unsealed or unmodelled-DDL-carrying migration chain, a
  * page under app/auth/ shadowing a Better Auth endpoint, nk-auth guards bound
- * without the proxy header that preserves `next`, better-auth declared at a
+ * without the proxy header that preserves `next` or the proxy renewal that keeps
+ * a session alive, better-auth declared at a
  * version or range other than the exact one nk-auth pins).
  * With `--fix`, apply every auto-fixable finding, then remind
  * to reinstall.

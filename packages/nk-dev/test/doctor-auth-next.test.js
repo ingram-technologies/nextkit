@@ -70,3 +70,58 @@ describe("nk doctor: nk-auth guards bound without the next header", () => {
 		expect(nextFindings()).toHaveLength(1);
 	});
 });
+
+/**
+ * nk-auth's guards never refresh a session, so a site that binds them must renew
+ * from the proxy or sign everyone out `expiresIn` after sign-in.
+ */
+describe("nk doctor: nk-auth guards bound without session renewal", () => {
+	let dir;
+	beforeEach(() => {
+		dir = mkdtempSync(join(tmpdir(), "nk-doctor-auth-renew-"));
+		writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "site" }));
+	});
+	afterEach(() => {
+		rmSync(dir, { recursive: true, force: true });
+	});
+
+	const write = (rel, content = "") => {
+		const full = join(dir, rel);
+		mkdirSync(dirname(full), { recursive: true });
+		writeFileSync(full, content);
+	};
+	const renewalFindings = () =>
+		findings(dir).filter((f) => f.id === "auth:session-unrenewed");
+	const helpers = "export const { requireUser } = createAuthHelpers(auth);\n";
+
+	it("fails a site whose middleware gates but never renews", () => {
+		write("src/lib/auth/session.ts", helpers);
+		write(
+			"src/proxy.ts",
+			"export const proxy = createAuthMiddleware({ protectedPaths: ['/app'] });",
+		);
+		const [finding] = renewalFindings();
+		expect(finding?.level).toBe("error");
+		expect(finding?.message).toContain("renewSession");
+	});
+
+	it("is satisfied by createAuthMiddleware given auth", () => {
+		write("src/lib/auth/session.ts", helpers);
+		write(
+			"src/proxy.ts",
+			"export const proxy = createAuthMiddleware({\n\tprotectedPaths: ['/app'],\n\tauth: () => import('./lib/auth').then((m) => m.auth),\n});",
+		);
+		expect(renewalFindings()).toEqual([]);
+	});
+
+	it("is satisfied by renewSession in a custom proxy", () => {
+		write("src/lib/auth/session.ts", helpers);
+		write("src/proxy.ts", "await renewSession(request, response, loadAuth);");
+		expect(renewalFindings()).toEqual([]);
+	});
+
+	it("is silent on a site without the helpers", () => {
+		write("src/proxy.ts", "export function proxy() {}");
+		expect(renewalFindings()).toEqual([]);
+	});
+});

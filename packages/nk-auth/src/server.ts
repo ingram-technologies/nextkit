@@ -185,7 +185,7 @@ export function createAuthHelpers<S extends SessionLike>(
 		// Never refresh here: a refresh extends the row and re-issues the cookie,
 		// and a server component cannot set cookies, so the row would outlive a
 		// cookie that still expires on its sign-in max-age. Refreshes belong to
-		// the client's `/get-session` (see README, "Session lifetime").
+		// the proxy's renewSession (see README, "Session lifetime").
 		const session = await auth.api.getSession({
 			headers: requestHeaders,
 			query: { disableRefresh: true },
