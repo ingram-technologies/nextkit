@@ -125,13 +125,14 @@ export function clearStaleSession(
 	return res;
 }
 
-/** What renewal needs of a Better Auth instance. */
+/** What renewal needs of a Better Auth instance. Only the fields it reads, and
+ *  each open to the rest of the config: a weak type (all-optional fields)
+ *  rejects any real instance whose `session` shares none of them. */
 export interface RenewableAuth {
 	handler: (request: Request) => Promise<Response>;
 	options: {
 		basePath?: string;
-		session?: { updateAge?: number };
-		advanced?: { cookiePrefix?: string };
+		session?: { updateAge?: number } & Record<string, unknown>;
 	};
 }
 

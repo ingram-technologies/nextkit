@@ -136,6 +136,23 @@ describe("renewSession", () => {
 });
 
 describe("createAuthMiddleware with auth", () => {
+	it("accepts a real instance whose config shares nothing with what renewal reads", () => {
+		const configured = betterAuth({
+			database: db.pool,
+			secret: "s".repeat(32),
+			basePath: "/auth",
+			session: { expiresIn: 30 * DAY },
+			advanced: { database: { generateId: false } },
+		});
+		// A type assertion, run as a test: this line failed to compile in 0.22.0.
+		expect(
+			createAuthMiddleware({
+				protectedPaths: ["/app"],
+				auth: async () => configured,
+			}),
+		).toBeTypeOf("function");
+	});
+
 	it("renews on a page it lets through", async () => {
 		const cookie = await signedIn("gated@acme.test", 3);
 		const middleware = createAuthMiddleware({ protectedPaths: ["/app"], auth });
