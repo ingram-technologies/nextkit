@@ -25,6 +25,11 @@
  *    cookies) deletes the dead Better Auth cookies and bounces to a clean
  *    sign-in URL, so a bad session self-heals instead of failing every request.
  *
+ * And it is where a sliding session is kept alive. Better Auth extends a
+ * session on read, re-issuing the cookie, but a server component cannot set a
+ * cookie, so the server guards read without refreshing. The proxy can: see
+ * {@link renewSession}, which `createAuthMiddleware` runs when given `auth`.
+ *
  * Both halves are also exported on their own — {@link withAuthPathHeader} and
  * {@link clearStaleSession} — for a site whose proxy composes several concerns
  * (locale routing, tenant pinning, …) and does not want the optimistic gate.
@@ -32,7 +37,11 @@
  * say so (a one-time warning outside production); wiring one line into your own
  * proxy is enough to fix that.
  */
-import { getSessionCookie } from "better-auth/cookies";
+import {
+	getSessionCookie,
+	parseSetCookieHeader,
+	toCookieOptions,
+} from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
 import {
 	NK_AUTH_PATH_HEADER,
@@ -116,6 +125,84 @@ export function clearStaleSession(
 	return res;
 }
 
+/** What renewal needs of a Better Auth instance. */
+export interface RenewableAuth {
+	handler: (request: Request) => Promise<Response>;
+	options: {
+		basePath?: string;
+		session?: { updateAge?: number };
+		advanced?: { cookiePrefix?: string };
+	};
+}
+
+const DEFAULT_UPDATE_AGE = 60 * 60 * 24;
+
+/**
+ * Keep a signed-in session alive from the proxy, so nobody is signed out on a
+ * fixed timer while they are using the site.
+ *
+ * Better Auth's session slides: a read at least `session.updateAge` after the
+ * last refresh moves `expiresAt` forward and re-issues the cookie with a fresh
+ * max-age. Only a response that may set cookies can carry that, and a server
+ * component's cannot, so the server guards read with `disableRefresh`. Without a
+ * refresh somewhere, a sign-in ends `session.expiresIn` after it began however
+ * active the person is (aidefencesummit.eu shipped exactly that for a month).
+ *
+ * The proxy answers every navigation and may set cookies, so it does the
+ * refresh: it asks Better Auth's own `/get-session` for the request's session
+ * and forwards the `Set-Cookie` it answers with. A marker cookie, alive for
+ * `updateAge`, makes that one database read per browser per `updateAge` rather
+ * than one per request: Better Auth would not refresh any sooner anyway.
+ *
+ *   const response = NextResponse.next();
+ *   await renewSession(request, response, () => import("@/lib/auth").then((m) => m.auth));
+ *   return response;
+ *
+ * `auth` may be a loader, so a proxy only constructs the instance (and opens
+ * its pool) on the requests that need it. A request with no session cookie, or
+ * one renewed within `updateAge`, never touches it.
+ */
+export async function renewSession(
+	request: NextRequest,
+	response: NextResponse,
+	auth: RenewableAuth | (() => Promise<RenewableAuth>),
+	config: { sessionCookiePrefix?: string } = {},
+): Promise<void> {
+	const prefix = config.sessionCookiePrefix ?? "better-auth";
+	const marker = `${prefix}.renewed`;
+	if (request.cookies.has(marker)) return;
+	if (!getSessionCookie(request, { cookiePrefix: prefix })) return;
+
+	const instance = typeof auth === "function" ? await auth() : auth;
+	const basePath = instance.options.basePath ?? "/api/auth";
+	const answer = await instance.handler(
+		new Request(new URL(`${basePath}/get-session`, request.nextUrl), {
+			headers: request.headers,
+		}),
+	);
+	if (!answer.ok) return;
+	// A dead session is the server guard's to handle (the stale handshake);
+	// marking it would only delay that.
+	const body: unknown = await answer.json().catch(() => null);
+	if (body !== null) {
+		response.cookies.set(marker, "1", {
+			httpOnly: true,
+			sameSite: "lax",
+			secure: request.nextUrl.protocol === "https:",
+			path: "/",
+			maxAge: instance.options.session?.updateAge ?? DEFAULT_UPDATE_AGE,
+		});
+	}
+	// Through the response's own cookie map, not the raw header: `cookies.set`
+	// rewrites `set-cookie` from that map, so a proxy setting any cookie after
+	// this would otherwise silently drop the refreshed session.
+	for (const header of answer.headers.getSetCookie()) {
+		for (const [name, attributes] of parseSetCookieHeader(header)) {
+			response.cookies.set(name, attributes.value, toCookieOptions(attributes));
+		}
+	}
+}
+
 export interface AuthMiddlewareOptions {
 	/**
 	 * Headers to forward to the app, if the middleware has its own to add. A
@@ -150,9 +237,29 @@ export interface AuthMiddlewareConfig extends NextParamOptions {
 	 * here the gate never sees the cookie and loops with the server guard.
 	 */
 	sessionCookiePrefix?: string;
+	/**
+	 * The Better Auth instance, or a loader for it. Given, the middleware keeps
+	 * an active session alive ({@link renewSession}) and returns a promise.
+	 */
+	auth?: RenewableAuth | (() => Promise<RenewableAuth>);
 }
 
-export function createAuthMiddleware(config: AuthMiddlewareConfig) {
+type Middleware = (
+	request: NextRequest,
+	options?: AuthMiddlewareOptions,
+) => NextResponse;
+type RenewingMiddleware = (
+	request: NextRequest,
+	options?: AuthMiddlewareOptions,
+) => Promise<NextResponse>;
+
+export function createAuthMiddleware(
+	config: AuthMiddlewareConfig & { auth: NonNullable<AuthMiddlewareConfig["auth"]> },
+): RenewingMiddleware;
+export function createAuthMiddleware(config: AuthMiddlewareConfig): Middleware;
+export function createAuthMiddleware(
+	config: AuthMiddlewareConfig,
+): Middleware | RenewingMiddleware {
 	const signInPath = config.signInPath ?? "/login";
 	const frontDoorPaths = config.frontDoorPaths ?? [];
 	const cookiePrefix = config.sessionCookiePrefix ?? "better-auth";
@@ -185,7 +292,7 @@ export function createAuthMiddleware(config: AuthMiddlewareConfig) {
 		);
 	}
 
-	return function middleware(
+	const gate = function middleware(
 		request: NextRequest,
 		options: AuthMiddlewareOptions = {},
 	): NextResponse {
@@ -235,5 +342,17 @@ export function createAuthMiddleware(config: AuthMiddlewareConfig) {
 		const requestHeaders = options.requestHeaders ?? new Headers(request.headers);
 		withAuthPathHeader(request, requestHeaders);
 		return NextResponse.next({ request: { headers: requestHeaders } });
+	};
+
+	const { auth } = config;
+	if (!auth) return gate;
+	return async (request, options) => {
+		const response = gate(request, options);
+		// A redirect is not a visit: the session renews on the page it lands on.
+		if (response.headers.has("location")) return response;
+		await renewSession(request, response, auth, {
+			sessionCookiePrefix: cookiePrefix,
+		});
+		return response;
 	};
 }

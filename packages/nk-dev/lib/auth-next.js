@@ -58,3 +58,42 @@ export function authNextFindings(cwd) {
 		},
 	];
 }
+
+/** Whether a source renews the session: `renewSession(…)`, or a
+ *  `createAuthMiddleware({ … })` call given `auth`. */
+function renews(src) {
+	if (/\brenewSession\s*\(/.test(src)) return true;
+	for (const match of src.matchAll(/\bcreateAuthMiddleware\s*\(/g)) {
+		const call = src.slice(match.index, match.index + 1000);
+		const end = call.indexOf("})");
+		if (/\bauth\b\s*[,:}\n]/.test(end === -1 ? call : call.slice(0, end)))
+			return true;
+	}
+	return false;
+}
+
+/**
+ * The "helpers bound, session never renewed" finding, or nothing.
+ *
+ * nk-auth's server guards read the session without refreshing it, because a
+ * server component cannot set the cookie a refresh re-issues. Something that
+ * can must do it, or every sign-in ends `session.expiresIn` after it began
+ * however active the person is: aidefencesummit.eu signed its users out weekly
+ * for a month before anyone noticed. The proxy does it, once per `updateAge`.
+ */
+export function authRenewalFindings(cwd) {
+	let boundIn = null;
+	for (const file of sourceFiles(cwd)) {
+		const src = readFileSync(resolve(cwd, file), "utf8");
+		if (!boundIn && /\bcreateAuthHelpers\s*\(/.test(src)) boundIn = file;
+		if (renews(src)) return [];
+	}
+	if (!boundIn) return [];
+	return [
+		{
+			id: "auth:session-unrenewed",
+			level: "error",
+			message: `\`${boundIn}\` binds createAuthHelpers, but nothing renews the session, so every sign-in ends \`session.expiresIn\` after it began however active the person is. Pass \`auth\` to createAuthMiddleware, or call renewSession(request, response, auth) from "@ingram-tech/nk-auth/middleware" in your proxy.`,
+		},
+	];
+}

@@ -19,7 +19,7 @@ exactly one Better Auth copy in the app.
 | `sessionLifetime` (`./`) | Better Auth plugin capping a sliding session at `createdAt + maxAge`; see [Gate routes](#5-gate-routes-without-the-redirect-loop), "Session lifetime" |
 | `bcryptPassword` (`./`) | **legacy only** — bcrypt verifier for apps with pre-existing bcrypt hashes. New apps omit it (Better Auth defaults to scrypt). See [Migrating bcrypt passwords to scrypt](#migrating-bcrypt-passwords-to-scrypt) |
 | `createAuthHelpers`, `safeNext` (`./server`) | validated App Router session helpers (`getSession` / `getUser` / `requireSession` / `requireUser` / `signInTarget` / `redirectIfAuthenticated`), request-memoized via React `cache()`, with automatic `next` + stale-cookie signalling; `safeNext` validates a `?next=` param |
-| `createAuthMiddleware`, `withAuthPathHeader`, `clearStaleSession` (`./middleware`) | loop-safe edge middleware: gates unauthenticated users off protected paths, preserves `next`, and clears a stale session cookie so a bad session self-heals; the last two are its `next`-header and stale-cookie halves, for a site with its own proxy |
+| `createAuthMiddleware`, `withAuthPathHeader`, `clearStaleSession`, `renewSession` (`./middleware`) | loop-safe proxy middleware: gates unauthenticated users off protected paths, preserves `next`, clears a stale session cookie so a bad session self-heals, and (given `auth`) keeps an active session alive; the last three are its halves, for a site with its own proxy |
 
 > **Data access + RLS** is owned by [`@ingram-tech/nk-db`](../nk-db); see §3.
 >
@@ -520,21 +520,24 @@ middleware injects.
 per `session.updateAge`), moving the row's `expiresAt` and re-issuing the cookie
 with a fresh max-age. A server component cannot set cookies, so the server
 helpers read with `disableRefresh`: refreshing there would extend the row while
-the cookie still dies on its sign-in max-age, and users get signed out
-`expiresIn` after sign-in however active they are. The refresh belongs to the
-browser: mount `authClient.useSession()` in the signed-in shell (it hits
-`/auth/get-session` on load and on tab focus, and that route handler can set the
-cookie). To still end a sign-in eventually, add `sessionLifetime({ maxAge })`
-to the instance's `plugins`: refreshes are clamped to `createdAt + maxAge`.
+the cookie still dies on its sign-in max-age. The proxy can set cookies, so it
+renews: give `createAuthMiddleware` the instance, or a loader so the proxy only
+builds it when a session needs renewing:
 
-```tsx
-// src/app/(app)/SessionRenewal.tsx
-"use client";
-export const SessionRenewal = () => {
-	authClient.useSession();
-	return null;
-};
+```ts
+export const proxy = createAuthMiddleware({
+	protectedPaths: ["/app"],
+	auth: () => import("@/lib/auth").then((m) => m.auth),
+});
 ```
+
+A custom proxy calls `await renewSession(request, response, auth)` on the
+response it returns. It costs one `/get-session` read per browser per
+`updateAge` (a marker cookie skips the rest). Without either, every sign-in ends
+`session.expiresIn` after it began however active the person is, and `nk doctor`
+fails the site. To still end a sign-in eventually, add
+`sessionLifetime({ maxAge })` to the instance's `plugins`: refreshes are clamped
+to `createdAt + maxAge`.
 
 **Your own proxy.** An app that composes its own proxy (locale routing, tenant
 pinning, …) keeps validated gating from the server helpers, but the guards can
