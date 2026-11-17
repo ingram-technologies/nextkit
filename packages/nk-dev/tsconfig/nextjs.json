@@ -13,6 +13,11 @@
 		"noEmit": true,
 		"declaration": false,
 		"declarationMap": false,
+		// TS 7 sizes its checker pool to the CPU count, and `next build` runs tsc
+		// against this config: the default pool peaks near 7 GB and OOMs a
+		// standard Vercel build machine. One checker costs ~3.3 GB and a few
+		// seconds; `tsc --checkers N` still overrides it for a local run.
+		"checkers": 1,
 		"plugins": [{ "name": "next" }],
 		"paths": {
 			"@/*": ["./src/*"]
