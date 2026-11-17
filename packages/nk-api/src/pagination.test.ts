@@ -6,6 +6,7 @@ import {
 	paginatedResponse,
 	paginationQuery,
 } from "./pagination.js";
+import { pageCount } from "./client.js";
 
 describe("pagination", () => {
 	it("offsetFor is zero-based from a 1-based page", () => {
@@ -13,12 +14,12 @@ describe("pagination", () => {
 		expect(offsetFor({ page: 3, limit: 20 })).toBe(40);
 	});
 
-	it("paginate wraps rows and ceils totalPages", () => {
+	it("paginate wraps rows with the casing-neutral block", () => {
 		expect(
 			paginate([{ id: "a" }, { id: "b" }], { page: 1, limit: 20, total: 21 }),
 		).toEqual({
 			data: [{ id: "a" }, { id: "b" }],
-			pagination: { page: 1, limit: 20, total: 21, totalPages: 2 },
+			pagination: { page: 1, limit: 20, total: 21 },
 		});
 	});
 
@@ -27,9 +28,9 @@ describe("pagination", () => {
 		[40, 20, 2],
 		[41, 20, 3],
 		[1, 20, 1],
-	])("total %i at limit %i is %i pages", (total, limit, totalPages) => {
-		expect(paginate([], { page: 1, limit, total }).pagination.totalPages).toBe(
-			totalPages,
+	])("total %i at limit %i is %i pages", (total, limit, pages) => {
+		expect(pageCount(paginate([], { page: 1, limit, total }).pagination)).toBe(
+			pages,
 		);
 	});
 
@@ -49,7 +50,7 @@ describe("pagination", () => {
 		const schema = paginatedResponse(z.object({ id: z.string() }));
 		const parsed = schema.parse({
 			data: [{ id: "a" }],
-			pagination: { page: 1, limit: 20, total: 1, totalPages: 1 },
+			pagination: { page: 1, limit: 20, total: 1 },
 		});
 		expect(parsed.data[0]?.id).toBe("a");
 	});

@@ -28,12 +28,15 @@ export const paginationQuery = z.object({
 	limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 
-/** The `{ page, limit, total, totalPages }` block returned alongside `data`. */
+/**
+ * The `{ page, limit, total }` block returned alongside `data`. Every key is one
+ * word, so it reads the same in a camelCase or snake_case API; the page count
+ * is derived on the client with `pageCount()`.
+ */
 export const paginationMetaSchema = z.object({
 	page: z.number().int(),
 	limit: z.number().int(),
 	total: z.number().int(),
-	totalPages: z.number().int(),
 });
 
 /** A `{ data: item[], pagination }` response schema for a list of `item`. */
@@ -52,10 +55,7 @@ export function paginate<T>(
 	{ page, limit, total }: { page: number; limit: number; total: number },
 ): {
 	data: T[];
-	pagination: { page: number; limit: number; total: number; totalPages: number };
+	pagination: { page: number; limit: number; total: number };
 } {
-	return {
-		data,
-		pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
-	};
+	return { data, pagination: { page, limit, total } };
 }

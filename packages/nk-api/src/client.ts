@@ -11,6 +11,10 @@
  */
 export { hc } from "hono/client";
 
+/** Number of pages a `{ total, limit }` pagination block spans (0 when empty). */
+export const pageCount = ({ total, limit }: { total: number; limit: number }): number =>
+	Math.ceil(total / limit);
+
 // Structural minimum so both a fetch `Response` and a typed `hc` `ClientResponse`
 // (which is not declared as a `Response` subtype) are accepted.
 type JsonReadable = { json(): Promise<unknown> };

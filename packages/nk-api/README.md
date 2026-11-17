@@ -33,6 +33,9 @@ request validation and an emitted OpenAPI document, behind one error envelope
 - **Pagination** — `paginationQuery` (the `page`/`limit` schema),
   `paginatedResponse(itemSchema)` (the `{ data, pagination }` response schema),
   `offsetFor()` and `paginate()` so list endpoints don't re-derive the math.
+  The block is `{ page, limit, total }`, one-word keys that read the same in
+  either casing; `pageCount(pagination)` (root and `/client`) derives the page
+  count.
 - **Helpers** — `jsonContent`, `jsonBody`, `errorResponse`, `errorResponses`,
   `ErrorSchema` for terse, uniform `createRoute` definitions.
 - **`@ingram-tech/nk-api/next`** — `createNextHandlers(app)` for a Next.js
@@ -160,6 +163,11 @@ const listRoute = createRoute({
 const { page, limit } = c.req.valid("query");
 const rows = await q.range(offsetFor({ page, limit }), offsetFor({ page, limit }) + limit - 1);
 return c.json(paginate(rows, { page, limit, total }), 200);
+// -> { data, pagination: { page, limit, total } }
+
+// client:
+import { pageCount } from "@ingram-tech/nk-api/client";
+const pages = pageCount(body.pagination); // Math.ceil(total / limit)
 ```
 
 ## Rate limiting (`rateLimit`)

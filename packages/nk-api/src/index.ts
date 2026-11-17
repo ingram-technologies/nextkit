@@ -33,6 +33,7 @@ export {
 	paginationMetaSchema,
 	paginationQuery,
 } from "./pagination.js";
+export { pageCount } from "./client.js";
 export {
 	checkRateLimit,
 	getClientKey,
