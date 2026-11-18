@@ -88,9 +88,9 @@ const AUDIENCE = "backend";
 
 const sign = (
 	key: SigningKey,
-	claims: { aud?: string; iss?: string; exp?: number } = {},
+	claims: { aud?: string; iss?: string; exp?: number; sub?: string } = {},
 ): Promise<string> =>
-	new SignJWT({ sub: "u1" })
+	new SignJWT({ sub: claims.sub ?? "u1" })
 		.setProtectedHeader({ alg: key.alg, kid: key.kid })
 		.setIssuer(claims.iss ?? ISSUER)
 		.setAudience(claims.aud ?? AUDIENCE)
@@ -127,12 +127,16 @@ describe("verifyBackendJwt", () => {
 		vi.setSystemTime(T0);
 		const server = await jwksServer();
 		close = server.close;
-		const verify = (token: string, over: { aud?: string; iss?: string } = {}) =>
+		const verify = (
+			token: string,
+			over: { aud?: string; iss?: string; ids?: { user: typeof ids.user } } = {},
+		) =>
 			verifyBackendJwt({
 				token,
 				jwksUrl: server.jwksUrl,
 				audience: over.aud ?? AUDIENCE,
 				issuer: over.iss ?? ISSUER,
+				ids: over.ids,
 			});
 		return { ...server, verify };
 	};
@@ -212,5 +216,22 @@ describe("verifyBackendJwt", () => {
 		await expect(
 			verify(await sign(a, { exp: nowSec - 60 })),
 		).rejects.toBeInstanceOf(errors.JWTExpired);
+	});
+
+	it("accepts a raw-uuid sub minted before the site opted in, and skins it with ids", async () => {
+		const { state, verify } = await setup();
+		const a = await signingKey("a");
+		state.keys = [a.jwk];
+		const user = uuidv7();
+		const legacy = await sign(a, { sub: user });
+		const current = await sign(a, { sub: ids.user.encode(user) });
+		// Without ids: verified, claims exactly as signed.
+		await expect(verify(legacy)).resolves.toMatchObject({ sub: user });
+		// With ids: both forms verify and come back public.
+		for (const token of [legacy, current]) {
+			await expect(
+				verify(token, { ids: { user: ids.user } }),
+			).resolves.toMatchObject({ sub: ids.user.encode(user) });
+		}
 	});
 });

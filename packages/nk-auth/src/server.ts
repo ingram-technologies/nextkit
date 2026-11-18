@@ -25,7 +25,6 @@
  * and falls through to the form instead of ping-ponging forever.
  */
 import { type AuthChainCheckOptions, authChainCheck } from "./chain.js";
-import type { IdHelper } from "@ingram-tech/nk-db/id";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
@@ -35,6 +34,9 @@ import {
 	signInUrl,
 } from "./gating-internals.js";
 import { CREDENTIAL_PROVIDER_ID } from "./password.js";
+import { encodeSessionIds, type SessionIds } from "./session-ids.js";
+
+export { encodeSessionIds, type SessionIds } from "./session-ids.js";
 
 /**
  * Validate a `next` redirect param: returns it only if it's an internal,
@@ -77,18 +79,6 @@ interface AuthLike<S extends SessionLike> {
 	};
 }
 
-/**
- * The registry helpers for the ids a session carries. With these, every
- * session read through the helpers presents `user.id` / `session.userId` as
- * the user's public id and `session.activeOrganizationId` as the
- * organization's, so app code compares session ids with `idColumn` reads in
- * one form. Better Auth itself keeps working on raw uuids underneath.
- */
-export interface SessionIds {
-	user: IdHelper;
-	organization?: IdHelper;
-}
-
 export interface AuthHelpersOptions extends NextParamOptions {
 	/** Where guards send unauthenticated users. Default `/login`. */
 	signInPath?: string;
@@ -112,45 +102,6 @@ export interface AuthHelpersOptions extends NextParamOptions {
 	 * the site records the chain under another table.
 	 */
 	chainCheck?: false | AuthChainCheckOptions;
-}
-
-const encodeIfString = (helper: IdHelper | undefined, value: unknown): unknown =>
-	helper && typeof value === "string" ? helper.encode(value) : value;
-
-/**
- * A session with its ids in public form: `user.id`, `session.userId` and
- * `session.activeOrganizationId` (each only when present and a string). Pure —
- * Better Auth's own object is left untouched, since it is what the adapter
- * writes back. `encode` is idempotent, so an already-public id is unchanged.
- */
-export function encodeSessionIds<S extends SessionLike>(
-	session: S,
-	ids: SessionIds,
-): S {
-	const out: Record<string, unknown> = { ...(session as Record<string, unknown>) };
-	const user = session.user;
-	if (user && typeof user === "object" && "id" in user) {
-		out.user = { ...user, id: encodeIfString(ids.user, user.id) };
-	}
-	const inner = "session" in session ? session.session : undefined;
-	if (inner && typeof inner === "object") {
-		const rec = inner as Record<string, unknown>;
-		out.session = {
-			...rec,
-			...("userId" in rec
-				? { userId: encodeIfString(ids.user, rec.userId) }
-				: {}),
-			...("activeOrganizationId" in rec
-				? {
-						activeOrganizationId: encodeIfString(
-							ids.organization,
-							rec.activeOrganizationId,
-						),
-					}
-				: {}),
-		};
-	}
-	return out as S;
 }
 
 export function createAuthHelpers<S extends SessionLike>(
