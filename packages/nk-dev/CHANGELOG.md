@@ -1,5 +1,11 @@
 # @ingram-tech/nk-dev
 
+## 0.24.2
+
+### Patch Changes
+
+- d99d2f8: Guide: `usr_` / `org_` are the fleet-wide user and organization ids (`SHARED_ID_PREFIXES`), and how a site opts in (`createAuthHelpers({ ids })`, `publicSessionIds`, `backendJwtOptions({ ids })`).
+
 ## 0.24.1
 
 ### Patch Changes
