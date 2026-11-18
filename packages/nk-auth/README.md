@@ -16,6 +16,7 @@ exactly one Better Auth copy in the app.
 | `createAuthPool` (`./pool`) | **deprecated** — alias of `createPool` from [`@ingram-tech/nk-db`](../nk-db); inject your app's shared pool instead |
 | `makeEmailSenders`, `makePasskeyOptions`, `passkeyOptionsForBaseUrl`, `uuidGenerateId` (`./`) | email hooks, passkeys (`passkeyOptionsForBaseUrl` derives `rpID`/`origin` from a single base URL), UUID ids |
 | `mcpAuthServer`, `mcpDiscovery`, `loopbackClientsAsNative` (`./mcp`) | the site as an MCP authorization server (`@better-auth/mcp` + Client ID Metadata Documents), and its root discovery routes; see [MCP authorization server](#mcp-authorization-server) |
+| `publicSessionIds`, `encodeSessionIds` (`./`) | Better Auth plugin returning session ids in public form (`usr_…`, `org_…`) from Better Auth's own HTTP responses; see [Gate routes](#5-gate-routes-without-the-redirect-loop), "public ids" |
 | `sessionLifetime` (`./`) | Better Auth plugin capping a sliding session at `createdAt + maxAge`; see [Gate routes](#5-gate-routes-without-the-redirect-loop), "Session lifetime" |
 | `bcryptPassword` (`./`) | **legacy only** — bcrypt verifier for apps with pre-existing bcrypt hashes. New apps omit it (Better Auth defaults to scrypt). See [Migrating bcrypt passwords to scrypt](#migrating-bcrypt-passwords-to-scrypt) |
 | `createAuthHelpers`, `safeNext` (`./server`) | validated App Router session helpers (`getSession` / `getUser` / `requireSession` / `requireUser` / `signInTarget` / `redirectIfAuthenticated`), request-memoized via React `cache()`, with automatic `next` + stale-cookie signalling; `safeNext` validates a `?next=` param |
@@ -451,6 +452,32 @@ helper to `backendJwtOptions({ audience, ids: { user } })` and the backend
 JWT's `sub` (and payload `id`) is the public id too. RLS needs nothing: nk-db's
 `withRls*` decode a prefixed `sub` before it reaches `request.jwt.claims`, so
 `auth.uid()` policies hold either way.
+
+`user` and `organization` always use the shared prefixes `usr` and `org`
+(`SHARED_ID_PREFIXES` from `@ingram-tech/nk-db/id`); `createIdRegistry` throws
+on any other. The browser sees Better Auth's own responses, so add the
+`publicSessionIds` plugin too, or `authClient.useSession()` returns raw uuids
+while the server helpers return public ones:
+
+```ts
+import { publicSessionIds } from "@ingram-tech/nk-auth";
+
+plugins: [publicSessionIds({ ids: { user: ids.user, organization: ids.organization } })],
+```
+
+It rewrites `user.id`, `session.userId` and `session.activeOrganizationId` in
+the HTTP bodies of `/get-session`, `/sign-in/email` and `/sign-up/email`, and
+nothing else: `auth.api.*` calls, the adapter, cookies and request inputs stay
+raw. The organization plugin's endpoints (`/organization/*`) are not rewritten,
+so their ids are raw on the wire and their inputs (`setActive({ organizationId
+})`) take raw uuids.
+
+Tokens issued before the switch carry a raw-uuid `sub`. Every nextkit consumer
+takes both forms: `verifyBackendJwt` never reads `sub` (pass it `ids: { user }`
+to get `sub` and `id` back in public form), and `withRls*` decodes a public
+`sub` and passes a raw one through. Tokens minted by the MCP authorization
+server (`@better-auth/oauth-provider`) keep a raw-uuid `sub` regardless; skin it
+with `ids.user.encode(sub)` (idempotent) where the site reads it.
 
 ```tsx
 // src/app/dashboard/page.tsx — gate a protected page (validated, DB-backed).

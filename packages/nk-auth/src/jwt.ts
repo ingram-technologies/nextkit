@@ -1,4 +1,4 @@
-import type { IdHelper } from "@ingram-tech/nk-db/id";
+import { type IdHelper, isUuid } from "@ingram-tech/nk-db/id";
 import type { JwtOptions } from "better-auth/plugins/jwt";
 import {
 	createRemoteJWKSet,
@@ -72,10 +72,39 @@ const lastForcedReload = new Map<string, number>();
  * auth failures on every request that verifies a token. On a no-matching-key
  * miss we force a single `.reload()` (which bypasses the cooldown) and retry, so
  * a rotation costs one extra fetch instead of a brief outage.
+ *
+ * The signature check never reads `sub`, so a raw-uuid `sub` and a public
+ * `usr_…` one both verify; pass `ids` to normalize it to the public form.
  */
 export const verifyBackendJwt = async (params: {
 	token: string;
 	/** The issuer's JWKS endpoint, e.g. `${BETTER_AUTH_URL}/api/auth/jwks`. */
+	jwksUrl: string | URL;
+	audience: string;
+	issuer: string;
+	/**
+	 * Return `sub` (and a payload `id`) in public form. A token minted before
+	 * the issuer passed `ids` to `backendJwtOptions` carries a raw uuid; it
+	 * still verifies, and this skins it so the caller sees one form. Omit to
+	 * get the claims exactly as signed.
+	 */
+	ids?: { user: IdHelper };
+}): Promise<JWTPayload> => {
+	const payload = await verifyBackendJwtSignature(params);
+	return params.ids ? publicUserClaims(payload, params.ids.user) : payload;
+};
+
+const publicUserClaims = (payload: JWTPayload, user: IdHelper): JWTPayload => {
+	const out: JWTPayload = { ...payload };
+	for (const key of ["sub", "id"]) {
+		const value = payload[key];
+		if (typeof value === "string" && isUuid(value)) out[key] = user.encode(value);
+	}
+	return out;
+};
+
+const verifyBackendJwtSignature = async (params: {
+	token: string;
 	jwksUrl: string | URL;
 	audience: string;
 	issuer: string;

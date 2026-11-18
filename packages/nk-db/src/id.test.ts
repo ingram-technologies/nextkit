@@ -2,10 +2,12 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
 	base58Id,
+	createIdRegistry,
 	decodeId,
 	encodeId,
 	fromPrefixedId,
 	mintId,
+	SHARED_ID_PREFIXES,
 	toPrefixedId,
 	uuidGenerateId,
 	uuidv7,
@@ -20,6 +22,22 @@ describe("@ingram-tech/nk-db/id", () => {
 		expect(toPrefixedId).toBe(encodeId);
 		expect(fromPrefixedId).toBe(decodeId);
 		expect(base58Id).toBe(mintId);
+	});
+
+	it("accepts the shared prefixes for user and organization", () => {
+		const ids = createIdRegistry({ ...SHARED_ID_PREFIXES, invoice: "inv" });
+		expect(ids.user.mint()).toMatch(/^usr_/);
+		expect(ids.organization.mint()).toMatch(/^org_/);
+		expect(ids.invoice.prefix).toBe("inv");
+		// Other keys may use any prefix, including the shared ones.
+		expect(createIdRegistry({ org: "org" }).org.prefix).toBe("org");
+	});
+
+	it.each([
+		["user", { user: "u" }],
+		["organization", { organization: "orga" }],
+	])("refuses a registry that maps %s to another prefix", (entity, prefixes) => {
+		expect(() => createIdRegistry(prefixes)).toThrow(entity);
 	});
 
 	it("stays isomorphic: imports only id758", () => {

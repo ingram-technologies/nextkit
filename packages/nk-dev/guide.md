@@ -102,10 +102,16 @@ internal plumbing — forms included — under `/api/`.
   installed in PGlite automatically and in prod by one custom migration). So no
   `ids.x.decode(param)` before a query and no `ids.x.encode(row.id)` after one
   — `nextkit/no-id-codec-in-app-code` flags both; validate input with
-  `ids.x.is(param)` instead. Session ids come in the same form from
-  `createAuthHelpers(auth, { ids })` (and `backendJwtOptions({ ids })`), and
-  `withRls*` decode a public `sub` before it reaches `auth.uid()`. At the
-  shell, `bunx id758 decode inv_…`.
+  `ids.x.is(param)` instead. At the shell, `bunx id758 decode inv_…`.
+- **Users and organizations are `usr_` / `org_` fleet-wide.** The prefixes are
+  `SHARED_ID_PREFIXES` from `@ingram-tech/nk-db/id`, and `createIdRegistry`
+  throws on any other prefix for `user` or `organization`, so a session or token
+  means the same thing in every app. Opt in with `createAuthHelpers(auth, { ids
+  })` (server reads), the `publicSessionIds({ ids })` Better Auth plugin (the
+  browser's `useSession()`), and `backendJwtOptions({ ids })` (bearer `sub`).
+  `withRls*` and `verifyBackendJwt` accept a raw-uuid or public `sub`, so tokens
+  issued before the switch keep working. A raw-SQL-heavy app may keep raw uuids
+  internally and skin only at its edges; the wire is the same.
 - **Migrations don't auto-apply on deploy.** Code ships ahead of the prod schema
   unless someone runs the migration against the target DB — a page that reads a
   newly-added column 500s in prod until then. Apply migrations with
