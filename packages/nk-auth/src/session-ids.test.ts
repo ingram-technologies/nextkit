@@ -3,7 +3,7 @@ import { betterAuth } from "better-auth";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { organization } from "better-auth/plugins";
 import { describe, expect, it } from "vitest";
-import { publicSessionIds } from "./session-ids.js";
+import { encodeSessionIds, publicSessionIds } from "./session-ids.js";
 
 const ids = createIdRegistry(SHARED_ID_PREFIXES);
 const BASE = "http://localhost:3000/api/auth";
@@ -75,11 +75,10 @@ describe("publicSessionIds", () => {
 		});
 		expect(org.status).toBe(200);
 		const orgId = rawId(db.organization);
-		// Request inputs and org endpoints stay raw.
 		const active = await call("/organization/set-active", {
 			method: "POST",
 			headers: { cookie },
-			body: JSON.stringify({ organizationId: orgId }),
+			body: JSON.stringify({ organizationId: ids.organization.encode(orgId) }),
 		});
 		expect(active.status).toBe(200);
 
@@ -123,5 +122,111 @@ describe("publicSessionIds", () => {
 		const res = await call("/get-session");
 		expect(res.status).toBe(200);
 		expect(await res.json()).toBeNull();
+	});
+
+	it("leaves auth.api organization calls on raw uuids", async () => {
+		const { auth, db, call, cookie } = await setup();
+		await call("/organization/create", {
+			method: "POST",
+			headers: { cookie },
+			body: JSON.stringify({ name: "Acme", slug: "acme" }),
+		});
+		const orgs = await auth.api.listOrganizations({
+			headers: new Headers({ cookie }),
+		});
+		expect(orgs[0]?.id).toBe(rawId(db.organization));
+	});
+});
+
+describe("publicSessionIds on /organization/*", () => {
+	const withOrg = async () => {
+		const ctx = await setup();
+		const created = await ctx.call("/organization/create", {
+			method: "POST",
+			headers: { cookie: ctx.cookie },
+			body: JSON.stringify({ name: "Acme", slug: "acme" }),
+		});
+		const userId = ids.user.encode(rawId(ctx.db.user));
+		const orgId = ids.organization.encode(rawId(ctx.db.organization));
+		const memberId = rawId(ctx.db.member);
+		return { ...ctx, created, userId, orgId, memberId };
+	};
+
+	it("returns public user and organization ids; member ids stay raw", async () => {
+		const { created, userId, orgId, memberId } = await withOrg();
+		expect(created.status).toBe(200);
+		expect(await created.json()).toMatchObject({
+			id: orgId,
+			members: [{ id: memberId, userId, organizationId: orgId }],
+		});
+	});
+
+	it("takes public ids in query and body", async () => {
+		const { call, cookie, userId, orgId } = await withOrg();
+		const full = await call(
+			`/organization/get-full-organization?organizationId=${orgId}`,
+			{ headers: { cookie } },
+		);
+		expect(full.status).toBe(200);
+		expect(await full.json()).toMatchObject({
+			id: orgId,
+			members: [{ userId, organizationId: orgId, user: { id: userId } }],
+		});
+
+		const invite = await call("/organization/invite-member", {
+			method: "POST",
+			headers: { cookie },
+			body: JSON.stringify({
+				email: "c@d.com",
+				role: "member",
+				organizationId: orgId,
+			}),
+		});
+		expect(invite.status).toBe(200);
+		expect(await invite.json()).toMatchObject({
+			organizationId: orgId,
+			inviterId: userId,
+		});
+
+		const list = await call("/organization/list", { headers: { cookie } });
+		expect(await list.json()).toMatchObject([{ id: orgId }]);
+	});
+
+	it("refuses a raw organization id", async () => {
+		const { call, cookie, db } = await withOrg();
+		const res = await call("/organization/set-active", {
+			method: "POST",
+			headers: { cookie },
+			body: JSON.stringify({ organizationId: rawId(db.organization) }),
+		});
+		expect(res.status).toBe(400);
+	});
+});
+
+describe("encodeSessionIds", () => {
+	it("encodes every user and organization id field and keeps other values", () => {
+		const userId = uuidv7();
+		const orgId = uuidv7();
+		const sessionId = uuidv7();
+		const createdAt = new Date();
+		const out = encodeSessionIds(
+			{
+				user: { id: userId, lastActiveOrganizationId: orgId, createdAt },
+				session: { id: sessionId, userId, activeOrganizationId: orgId },
+			},
+			{ user: ids.user, organization: ids.organization },
+		);
+		expect(out).toEqual({
+			user: {
+				id: ids.user.encode(userId),
+				lastActiveOrganizationId: ids.organization.encode(orgId),
+				createdAt,
+			},
+			session: {
+				id: sessionId,
+				userId: ids.user.encode(userId),
+				activeOrganizationId: ids.organization.encode(orgId),
+			},
+		});
 	});
 });
