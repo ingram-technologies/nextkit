@@ -1,5 +1,11 @@
 # @ingram-tech/nk-seo
 
+## 0.11.0
+
+### Minor Changes
+
+- bac89b6: `createManifest` for `src/app/manifest.ts`, with `SITE_ICONS` as the default icon set, and a README section on generating the icon files from `icon.svg`.
+
 ## 0.10.3
 
 ### Patch Changes
