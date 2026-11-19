@@ -77,12 +77,15 @@ export {
 	type RootMetadataInput,
 } from "./metadata.js";
 export {
+	createManifest,
 	createRobots,
 	createSitemap,
+	type ManifestConfig,
 	type RobotsConfig,
 	type SitemapConfig,
 	type SitemapLanguages,
 	type SitemapRoute,
+	SITE_ICONS,
 } from "./routes.js";
 export {
 	hreflangAlternates,

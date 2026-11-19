@@ -168,3 +168,73 @@ export function createRobots(config: RobotsConfig): MetadataRoute.Robots {
 		...(sitemapPath ? { sitemap: absoluteUrl(sitemapPath, config.baseUrl) } : {}),
 	};
 }
+
+type Manifest = MetadataRoute.Manifest;
+
+/**
+ * The icon set `createManifest` advertises by default: `src/app/icon.svg`, plus
+ * PNGs in `public/icons/`. Android wants 192 and 512 rasters, and a maskable
+ * variant with the mark inside the central 80% on an opaque background, since
+ * launchers crop it to their own shape. `nk doctor` checks the files exist.
+ */
+export const SITE_ICONS: NonNullable<Manifest["icons"]> = [
+	{ src: "/icon.svg", type: "image/svg+xml", sizes: "any" },
+	{ src: "/icons/icon-192.png", type: "image/png", sizes: "192x192" },
+	{ src: "/icons/icon-512.png", type: "image/png", sizes: "512x512" },
+	{
+		src: "/icons/icon-maskable-512.png",
+		type: "image/png",
+		sizes: "512x512",
+		purpose: "maskable",
+	},
+];
+
+export interface ManifestConfig extends Omit<
+	Manifest,
+	"name" | "short_name" | "theme_color" | "background_color" | "start_url" | "icons"
+> {
+	name: string;
+	/** Under the icon on a home screen; keep it to ~12 characters. Defaults to `name`. */
+	shortName?: string;
+	/** The browser chrome colour. Match `viewport.themeColor`. */
+	themeColor: string;
+	/** The splash background while the page loads. Default white. */
+	backgroundColor?: string;
+	/** Default "/". */
+	startUrl?: string;
+	/** Default {@link SITE_ICONS}. */
+	icons?: Manifest["icons"];
+}
+
+/**
+ * Builds a `MetadataRoute.Manifest` for `src/app/manifest.ts`. `display`
+ * defaults to "browser": a website saved to a home screen opens in the browser
+ * with its URL bar, rather than posing as an installed app. Any other manifest
+ * member passes through as given.
+ *
+ * @example
+ * // src/app/manifest.ts
+ * import { createManifest } from "@ingram-tech/nk-seo";
+ * export default () => createManifest({ name: "Acme", themeColor: "#0f172a" });
+ */
+export function createManifest({
+	name,
+	shortName,
+	themeColor,
+	backgroundColor = "#ffffff",
+	startUrl = "/",
+	icons = SITE_ICONS,
+	display = "browser",
+	...rest
+}: ManifestConfig): Manifest {
+	return {
+		name,
+		short_name: shortName ?? name,
+		start_url: startUrl,
+		display,
+		background_color: backgroundColor,
+		theme_color: themeColor,
+		icons,
+		...rest,
+	};
+}

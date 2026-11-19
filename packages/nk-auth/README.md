@@ -21,6 +21,8 @@ exactly one Better Auth copy in the app.
 | `bcryptPassword` (`./`) | **legacy only** — bcrypt verifier for apps with pre-existing bcrypt hashes. New apps omit it (Better Auth defaults to scrypt). See [Migrating bcrypt passwords to scrypt](#migrating-bcrypt-passwords-to-scrypt) |
 | `createAuthHelpers`, `safeNext` (`./server`) | validated App Router session helpers (`getSession` / `getUser` / `requireSession` / `requireUser` / `signInTarget` / `redirectIfAuthenticated`), request-memoized via React `cache()`, with automatic `next` + stale-cookie signalling; `safeNext` validates a `?next=` param |
 | `createAuthMiddleware`, `withAuthPathHeader`, `clearStaleSession`, `renewSession` (`./middleware`) | loop-safe proxy middleware: gates unauthenticated users off protected paths, preserves `next`, clears a stale session cookie so a bad session self-heals, and (given `auth`) keeps an active session alive; the last three are its halves, for a site with its own proxy |
+| `usePasskeyAutofill`, `PASSKEY_AUTOFILL_EMAIL`, `totpEnrollment` (`./client`; `totpEnrollment` also at `./totp`) | sign-in and security-page pieces that work with password managers; see [Password managers](#7-password-managers-passkeys-and-2fa) |
+| `passkeyEndpoints`, `changePasswordRedirect` (`./well-known`) | the `/.well-known` route handlers password managers look for |
 
 > **Data access + RLS** is owned by [`@ingram-tech/nk-db`](../nk-db); see §3.
 >
@@ -682,20 +684,78 @@ defaults, so the form and the server never drift.
 
 **`.well-known/change-password`.** Add the [W3C well-known
 redirect](https://w3c.github.io/webappsec-change-password-url/) so password
-managers deep-link straight to your security page. It's a per-app route target,
-so nk-auth documents the convention rather than shipping it — in `next.config`:
+managers that flag a weak or leaked password deep-link straight to your
+security page:
 
 ```ts
-async redirects() {
-	return [
-		{
-			source: "/.well-known/change-password",
-			destination: "/settings/security", // your Change/Set password page
-			permanent: false,
-		},
-	];
-}
+// src/app/.well-known/change-password/route.ts
+import { changePasswordRedirect } from "@ingram-tech/nk-auth/well-known";
+
+export const GET = changePasswordRedirect("/settings/security");
 ```
+
+## 7. Password managers, passkeys and 2FA
+
+Password managers (iCloud Keychain, Google Password Manager, 1Password,
+Bitwarden) read standard markup and standard URLs. Get those right and they fill
+the sign-in form, offer saved passkeys, and store the 2FA code with no
+site-specific integration.
+
+**Sign-in fields.** Every input has an `id`, a `name`, a `<label>` and an
+`autocomplete`: `email` or `username` for the identifier,
+`current-password` / `new-password` for passwords, `one-time-code` (with
+`inputMode="numeric"`) for a 2FA or emailed code. A new-password field sits
+in a form that also has the username, so the manager saves the pair.
+
+**Passkeys in the autofill dropdown.** With `passkeyClient()`, offer passkeys
+where the user already looks, instead of a separate button:
+
+```tsx
+"use client";
+import { PASSKEY_AUTOFILL_EMAIL, usePasskeyAutofill } from "@ingram-tech/nk-auth/client";
+
+usePasskeyAutofill(authClient, {
+	rpId: "example.com", // the passkey plugin's rpID; skipped on other hosts
+	onSignIn: () => router.push(next),
+});
+
+<input id="email" name="email" type="email" autoComplete={PASSKEY_AUTOFILL_EMAIL} />
+```
+
+The `webauthn` token in `autocomplete` is what surfaces the armed request;
+leave it out and nothing appears. Previews and localhost are a different
+origin from the passkey's `rpID`, so the hook does not arm there.
+
+**Passkey endpoints.** Tell password managers where users add a passkey:
+
+```ts
+// src/app/.well-known/passkey-endpoints/route.ts
+import { passkeyEndpoints } from "@ingram-tech/nk-auth/well-known";
+
+export const GET = passkeyEndpoints({ enroll: "/settings/security" });
+```
+
+**Authenticator enrolment.** `twoFactor.enable` returns a `totpURI`. Showing it
+as text is not enough: phones scan a QR code, a password manager on the same
+device opens the `otpauth://` link, and manual entry needs the bare key.
+`totpEnrollment` gives all three:
+
+```tsx
+const { qr, uri, secretGroups } = totpEnrollment(data.totpURI);
+
+<svg viewBox={`0 0 ${qr.size} ${qr.size}`} shapeRendering="crispEdges" role="img" aria-label="QR code">
+	<rect width={qr.size} height={qr.size} fill="#fff" />
+	<path d={qr.path} fill="#000" />
+</svg>
+<a href={uri}>Open in your authenticator</a>
+<code>{secretGroups.join(" ")}</code>
+```
+
+Keep the QR dark on light; inverted codes fail on many scanners. The code
+input that confirms enrolment uses `autocomplete="one-time-code"`.
+
+**Passkey names.** `passkey.addPasskey({ name })` takes a label; without one
+every row in the list reads the same. Show `createdAt` at least.
 
 ## Migrating bcrypt passwords to scrypt
 

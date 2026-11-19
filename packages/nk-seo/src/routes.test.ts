@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createRobots, createSitemap } from "./routes.js";
+import { createManifest, createRobots, createSitemap, SITE_ICONS } from "./routes.js";
 
 const baseUrl = "https://acme.test";
 
@@ -109,5 +109,36 @@ describe("createRobots", () => {
 		expect(robots).toEqual({
 			rules: { userAgent: "*", allow: "/" },
 		});
+	});
+});
+
+describe("createManifest", () => {
+	it("fills a website's defaults around name and theme colour", () => {
+		expect(
+			createManifest({ name: "Acme Analytics", themeColor: "#0f172a" }),
+		).toEqual({
+			name: "Acme Analytics",
+			short_name: "Acme Analytics",
+			start_url: "/",
+			display: "browser",
+			background_color: "#ffffff",
+			theme_color: "#0f172a",
+			icons: SITE_ICONS,
+		});
+	});
+
+	it("takes overrides and passes other manifest members through", () => {
+		const manifest = createManifest({
+			name: "Acme Analytics",
+			shortName: "Acme",
+			themeColor: "#0f172a",
+			display: "standalone",
+			icons: [{ src: "/logo.png", sizes: "512x512", type: "image/png" }],
+			lang: "fr",
+		});
+		expect(manifest.short_name).toBe("Acme");
+		expect(manifest.display).toBe("standalone");
+		expect(manifest.icons).toHaveLength(1);
+		expect(manifest.lang).toBe("fr");
 	});
 });
