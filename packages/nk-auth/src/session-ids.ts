@@ -77,7 +77,36 @@ export function encodeSessionIds<S extends { user: unknown }>(
 	session: S,
 	ids: SessionIds,
 ): S {
-	return encodeTree(session, ids) as S;
+	return publicAuthIds(session, ids);
+}
+
+/**
+ * A server-side Better Auth result with its user and organization ids in
+ * public form, the same rewrite `publicSessionIds` applies to HTTP bodies.
+ * `auth.api.*` calls bypass the plugin and return raw uuids; pass the result
+ * through this instead of encoding ids by hand:
+ *
+ *   const org = publicAuthIds(
+ *   	await auth.api.getFullOrganization({ headers }),
+ *   	ids,
+ *   	{ entity: "organization" },
+ *   );
+ *
+ * Ids are found by field name (`userId`, `inviterId`, `organizationId`,
+ * `activeOrganizationId`, `lastActiveOrganizationId`) and by the `id` of an
+ * object under `user` / `organization`. A top-level `id` is encoded only when
+ * `entity` says what the value is (an organization or a list of them, a
+ * user). Member, invitation, team and session ids, and `metadata`, are left
+ * as they are. Pure and idempotent.
+ */
+export function publicAuthIds<T>(
+	value: T,
+	ids: SessionIds,
+	options: { entity?: Entity } = {},
+): T {
+	// The walker replaces id strings with id strings, so `value`'s shape is
+	// kept; it returns `unknown` because it walks any tree.
+	return encodeTree(value, ids, options.entity) as T;
 }
 
 /** Endpoints whose body is `{ user, session? }`. */
@@ -145,7 +174,8 @@ const decodeInput = (input: unknown, ids: SessionIds): unknown => {
  * Better Auth decoded. Member, invitation and team ids stay raw both ways.
  *
  * Only HTTP traffic changes. Server-side `auth.api.*` calls, what the adapter
- * reads and writes, and cookies keep raw uuids.
+ * reads and writes, and cookies keep raw uuids; pass an `auth.api.*` result
+ * through {@link publicAuthIds} for the public form.
  */
 export function publicSessionIds(options: { ids: SessionIds }): BetterAuthPlugin {
 	const { ids } = options;

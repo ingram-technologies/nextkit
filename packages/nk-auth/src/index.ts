@@ -42,4 +42,9 @@ export {
 export { authBasePath } from "./paths.js";
 export { createAuthPool } from "./pool.js";
 export { sessionLifetime } from "./session-lifetime.js";
-export { encodeSessionIds, publicSessionIds, type SessionIds } from "./session-ids.js";
+export {
+	encodeSessionIds,
+	publicAuthIds,
+	publicSessionIds,
+	type SessionIds,
+} from "./session-ids.js";

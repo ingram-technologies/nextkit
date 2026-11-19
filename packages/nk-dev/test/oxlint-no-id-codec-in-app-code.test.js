@@ -53,6 +53,14 @@ describe("no-id-codec-in-app-code", () => {
 		).toEqual([]);
 	});
 
+	it("does not flag nk-auth's publicAuthIds on an auth.api result", () => {
+		expect(
+			lint(
+				`import { publicAuthIds } from "@ingram-tech/nk-auth";\nimport { ids } from "./ids";\ndeclare const raw: { id: string };\nexport const org = publicAuthIds(raw, { user: ids.user, organization: ids.organization }, { entity: "organization" });`,
+			),
+		).toEqual([]);
+	});
+
 	it("does not flag a same-named method on another object", () => {
 		expect(
 			lint(
