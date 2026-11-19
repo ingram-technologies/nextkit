@@ -16,7 +16,7 @@ exactly one Better Auth copy in the app.
 | `createAuthPool` (`./pool`) | **deprecated** — alias of `createPool` from [`@ingram-tech/nk-db`](../nk-db); inject your app's shared pool instead |
 | `makeEmailSenders`, `makePasskeyOptions`, `passkeyOptionsForBaseUrl`, `uuidGenerateId` (`./`) | email hooks, passkeys (`passkeyOptionsForBaseUrl` derives `rpID`/`origin` from a single base URL), UUID ids |
 | `mcpAuthServer`, `mcpDiscovery`, `loopbackClientsAsNative` (`./mcp`) | the site as an MCP authorization server (`@better-auth/mcp` + Client ID Metadata Documents), and its root discovery routes; see [MCP authorization server](#mcp-authorization-server) |
-| `publicSessionIds`, `encodeSessionIds` (`./`) | Better Auth plugin putting user and organization ids in public form (`usr_…`, `org_…`) on Better Auth's own HTTP surface, `/organization/*` included; see [Gate routes](#5-gate-routes-without-the-redirect-loop), "public ids" |
+| `publicSessionIds`, `encodeSessionIds`, `publicAuthIds` (`./`) | Better Auth plugin putting user and organization ids in public form (`usr_…`, `org_…`) on Better Auth's own HTTP surface, `/organization/*` included, and the same rewrite for `auth.api.*` results; see [Gate routes](#5-gate-routes-without-the-redirect-loop), "public ids" |
 | `sessionLifetime` (`./`) | Better Auth plugin capping a sliding session at `createdAt + maxAge`; see [Gate routes](#5-gate-routes-without-the-redirect-loop), "Session lifetime" |
 | `bcryptPassword` (`./`) | **legacy only** — bcrypt verifier for apps with pre-existing bcrypt hashes. New apps omit it (Better Auth defaults to scrypt). See [Migrating bcrypt passwords to scrypt](#migrating-bcrypt-passwords-to-scrypt) |
 | `createAuthHelpers`, `safeNext` (`./server`) | validated App Router session helpers (`getSession` / `getUser` / `requireSession` / `requireUser` / `signInTarget` / `redirectIfAuthenticated`), request-memoized via React `cache()`, with automatic `next` + stale-cookie signalling; `safeNext` validates a `?next=` param |
@@ -476,6 +476,29 @@ are decoded before Better Auth sees them, and a raw uuid is refused with a
 400. Member, invitation, team and session ids stay raw both ways; they are
 Better Auth's own and no registry names them. `auth.api.*` calls, the adapter
 and cookies stay raw.
+
+A server-side `auth.api.*` call bypasses the plugin and returns raw uuids.
+Pass its result through `publicAuthIds` (from `@ingram-tech/nk-auth` or
+`./server`), the same field-name rewrite the plugin applies to HTTP bodies,
+rather than encoding ids by hand:
+
+```ts
+import { publicAuthIds } from "@ingram-tech/nk-auth";
+
+const sessionIds = { user: ids.user, organization: ids.organization };
+// The value is an organization (or a list of them): say so, so its `id` is encoded.
+const org = publicAuthIds(
+	await auth.api.getFullOrganization({ headers }),
+	sessionIds,
+	{ entity: "organization" },
+);
+// Members, invitations, sessions: ids are found by field name alone.
+const { members } = publicAuthIds(await auth.api.listMembers({ headers }), sessionIds);
+```
+
+Without `entity`, a top-level `id` is left alone (it may be a member's or an
+invitation's); pass `entity: "user"` for a bare user object. It is pure and
+idempotent, and `nextkit/no-id-codec-in-app-code` does not flag it.
 
 Tokens minted by the MCP authorization server (`@better-auth/oauth-provider`)
 carry a raw-uuid `sub`, and that stays: the provider treats `sub` as a

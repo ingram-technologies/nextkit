@@ -3,7 +3,7 @@ import { betterAuth } from "better-auth";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { organization } from "better-auth/plugins";
 import { describe, expect, it } from "vitest";
-import { encodeSessionIds, publicSessionIds } from "./session-ids.js";
+import { encodeSessionIds, publicAuthIds, publicSessionIds } from "./session-ids.js";
 
 const ids = createIdRegistry(SHARED_ID_PREFIXES);
 const BASE = "http://localhost:3000/api/auth";
@@ -228,5 +228,90 @@ describe("encodeSessionIds", () => {
 				activeOrganizationId: ids.organization.encode(orgId),
 			},
 		});
+	});
+});
+
+describe("publicAuthIds", () => {
+	const withOrg = async () => {
+		const ctx = await setup();
+		await ctx.call("/organization/create", {
+			method: "POST",
+			headers: { cookie: ctx.cookie },
+			body: JSON.stringify({ name: "Acme", slug: "acme" }),
+		});
+		const headers = new Headers({ cookie: ctx.cookie });
+		const rawUser = rawId(ctx.db.user);
+		const rawOrg = rawId(ctx.db.organization);
+		return {
+			...ctx,
+			headers,
+			rawOrg,
+			userId: ids.user.encode(rawUser),
+			orgId: ids.organization.encode(rawOrg),
+			memberId: rawId(ctx.db.member),
+		};
+	};
+	const sessionIds = { user: ids.user, organization: ids.organization };
+
+	it("encodes an auth.api organization when told the value is one", async () => {
+		const { auth, headers, rawOrg, userId, orgId, memberId } = await withOrg();
+		const full = await auth.api.getFullOrganization({
+			headers,
+			query: { organizationId: rawOrg },
+		});
+		expect(full?.id).toBe(rawOrg);
+		expect(
+			publicAuthIds(full, sessionIds, { entity: "organization" }),
+		).toMatchObject({
+			id: orgId,
+			members: [
+				{ id: memberId, userId, organizationId: orgId, user: { id: userId } },
+			],
+		});
+
+		const list = await auth.api.listOrganizations({ headers });
+		expect(
+			publicAuthIds(list, sessionIds, { entity: "organization" }),
+		).toMatchObject([{ id: orgId }]);
+	});
+
+	it("encodes members, invitations and sessions by field name alone", async () => {
+		const { auth, headers, rawOrg, userId, orgId, memberId } = await withOrg();
+		const members = await auth.api.listMembers({
+			headers,
+			query: { organizationId: rawOrg },
+		});
+		expect(publicAuthIds(members, sessionIds)).toMatchObject({
+			members: [{ id: memberId, userId, organizationId: orgId }],
+		});
+
+		const invitation = await auth.api.createInvitation({
+			headers,
+			body: { email: "c@d.com", role: "member", organizationId: rawOrg },
+		});
+		const encoded = publicAuthIds(invitation, sessionIds);
+		expect(encoded).toMatchObject({ organizationId: orgId, inviterId: userId });
+		// An invitation's own id is Better Auth's, not a registry entity's.
+		expect(encoded.id).toBe(invitation.id);
+
+		const session = await auth.api.getSession({ headers });
+		expect(publicAuthIds(session, sessionIds)).toMatchObject({
+			user: { id: userId },
+			session: { userId },
+		});
+	});
+
+	it("is idempotent and leaves the input untouched", async () => {
+		const { auth, headers, rawOrg, orgId } = await withOrg();
+		const full = await auth.api.getFullOrganization({
+			headers,
+			query: { organizationId: rawOrg },
+		});
+		const once = publicAuthIds(full, sessionIds, { entity: "organization" });
+		expect(publicAuthIds(once, sessionIds, { entity: "organization" })).toEqual(
+			once,
+		);
+		expect(once?.id).toBe(orgId);
+		expect(full?.id).toBe(rawOrg);
 	});
 });
