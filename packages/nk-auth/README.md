@@ -16,7 +16,7 @@ exactly one Better Auth copy in the app.
 | `createAuthPool` (`./pool`) | **deprecated** — alias of `createPool` from [`@ingram-tech/nk-db`](../nk-db); inject your app's shared pool instead |
 | `makeEmailSenders`, `makePasskeyOptions`, `passkeyOptionsForBaseUrl`, `uuidGenerateId` (`./`) | email hooks, passkeys (`passkeyOptionsForBaseUrl` derives `rpID`/`origin` from a single base URL), UUID ids |
 | `mcpAuthServer`, `mcpDiscovery`, `loopbackClientsAsNative` (`./mcp`) | the site as an MCP authorization server (`@better-auth/mcp` + Client ID Metadata Documents), and its root discovery routes; see [MCP authorization server](#mcp-authorization-server) |
-| `publicSessionIds`, `encodeSessionIds` (`./`) | Better Auth plugin returning session ids in public form (`usr_…`, `org_…`) from Better Auth's own HTTP responses; see [Gate routes](#5-gate-routes-without-the-redirect-loop), "public ids" |
+| `publicSessionIds`, `encodeSessionIds` (`./`) | Better Auth plugin putting user and organization ids in public form (`usr_…`, `org_…`) on Better Auth's own HTTP surface, `/organization/*` included; see [Gate routes](#5-gate-routes-without-the-redirect-loop), "public ids" |
 | `sessionLifetime` (`./`) | Better Auth plugin capping a sliding session at `createdAt + maxAge`; see [Gate routes](#5-gate-routes-without-the-redirect-loop), "Session lifetime" |
 | `bcryptPassword` (`./`) | **legacy only** — bcrypt verifier for apps with pre-existing bcrypt hashes. New apps omit it (Better Auth defaults to scrypt). See [Migrating bcrypt passwords to scrypt](#migrating-bcrypt-passwords-to-scrypt) |
 | `createAuthHelpers`, `safeNext` (`./server`) | validated App Router session helpers (`getSession` / `getUser` / `requireSession` / `requireUser` / `signInTarget` / `redirectIfAuthenticated`), request-memoized via React `cache()`, with automatic `next` + stale-cookie signalling; `safeNext` validates a `?next=` param |
@@ -465,19 +465,27 @@ import { publicSessionIds } from "@ingram-tech/nk-auth";
 plugins: [publicSessionIds({ ids: { user: ids.user, organization: ids.organization } })],
 ```
 
-It rewrites `user.id`, `session.userId` and `session.activeOrganizationId` in
-the HTTP bodies of `/get-session`, `/sign-in/email` and `/sign-up/email`, and
-nothing else: `auth.api.*` calls, the adapter, cookies and request inputs stay
-raw. The organization plugin's endpoints (`/organization/*`) are not rewritten,
-so their ids are raw on the wire and their inputs (`setActive({ organizationId
-})`) take raw uuids.
+It rewrites every user and organization id in the HTTP bodies of
+`/get-session`, `/sign-in/email`, `/sign-up/email`, `/list-sessions` and, with
+`ids.organization`, every `/organization/*` endpoint (`user.id`,
+`session.userId`, `activeOrganizationId`, `lastActiveOrganizationId`, an
+organization's `id`, a member's `userId` / `organizationId`, an invitation's
+`inviterId`). An `/organization/*` request's `organizationId` and `userId`
+(body or query, so `setActive({ organizationId })`) must be public ids: they
+are decoded before Better Auth sees them, and a raw uuid is refused with a
+400. Member, invitation, team and session ids stay raw both ways; they are
+Better Auth's own and no registry names them. `auth.api.*` calls, the adapter
+and cookies stay raw.
 
-Tokens issued before the switch carry a raw-uuid `sub`. Every nextkit consumer
-takes both forms: `verifyBackendJwt` never reads `sub` (pass it `ids: { user }`
-to get `sub` and `id` back in public form), and `withRls*` decodes a public
-`sub` and passes a raw one through. Tokens minted by the MCP authorization
-server (`@better-auth/oauth-provider`) keep a raw-uuid `sub` regardless; skin it
-with `ids.user.encode(sub)` (idempotent) where the site reads it.
+Tokens minted by the MCP authorization server (`@better-auth/oauth-provider`)
+carry a raw-uuid `sub`, and that stays: the provider treats `sub` as a
+reserved claim (custom-claim hooks cannot set it) and reads it back as a
+Better Auth user id at `/userinfo`, introspection and back-channel logout. To
+an OAuth client `sub` is an opaque issuer-scoped string; where the site's
+resource server reads it, skin it with `ids.user.encode(sub)` (idempotent).
+`verifyBackendJwt` never reads `sub` (pass it `ids: { user }` to get `sub` and
+`id` back in public form), and `withRls*` decodes a public `sub` and passes a
+raw one through.
 
 ```tsx
 // src/app/dashboard/page.tsx — gate a protected page (validated, DB-backed).
