@@ -1,5 +1,11 @@
 # @ingram-tech/nk-dev
 
+## 0.25.0
+
+### Minor Changes
+
+- bac89b6: `nk doctor` checks a site's icon set: an empty or non-ICO `favicon.ico` is an error; a missing `favicon.ico`, `apple-icon` or `manifest`, or a `metadata.icons` block duplicating the icon files, is a warning.
+
 ## 0.24.2
 
 ### Patch Changes

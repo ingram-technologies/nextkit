@@ -1,5 +1,12 @@
 # @ingram-tech/nk-blog
 
+## 0.2.2
+
+### Patch Changes
+
+- Updated dependencies [bac89b6]
+  - @ingram-tech/nk-seo@0.11.0
+
 ## 0.2.1
 
 ### Patch Changes
