@@ -11,7 +11,8 @@ SEO primitives for Next.js:
    Twitter card from one title/description/path.
 3. **`createSitemap` / `createRobots`** — `src/app/sitemap.ts` and `src/app/robots.ts`
    route helpers; `createRobots` blanket-disallows non-production hosts so
-   Vercel preview / branch URLs never get indexed.
+   Vercel preview / branch URLs never get indexed. **`createManifest`** does
+   the same for `src/app/manifest.ts`; see [Site icons](#site-icons).
 4. **`ogImageResponse`** (`@ingram-tech/nk-seo/og`) — a branded `next/og` share
    card that sidesteps the Satori multi-child pitfall.
 5. **`<HreflangLinks>`** — self-referencing canonical plus per-locale `hreflang`
@@ -219,6 +220,52 @@ export default () =>
 When `isProduction` is false the whole site is disallowed. Without it, Vercel
 preview and branch deployments are crawlable and compete with the production
 domain for the same content.
+
+## Site icons
+
+Next serves every icon from a file convention in `src/app`, so a site needs
+files, not `metadata.icons`:
+
+| File | Serves | For |
+| --- | --- | --- |
+| `src/app/icon.svg` | `/icon.svg` | modern browser tabs (the source for everything below) |
+| `src/app/favicon.ico` | `/favicon.ico` | anything that asks for it by name: older browsers, crawlers, feed readers, bookmark sync |
+| `src/app/apple-icon.png` | `/apple-icon.png` | iOS home screen and favourites, password-manager item icons |
+| `public/icons/icon-{192,512}.png` | | Android and Chrome, via the manifest |
+| `public/icons/icon-maskable-512.png` | | Android launchers, which crop it to their own shape |
+| `src/app/manifest.ts` | `/manifest.webmanifest` | ties the PNGs to the site name and theme colour |
+
+Next never generates `favicon.ico`; it serves the file you put there. Generate
+the rasters once from `icon.svg` (`rsvg-convert` and ImageMagick):
+
+```bash
+svg=src/app/icon.svg; tmp=$(mktemp -d)
+for s in 16 32 48 192 512; do rsvg-convert -w $s -h $s $svg -o $tmp/$s.png; done
+magick $tmp/16.png $tmp/32.png $tmp/48.png src/app/favicon.ico
+mkdir -p public/icons && cp $tmp/192.png public/icons/icon-192.png && cp $tmp/512.png public/icons/icon-512.png
+# Opaque, padded variants: iOS renders transparency as black, and launchers crop
+# a maskable icon to the central 80%.
+pad() { rsvg-convert -w $2 -h $2 $svg -o $tmp/p.png
+	magick -size $1x$1 xc:white $tmp/p.png -gravity center -composite -depth 8 $3; }
+pad 180 144 src/app/apple-icon.png
+pad 512 320 public/icons/icon-maskable-512.png
+```
+
+Swap `xc:white` for the brand background if the mark is light. Then:
+
+```ts
+// src/app/manifest.ts
+import { createManifest } from "@ingram-tech/nk-seo";
+
+export default () => createManifest({ name: "Acme", themeColor: "#0f172a" });
+```
+
+`createManifest` points at exactly the paths above (`SITE_ICONS`) and defaults
+`display` to `"browser"`, since a website saved to a home screen should keep its
+URL bar; pass `icons`, `display` or any other manifest member to override. Keep
+`themeColor` equal to `viewport.themeColor`. `nk doctor` flags an empty or
+non-ICO `favicon.ico`, a missing apple-icon or manifest, and a `metadata.icons`
+block that duplicates the files.
 
 ## Open Graph image
 

@@ -42,3 +42,14 @@ export {
 	type UseResetPasswordOptions,
 	useResetPassword,
 } from "./reset-password.js";
+// Passkey sign-in through the username field's autofill dropdown.
+export {
+	PASSKEY_AUTOFILL_EMAIL,
+	PASSKEY_AUTOFILL_USERNAME,
+	type PasskeyAutofillClient,
+	passkeyHostMatches,
+	type UsePasskeyAutofillOptions,
+	usePasskeyAutofill,
+} from "./passkey-autofill.js";
+// Authenticator-app enrolment: QR, otpauth link and grouped key from a totpURI.
+export { type TotpEnrollment, totpEnrollment } from "./totp.js";

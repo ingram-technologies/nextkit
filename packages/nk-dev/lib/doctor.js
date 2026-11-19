@@ -6,6 +6,7 @@ import { authNextFindings, authRenewalFindings } from "./auth-next.js";
 import { authShadowFindings } from "./auth-shadow.js";
 import { authVersionFindings } from "./auth-version.js";
 import { ogImageFindings } from "./og-image.js";
+import { siteIconFindings } from "./site-icons.js";
 import { SUPERSEDED_DEPS } from "./drift.js";
 import {
 	SEAL_FILE,
@@ -414,6 +415,10 @@ export function findings(cwd) {
 
 	// 15. Routes live in src/app/, never a root app/.
 	out.push(...appDirFindings(cwd, pkg));
+
+	// 16. The icon set: a real favicon.ico, an apple-icon, a manifest, and no
+	//     hand-written `metadata.icons` duplicating the file conventions.
+	out.push(...siteIconFindings(cwd, pkg));
 
 	return out;
 }

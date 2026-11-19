@@ -56,6 +56,14 @@
 			"types": "./dist/middleware.d.ts",
 			"import": "./dist/middleware.js"
 		},
+		"./totp": {
+			"types": "./dist/totp.d.ts",
+			"import": "./dist/totp.js"
+		},
+		"./well-known": {
+			"types": "./dist/well-known.d.ts",
+			"import": "./dist/well-known.js"
+		},
 		"./client": {
 			"types": "./dist/client.d.ts",
 			"import": "./dist/client.js"
@@ -76,6 +84,7 @@
 		"@ingram-tech/nk-db": "workspace:^",
 		"bcrypt": "^6.0.0",
 		"jose": "^6.2.12",
+		"uqr": "^0.1.3",
 		"zod": "^4.6.4"
 	},
 	"peerDependencies": {
