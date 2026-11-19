@@ -1,5 +1,11 @@
 # @ingram-tech/nk-auth
 
+## 0.24.0
+
+### Minor Changes
+
+- 0f706cb: `publicSessionIds` now covers the organization plugin: every `/organization/*` response carries public user and organization ids, and an `/organization/*` request's `organizationId` / `userId` must be a public id (a raw uuid is refused with a 400). `/list-sessions` and `user.lastActiveOrganizationId` are rewritten too. Sites calling `authClient.organization.*` with raw ids must pass the public ones.
+
 ## 0.23.0
 
 ### Minor Changes
