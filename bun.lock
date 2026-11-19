@@ -32,7 +32,7 @@
     },
     "packages/nk-auth": {
       "name": "@ingram-tech/nk-auth",
-      "version": "0.24.0",
+      "version": "0.26.0",
       "dependencies": {
         "@ingram-tech/nk-db": "workspace:^",
         "bcrypt": "^6.0.0",
@@ -93,7 +93,7 @@
     },
     "packages/nk-blog": {
       "name": "@ingram-tech/nk-blog",
-      "version": "0.2.1",
+      "version": "0.2.2",
       "dependencies": {
         "@ingram-tech/nk-seo": "workspace:^",
         "@mdx-js/mdx": "^3.1.1",
@@ -163,7 +163,7 @@
     },
     "packages/nk-dev": {
       "name": "@ingram-tech/nk-dev",
-      "version": "0.24.2",
+      "version": "0.25.0",
       "bin": {
         "nk": "bin/nk.js",
         "nextkit-format-staged": "bin/format-staged.mjs",
@@ -253,7 +253,7 @@
     },
     "packages/nk-seo": {
       "name": "@ingram-tech/nk-seo",
-      "version": "0.10.3",
+      "version": "0.11.0",
       "devDependencies": {
         "@ingram-tech/nk-dev": "workspace:*",
         "@ingram-tech/nk-i18n": "workspace:*",

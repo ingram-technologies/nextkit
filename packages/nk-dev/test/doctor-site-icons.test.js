@@ -31,7 +31,7 @@ describe("nk doctor: site icons", () => {
 			.map((f) => f.id);
 	const complete = () => {
 		write("src/app/favicon.ico", ICO);
-		write("src/app/icon.svg", "<svg/>");
+		write("src/app/icon.svg", '<svg><path d="M0 0h1v1z"/></svg>');
 		write("src/app/apple-icon.png", "png");
 		write("src/app/manifest.ts", "export default () => ({});");
 	};
@@ -90,6 +90,54 @@ describe("nk doctor: site icons", () => {
 			'export const metadata = { icons: { icon: "/x.png" } };',
 		);
 		expect(ids()).toEqual([]);
+	});
+
+	it("warns on a PNG renamed to .ico, and errors on WebP", () => {
+		complete();
+		write("src/app/favicon.ico", Buffer.from("89504e470d0a1a0a0000", "hex"));
+		expect(ids()).toEqual(["icons:favicon-not-ico"]);
+		write(
+			"src/app/favicon.ico",
+			Buffer.from("52494646000000005745425056503820", "hex"),
+		);
+		const f = findings(dir).find((x) => x.id === "icons:favicon-invalid");
+		expect(f?.level).toBe("error");
+		expect(f?.message).toMatch(/webp/);
+	});
+
+	it("errors on an icon.svg that draws nothing", () => {
+		complete();
+		write(
+			"src/app/icon.svg",
+			'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"></svg>',
+		);
+		expect(ids()).toEqual(["icons:icon-svg-blank"]);
+	});
+
+	it("checks every Next site of a workspace from its root", () => {
+		writeFileSync(
+			join(dir, "package.json"),
+			JSON.stringify({ name: "mono", workspaces: ["apps/*", "tools"] }),
+		);
+		rmSync(join(dir, "src"), { recursive: true });
+		const site = JSON.stringify({ name: "s", dependencies: { next: "16.0.0" } });
+		write("apps/web/package.json", site);
+		write("apps/web/src/app/favicon.ico", ICO);
+		write("apps/web/src/app/apple-icon.png", "png");
+		write("apps/web/src/app/manifest.ts", "");
+		write("apps/plan/package.json", site);
+		write("apps/plan/src/app/page.tsx", "");
+		write("tools/package.json", JSON.stringify({ name: "tools" }));
+		expect(ids()).toEqual([
+			"icons:favicon-missing:apps/plan",
+			"icons:apple-icon-missing:apps/plan",
+			"icons:manifest-missing:apps/plan",
+		]);
+		expect(findings(dir)[0]?.message).toBeDefined();
+		expect(
+			findings(dir).find((f) => f.id === "icons:favicon-missing:apps/plan")
+				?.message,
+		).toMatch(/^apps\/plan: /);
 	});
 
 	it("is silent on a package that is not a Next site", () => {
