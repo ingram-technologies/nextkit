@@ -468,16 +468,22 @@ plugins: [publicSessionIds({ ids: { user: ids.user, organization: ids.organizati
 ```
 
 It rewrites every user and organization id in the HTTP bodies of
-`/get-session`, `/sign-in/email`, `/sign-up/email`, `/list-sessions` and, with
+`/get-session`, `/sign-in/email`, `/sign-up/email`, `/list-sessions`,
+`/magic-link/verify`, `/list-accounts` (a credential account's `accountId` is
+the user id, so it is rewritten too), the passkey endpoints
+(`/passkey/list-user-passkeys`, `/passkey/update-passkey`,
+`/passkey/verify-registration`, `/passkey/verify-authentication`) and, with
 `ids.organization`, every `/organization/*` endpoint (`user.id`,
 `session.userId`, `activeOrganizationId`, `lastActiveOrganizationId`, an
 organization's `id`, a member's `userId` / `organizationId`, an invitation's
-`inviterId`). An `/organization/*` request's `organizationId` and `userId`
-(body or query, so `setActive({ organizationId })`) must be public ids: they
-are decoded before Better Auth sees them, and a raw uuid is refused with a
-400. Member, invitation, team and session ids stay raw both ways; they are
-Better Auth's own and no registry names them. `auth.api.*` calls, the adapter
-and cookies stay raw.
+`inviterId`). The `userId` of `/get-access-token`, `/refresh-token` and
+`/account-info`, and an `/organization/*` request's `organizationId` and
+`userId` (body or query, so `setActive({ organizationId })`), must be public
+ids: they are decoded before Better Auth sees them, and a raw uuid is refused
+with a 400. So none of these endpoints needs `disabledPaths` to keep raw ids
+off the wire. Member, invitation, team, session, account and passkey ids stay
+raw both ways; they are Better Auth's own and no registry names them.
+`auth.api.*` calls, the adapter and cookies stay raw.
 
 A server-side `auth.api.*` call bypasses the plugin and returns raw uuids.
 Pass its result through `publicAuthIds` (from `@ingram-tech/nk-auth` or

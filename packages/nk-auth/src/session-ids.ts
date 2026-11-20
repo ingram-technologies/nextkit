@@ -6,6 +6,7 @@
 import type { IdHelper } from "@ingram-tech/nk-db/id";
 import type { BetterAuthPlugin } from "better-auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
+import { CREDENTIAL_PROVIDER_ID } from "./password.js";
 
 /**
  * The registry helpers for the ids a session carries. With these, every
@@ -109,12 +110,30 @@ export function publicAuthIds<T>(
 	return encodeTree(value, ids, options.entity) as T;
 }
 
-/** Endpoints whose body is `{ user, session? }`. */
-const SESSION_PATHS: ReadonlySet<string> = new Set([
+/**
+ * Endpoints whose body names users by field (`user.id`, `session.userId`, a
+ * record's `userId`) and whose own top-level `id`, if any, is not a user's.
+ * The passkey registration options are deliberately absent: their `user.id`
+ * is the WebAuthn user handle, not a user id.
+ */
+const USER_PATHS: ReadonlySet<string> = new Set([
 	"/get-session",
 	"/sign-in/email",
 	"/sign-up/email",
 	"/list-sessions",
+	"/list-accounts",
+	"/magic-link/verify",
+	"/passkey/verify-authentication",
+	"/passkey/verify-registration",
+	"/passkey/list-user-passkeys",
+	"/passkey/update-passkey",
+]);
+
+/** Endpoints that take a `userId` (body or query) naming the account owner. */
+const USER_INPUT_PATHS: ReadonlySet<string> = new Set([
+	"/get-access-token",
+	"/refresh-token",
+	"/account-info",
 ]);
 
 /** Organization endpoints whose body is an organization (or a list of them). */
@@ -135,6 +154,23 @@ const INPUT_FIELDS: ReadonlyArray<readonly [string, Entity]> = [
 ];
 
 const isOrganizationPath = (path: string) => path.startsWith("/organization/");
+
+/**
+ * A credential account's `accountId` is the user's own id, so `/list-accounts`
+ * carries it in that field too. A provider account's `accountId` is the
+ * provider's and stays as it is.
+ */
+const encodeCredentialAccountIds = (body: unknown, ids: SessionIds): unknown =>
+	Array.isArray(body)
+		? body.map((account) =>
+				isPlainObject(account) && account.providerId === CREDENTIAL_PROVIDER_ID
+					? {
+							...account,
+							accountId: encodeIfString(ids.user, account.accountId),
+						}
+					: account,
+			)
+		: body;
 
 /**
  * A copy of `input` with its `userId` / `organizationId` decoded to raw
@@ -168,10 +204,15 @@ const decodeInput = (input: unknown, ids: SessionIds): unknown => {
  *   plugins: [publicSessionIds({ ids: { user: ids.user, organization: ids.organization } })],
  *
  * Responses: the session endpoints (`/get-session`, `/sign-in/email`,
- * `/sign-up/email`, `/list-sessions`) and, with `ids.organization`, every
- * `/organization/*` endpoint. Requests: an `/organization/*` call's
- * `organizationId` / `userId` (body or query) must be public ids and reach
- * Better Auth decoded. Member, invitation and team ids stay raw both ways.
+ * `/sign-up/email`, `/list-sessions`, `/magic-link/verify`,
+ * `/passkey/verify-authentication`), `/list-accounts` (a credential
+ * account's `accountId` too), the passkey records (`/passkey/list-user-passkeys`,
+ * `/passkey/update-passkey`, `/passkey/verify-registration`) and, with
+ * `ids.organization`, every `/organization/*` endpoint. Requests: the
+ * `userId` of `/get-access-token`, `/refresh-token` and `/account-info`, and
+ * an `/organization/*` call's `organizationId` / `userId` (body or query),
+ * must be public ids and reach Better Auth decoded. Member, invitation, team,
+ * account and passkey ids stay raw both ways.
  *
  * Only HTTP traffic changes. Server-side `auth.api.*` calls, what the adapter
  * reads and writes, and cookies keep raw uuids; pass an `auth.api.*` result
@@ -186,12 +227,16 @@ export function publicSessionIds(options: { ids: SessionIds }): BetterAuthPlugin
 		ctx.request !== undefined &&
 		ctx.path !== undefined &&
 		isOrganizationPath(ctx.path);
+	const userInputHttp = (ctx: { request?: Request; path?: string }) =>
+		ctx.request !== undefined &&
+		ctx.path !== undefined &&
+		USER_INPUT_PATHS.has(ctx.path);
 	return {
 		id: "nk-public-session-ids",
 		hooks: {
 			before: [
 				{
-					matcher: orgHttp,
+					matcher: (ctx) => orgHttp(ctx) || userInputHttp(ctx),
 					handler: createAuthMiddleware(async (ctx) => ({
 						context: {
 							body: decodeInput(ctx.body, ids),
@@ -205,7 +250,7 @@ export function publicSessionIds(options: { ids: SessionIds }): BetterAuthPlugin
 					matcher: (ctx) =>
 						ctx.request !== undefined &&
 						ctx.path !== undefined &&
-						(SESSION_PATHS.has(ctx.path) || orgHttp(ctx)),
+						(USER_PATHS.has(ctx.path) || orgHttp(ctx)),
 					handler: createAuthMiddleware(async (ctx) => {
 						const returned: unknown = ctx.context.returned;
 						if (
@@ -219,7 +264,11 @@ export function publicSessionIds(options: { ids: SessionIds }): BetterAuthPlugin
 						const self = ORGANIZATION_PATHS.has(ctx.path)
 							? "organization"
 							: undefined;
-						const body = encodeTree(returned, ids, self);
+						const tree = encodeTree(returned, ids, self);
+						const body =
+							ctx.path === "/list-accounts"
+								? encodeCredentialAccountIds(tree, ids)
+								: tree;
 						if (Array.isArray(body) || isPlainObject(body))
 							return ctx.json(body);
 					}),
