@@ -68,6 +68,10 @@
 			"types": "./dist/client.d.ts",
 			"import": "./dist/client.js"
 		},
+		"./client/passkey": {
+			"types": "./dist/client-passkey.d.ts",
+			"import": "./dist/client-passkey.js"
+		},
 		"./mcp": {
 			"types": "./dist/mcp.d.ts",
 			"import": "./dist/mcp.js"

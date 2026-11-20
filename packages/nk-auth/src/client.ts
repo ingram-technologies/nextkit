@@ -4,9 +4,8 @@
  * type inference:
  *
  *   "use client";
- *   import {
- *     createAuthClient, jwtClient, passkeyClient,
- *   } from "@ingram-tech/nk-auth/client";
+ *   import { createAuthClient, jwtClient } from "@ingram-tech/nk-auth/client";
+ *   import { passkeyClient } from "@ingram-tech/nk-auth/client/passkey";
  *
  *   export const authClient = createAuthClient({
  *     baseURL: process.env.NEXT_PUBLIC_SITE_URL,
@@ -15,9 +14,11 @@
  *
  * This exposes the client auth call surface:
  *   signUp.email / signIn.email / signIn.social / signOut / useSession,
- *   plus passkey.* (register / authenticate).
+ *   plus passkey.* (register / authenticate) with the passkey plugin.
+ *
+ * Nothing here imports an optional peer: `passkeyClient` lives at
+ * "./client/passkey" so a site without `@better-auth/passkey` still builds.
  */
-export { passkeyClient } from "@better-auth/passkey/client";
 export { jwtClient } from "better-auth/client/plugins";
 export { createAuthClient } from "better-auth/react";
 // Password-policy primitives (pure), so a reset form validates against the same

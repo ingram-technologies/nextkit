@@ -43,8 +43,11 @@ export { authBasePath } from "./paths.js";
 export { createAuthPool } from "./pool.js";
 export { sessionLifetime } from "./session-lifetime.js";
 export {
+	authOrganizationId,
+	authUserId,
 	encodeSessionIds,
 	publicAuthIds,
 	publicSessionIds,
+	publicUserId,
 	type SessionIds,
 } from "./session-ids.js";

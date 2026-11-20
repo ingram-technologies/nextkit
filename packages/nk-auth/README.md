@@ -6,7 +6,8 @@ stays plain Better Auth, so plugin type inference survives. Import only what you
 need from focused subpaths.
 
 `better-auth`, `pg`, `@better-auth/passkey` are peer dependencies, so there is
-exactly one Better Auth copy in the app.
+exactly one Better Auth copy in the app. `@better-auth/passkey` is optional:
+only `./client/passkey` imports it at runtime.
 
 | Export (subpath) | For |
 | --- | --- |
@@ -16,12 +17,13 @@ exactly one Better Auth copy in the app.
 | `createAuthPool` (`./pool`) | **deprecated** — alias of `createPool` from [`@ingram-tech/nk-db`](../nk-db); inject your app's shared pool instead |
 | `makeEmailSenders`, `makePasskeyOptions`, `passkeyOptionsForBaseUrl`, `uuidGenerateId` (`./`) | email hooks, passkeys (`passkeyOptionsForBaseUrl` derives `rpID`/`origin` from a single base URL), UUID ids |
 | `mcpAuthServer`, `mcpDiscovery`, `loopbackClientsAsNative` (`./mcp`) | the site as an MCP authorization server (`@better-auth/mcp` + Client ID Metadata Documents), and its root discovery routes; see [MCP authorization server](#mcp-authorization-server) |
-| `publicSessionIds`, `encodeSessionIds`, `publicAuthIds` (`./`) | Better Auth plugin putting user and organization ids in public form (`usr_…`, `org_…`) on Better Auth's own HTTP surface, `/organization/*` included, and the same rewrite for `auth.api.*` results; see [Gate routes](#5-gate-routes-without-the-redirect-loop), "public ids" |
+| `publicSessionIds`, `encodeSessionIds`, `publicAuthIds`, `authUserId`, `authOrganizationId`, `publicUserId` (`./`, `./server`) | Better Auth plugin putting user and organization ids in public form (`usr_…`, `org_…`) on Better Auth's own HTTP surface, `/organization/*` included, the same rewrite for `auth.api.*` results, and the one-id conversions to and from what `auth.api.*` takes; see [Gate routes](#5-gate-routes-without-the-redirect-loop), "public ids" |
 | `sessionLifetime` (`./`) | Better Auth plugin capping a sliding session at `createdAt + maxAge`; see [Gate routes](#5-gate-routes-without-the-redirect-loop), "Session lifetime" |
 | `bcryptPassword` (`./`) | **legacy only** — bcrypt verifier for apps with pre-existing bcrypt hashes. New apps omit it (Better Auth defaults to scrypt). See [Migrating bcrypt passwords to scrypt](#migrating-bcrypt-passwords-to-scrypt) |
 | `createAuthHelpers`, `safeNext` (`./server`) | validated App Router session helpers (`getSession` / `getUser` / `requireSession` / `requireUser` / `signInTarget` / `redirectIfAuthenticated`), request-memoized via React `cache()`, with automatic `next` + stale-cookie signalling; `safeNext` validates a `?next=` param |
 | `createAuthMiddleware`, `withAuthPathHeader`, `clearStaleSession`, `renewSession` (`./middleware`) | loop-safe proxy middleware: gates unauthenticated users off protected paths, preserves `next`, clears a stale session cookie so a bad session self-heals, and (given `auth`) keeps an active session alive; the last three are its halves, for a site with its own proxy |
 | `usePasskeyAutofill`, `PASSKEY_AUTOFILL_EMAIL`, `totpEnrollment` (`./client`; `totpEnrollment` also at `./totp`) | sign-in and security-page pieces that work with password managers; see [Password managers](#7-password-managers-passkeys-and-2fa) |
+| `passkeyClient` (`./client/passkey`) | the passkey client plugin, apart from `./client` so a site without `@better-auth/passkey` builds |
 | `passkeyEndpoints`, `changePasswordRedirect` (`./well-known`) | the `/.well-known` route handlers password managers look for |
 
 > **Data access + RLS** is owned by [`@ingram-tech/nk-db`](../nk-db); see §3.
@@ -403,12 +405,10 @@ here too):
 
 ```tsx
 "use client";
-import {
-	authBasePath,
-	createAuthClient,
-	jwtClient,
-	passkeyClient,
-} from "@ingram-tech/nk-auth/client";
+import { authBasePath, createAuthClient, jwtClient } from "@ingram-tech/nk-auth/client";
+// Only with the optional `@better-auth/passkey` peer installed; `./client`
+// itself never imports it, so a site without passkeys builds.
+import { passkeyClient } from "@ingram-tech/nk-auth/client/passkey";
 
 export const authClient = createAuthClient({
 	baseURL: process.env.NEXT_PUBLIC_SITE_URL ?? "",
@@ -468,16 +468,22 @@ plugins: [publicSessionIds({ ids: { user: ids.user, organization: ids.organizati
 ```
 
 It rewrites every user and organization id in the HTTP bodies of
-`/get-session`, `/sign-in/email`, `/sign-up/email`, `/list-sessions` and, with
+`/get-session`, `/sign-in/email`, `/sign-up/email`, `/list-sessions`,
+`/magic-link/verify`, `/list-accounts` (a credential account's `accountId` is
+the user id, so it is rewritten too), the passkey endpoints
+(`/passkey/list-user-passkeys`, `/passkey/update-passkey`,
+`/passkey/verify-registration`, `/passkey/verify-authentication`) and, with
 `ids.organization`, every `/organization/*` endpoint (`user.id`,
 `session.userId`, `activeOrganizationId`, `lastActiveOrganizationId`, an
 organization's `id`, a member's `userId` / `organizationId`, an invitation's
-`inviterId`). An `/organization/*` request's `organizationId` and `userId`
-(body or query, so `setActive({ organizationId })`) must be public ids: they
-are decoded before Better Auth sees them, and a raw uuid is refused with a
-400. Member, invitation, team and session ids stay raw both ways; they are
-Better Auth's own and no registry names them. `auth.api.*` calls, the adapter
-and cookies stay raw.
+`inviterId`). The `userId` of `/get-access-token`, `/refresh-token` and
+`/account-info`, and an `/organization/*` request's `organizationId` and
+`userId` (body or query, so `setActive({ organizationId })`), must be public
+ids: they are decoded before Better Auth sees them, and a raw uuid is refused
+with a 400. So none of these endpoints needs `disabledPaths` to keep raw ids
+off the wire. Member, invitation, team, session, account and passkey ids stay
+raw both ways; they are Better Auth's own and no registry names them.
+`auth.api.*` calls, the adapter and cookies stay raw.
 
 A server-side `auth.api.*` call bypasses the plugin and returns raw uuids.
 Pass its result through `publicAuthIds` (from `@ingram-tech/nk-auth` or
@@ -502,12 +508,27 @@ Without `entity`, a top-level `id` is left alone (it may be a member's or an
 invitation's); pass `entity: "user"` for a bare user object. It is pure and
 idempotent, and `nextkit/no-id-codec-in-app-code` does not flag it.
 
+The other direction, a public id going into `auth.api.*` or the adapter, goes
+through `authUserId` / `authOrganizationId` rather than `ids.user.decode(…)`
+(which the lint rule flags). They take the site's registry (or a
+`SessionIds`) and throw on anything but that entity's public id, a raw uuid
+included:
+
+```ts
+import { authUserId } from "@ingram-tech/nk-auth/server";
+
+const user = await requireUser(); // user.id is "usr_…"
+const { accessToken } = await auth.api.getAccessToken({
+	body: { accountId, userId: authUserId(user.id, ids) },
+});
+```
+
 Tokens minted by the MCP authorization server (`@better-auth/oauth-provider`)
 carry a raw-uuid `sub`, and that stays: the provider treats `sub` as a
 reserved claim (custom-claim hooks cannot set it) and reads it back as a
 Better Auth user id at `/userinfo`, introspection and back-channel logout. To
 an OAuth client `sub` is an opaque issuer-scoped string; where the site's
-resource server reads it, skin it with `ids.user.encode(sub)` (idempotent).
+resource server reads it, skin it with `publicUserId(sub, ids)` (idempotent).
 `verifyBackendJwt` never reads `sub` (pass it `ids: { user }` to get `sub` and
 `id` back in public form), and `withRls*` decodes a public `sub` and passes a
 raw one through.
@@ -730,7 +751,8 @@ site-specific integration.
 `inputMode="numeric"`) for a 2FA or emailed code. A new-password field sits
 in a form that also has the username, so the manager saves the pair.
 
-**Passkeys in the autofill dropdown.** With `passkeyClient()`, offer passkeys
+**Passkeys in the autofill dropdown.** With `passkeyClient()` (from
+`@ingram-tech/nk-auth/client/passkey`), offer passkeys
 where the user already looks, instead of a separate button:
 
 ```tsx

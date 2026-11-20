@@ -36,7 +36,14 @@ import {
 import { CREDENTIAL_PROVIDER_ID } from "./password.js";
 import { encodeSessionIds, type SessionIds } from "./session-ids.js";
 
-export { encodeSessionIds, publicAuthIds, type SessionIds } from "./session-ids.js";
+export {
+	authOrganizationId,
+	authUserId,
+	encodeSessionIds,
+	publicAuthIds,
+	publicUserId,
+	type SessionIds,
+} from "./session-ids.js";
 
 /**
  * Validate a `next` redirect param: returns it only if it's an internal,
