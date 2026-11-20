@@ -4,7 +4,14 @@ import { memoryAdapter } from "better-auth/adapters/memory";
 import { passkey } from "@better-auth/passkey";
 import { magicLink, organization } from "better-auth/plugins";
 import { describe, expect, it } from "vitest";
-import { encodeSessionIds, publicAuthIds, publicSessionIds } from "./session-ids.js";
+import {
+	authOrganizationId,
+	authUserId,
+	encodeSessionIds,
+	publicAuthIds,
+	publicSessionIds,
+	publicUserId,
+} from "./session-ids.js";
 
 const ids = createIdRegistry(SHARED_ID_PREFIXES);
 const BASE = "http://localhost:3000/api/auth";
@@ -438,5 +445,28 @@ describe("publicAuthIds", () => {
 		);
 		expect(once?.id).toBe(orgId);
 		expect(full?.id).toBe(rawOrg);
+	});
+});
+
+describe("authUserId / authOrganizationId / publicUserId", () => {
+	it("hand a public id to Better Auth's adapter and back", async () => {
+		const { auth, db, signUp } = await setup();
+		const publicId: string = (await signUp.json()).user.id;
+		expect(publicId).toMatch(/^usr_/);
+		const raw = authUserId(publicId, ids);
+		expect(raw).toBe(rawId(db.user));
+		const ctx = await auth.$context;
+		const user = await ctx.internalAdapter.findUserById(raw);
+		expect(user?.email).toBe("a@b.com");
+		expect(publicUserId(raw, ids)).toBe(publicId);
+		expect(publicUserId(publicId, ids)).toBe(publicId);
+	});
+
+	it("refuse a raw uuid and another entity's id", () => {
+		const raw = uuidv7();
+		expect(() => authUserId(raw, ids)).toThrow();
+		expect(() => authUserId(ids.organization.encode(raw), ids)).toThrow();
+		expect(() => authOrganizationId(raw, ids)).toThrow();
+		expect(authOrganizationId(ids.organization.encode(raw), ids)).toBe(raw);
 	});
 });

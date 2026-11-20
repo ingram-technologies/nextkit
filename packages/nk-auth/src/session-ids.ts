@@ -111,6 +111,31 @@ export function publicAuthIds<T>(
 }
 
 /**
+ * The raw uuid Better Auth takes for a user's public id (`usr_…`): hand a
+ * session's `user.id` back to `auth.api.*` or the adapter through this, not
+ * through the codec. `ids` is the site's registry or a {@link SessionIds}.
+ * Throws on anything but a `usr_` id, a raw uuid included.
+ *
+ *   await auth.api.getAccessToken({ body: { accountId, userId: authUserId(user.id, ids) } });
+ */
+export const authUserId = (publicId: string, ids: { user: IdHelper }): string =>
+	ids.user.decode(publicId);
+
+/** As {@link authUserId}, for an organization's public id (`org_…`). */
+export const authOrganizationId = (
+	publicId: string,
+	ids: { organization: IdHelper },
+): string => ids.organization.decode(publicId);
+
+/**
+ * A user's public id (`usr_…`) from the raw uuid Better Auth hands out where
+ * {@link publicAuthIds} has no object to walk: an OAuth token's `sub`, a
+ * hook's `user.id`. Idempotent.
+ */
+export const publicUserId = (rawId: string, ids: { user: IdHelper }): string =>
+	ids.user.encode(rawId);
+
+/**
  * Endpoints whose body names users by field (`user.id`, `session.userId`, a
  * record's `userId`) and whose own top-level `id`, if any, is not a user's.
  * The passkey registration options are deliberately absent: their `user.id`

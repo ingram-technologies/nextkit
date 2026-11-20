@@ -16,7 +16,7 @@ exactly one Better Auth copy in the app.
 | `createAuthPool` (`./pool`) | **deprecated** — alias of `createPool` from [`@ingram-tech/nk-db`](../nk-db); inject your app's shared pool instead |
 | `makeEmailSenders`, `makePasskeyOptions`, `passkeyOptionsForBaseUrl`, `uuidGenerateId` (`./`) | email hooks, passkeys (`passkeyOptionsForBaseUrl` derives `rpID`/`origin` from a single base URL), UUID ids |
 | `mcpAuthServer`, `mcpDiscovery`, `loopbackClientsAsNative` (`./mcp`) | the site as an MCP authorization server (`@better-auth/mcp` + Client ID Metadata Documents), and its root discovery routes; see [MCP authorization server](#mcp-authorization-server) |
-| `publicSessionIds`, `encodeSessionIds`, `publicAuthIds` (`./`) | Better Auth plugin putting user and organization ids in public form (`usr_…`, `org_…`) on Better Auth's own HTTP surface, `/organization/*` included, and the same rewrite for `auth.api.*` results; see [Gate routes](#5-gate-routes-without-the-redirect-loop), "public ids" |
+| `publicSessionIds`, `encodeSessionIds`, `publicAuthIds`, `authUserId`, `authOrganizationId`, `publicUserId` (`./`, `./server`) | Better Auth plugin putting user and organization ids in public form (`usr_…`, `org_…`) on Better Auth's own HTTP surface, `/organization/*` included, the same rewrite for `auth.api.*` results, and the one-id conversions to and from what `auth.api.*` takes; see [Gate routes](#5-gate-routes-without-the-redirect-loop), "public ids" |
 | `sessionLifetime` (`./`) | Better Auth plugin capping a sliding session at `createdAt + maxAge`; see [Gate routes](#5-gate-routes-without-the-redirect-loop), "Session lifetime" |
 | `bcryptPassword` (`./`) | **legacy only** — bcrypt verifier for apps with pre-existing bcrypt hashes. New apps omit it (Better Auth defaults to scrypt). See [Migrating bcrypt passwords to scrypt](#migrating-bcrypt-passwords-to-scrypt) |
 | `createAuthHelpers`, `safeNext` (`./server`) | validated App Router session helpers (`getSession` / `getUser` / `requireSession` / `requireUser` / `signInTarget` / `redirectIfAuthenticated`), request-memoized via React `cache()`, with automatic `next` + stale-cookie signalling; `safeNext` validates a `?next=` param |
@@ -508,12 +508,27 @@ Without `entity`, a top-level `id` is left alone (it may be a member's or an
 invitation's); pass `entity: "user"` for a bare user object. It is pure and
 idempotent, and `nextkit/no-id-codec-in-app-code` does not flag it.
 
+The other direction, a public id going into `auth.api.*` or the adapter, goes
+through `authUserId` / `authOrganizationId` rather than `ids.user.decode(…)`
+(which the lint rule flags). They take the site's registry (or a
+`SessionIds`) and throw on anything but that entity's public id, a raw uuid
+included:
+
+```ts
+import { authUserId } from "@ingram-tech/nk-auth/server";
+
+const user = await requireUser(); // user.id is "usr_…"
+const { accessToken } = await auth.api.getAccessToken({
+	body: { accountId, userId: authUserId(user.id, ids) },
+});
+```
+
 Tokens minted by the MCP authorization server (`@better-auth/oauth-provider`)
 carry a raw-uuid `sub`, and that stays: the provider treats `sub` as a
 reserved claim (custom-claim hooks cannot set it) and reads it back as a
 Better Auth user id at `/userinfo`, introspection and back-channel logout. To
 an OAuth client `sub` is an opaque issuer-scoped string; where the site's
-resource server reads it, skin it with `ids.user.encode(sub)` (idempotent).
+resource server reads it, skin it with `publicUserId(sub, ids)` (idempotent).
 `verifyBackendJwt` never reads `sub` (pass it `ids: { user }` to get `sub` and
 `id` back in public form), and `withRls*` decodes a public `sub` and passes a
 raw one through.
