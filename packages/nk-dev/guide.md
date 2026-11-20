@@ -86,11 +86,13 @@ internal plumbing — forms included — under `/api/`.
   fragmenting the B-tree on random inserts, and one uniform id format spans every
   table. On Postgres ≥18 the column default is native `uuidv7()`
   (`uuid("id").primaryKey().default(sql\`uuidv7()\`)`) and Better Auth gets
-  `advanced.database.generateId: false` so the DB mints ids; below 18 — and in
-  the nk-auth README's canonical example — pass
-  `advanced.database.generateId: uuidv7` (JS-minted UUIDv7 from `id758`;
-  `@ingram-tech/nk-auth` re-exports it as `uuidGenerateId`) instead. Either way, never Better Auth's default JS
-  nanoid. Ids that cross a **public contract** are skinned to `prefix_base58`
+  `advanced.database.generateId: "uuid"`: on a Postgres adapter the DB mints
+  its ordinary ids, and its deterministic single-use ids (the magic-link and
+  email-OTP reservation, assertion `jti`s) come out uuid-shaped. Never `false`
+  on uuid columns: those ids are then base64url and the insert fails, so the
+  sign-in 500s. Only a site whose auth tables are still `text` passes
+  `uuidGenerateId` (JS-minted UUIDv7 from `id758`). Never Better Auth's default
+  JS nanoid. Ids that cross a **public contract** are skinned to `prefix_base58`
   via `id758` / `@ingram-tech/nk-db/id` (`createIdRegistry`) — never expose a raw UUID.
   External ids you don't mint (Stripe `cus_`, OAuth) stay `text`.
 - **Application code only ever sees public ids** (`inv_…`); never convert by
