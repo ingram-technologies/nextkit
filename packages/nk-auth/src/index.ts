@@ -9,6 +9,7 @@ export {
 	AUTH_MIGRATIONS_TABLE,
 	type AuthChainCheckOptions,
 	AuthChainNotAppliedError,
+	AuthIdStrategyError,
 } from "./chain.js";
 export { type BackendJwtConfig, backendJwtOptions, verifyBackendJwt } from "./jwt.js";
 export { base58Id, fromPrefixedId, toPrefixedId, uuidGenerateId } from "./id.js";

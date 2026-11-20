@@ -29,6 +29,13 @@
 			"when": 1793491200000,
 			"tag": "0004_oauth_provider",
 			"breakpoints": true
+		},
+		{
+			"idx": 4,
+			"version": "7",
+			"when": 1795132800000,
+			"tag": "0005_uuid_ids",
+			"breakpoints": true
 		}
 	]
 }

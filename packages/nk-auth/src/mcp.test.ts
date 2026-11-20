@@ -18,6 +18,7 @@ const makeAuth = (database: TestDb["pool"]) =>
 		secret: "s".repeat(32),
 		baseURL: BASE,
 		basePath: "/auth",
+		advanced: { database: { generateId: "uuid" } },
 		plugins: [
 			jwt(),
 			...mcpAuthServer({
