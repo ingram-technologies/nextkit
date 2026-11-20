@@ -1,5 +1,13 @@
 # @ingram-tech/nk-auth
 
+## 0.26.1
+
+### Patch Changes
+
+- e6ed1fe: `lastActiveOrganizationHooks`: `session.create.before` now reads through Better Auth's adapter, joining the transaction it runs in, instead of a second pool connection. Sign-up no longer deadlocks on a one-connection pool or on PGlite.
+- Updated dependencies [e6ed1fe]
+  - @ingram-tech/nk-db@2.6.0
+
 ## 0.26.0
 
 ### Minor Changes
