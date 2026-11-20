@@ -1,4 +1,4 @@
-import { passkeyClient } from "@better-auth/passkey/client";
+import { passkeyClient } from "./client-passkey.js";
 import { createAuthClient } from "better-auth/react";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { type PasskeyAutofillClient, passkeyHostMatches } from "./passkey-autofill.js";

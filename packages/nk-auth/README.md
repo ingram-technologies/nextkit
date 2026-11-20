@@ -6,7 +6,8 @@ stays plain Better Auth, so plugin type inference survives. Import only what you
 need from focused subpaths.
 
 `better-auth`, `pg`, `@better-auth/passkey` are peer dependencies, so there is
-exactly one Better Auth copy in the app.
+exactly one Better Auth copy in the app. `@better-auth/passkey` is optional:
+only `./client/passkey` imports it at runtime.
 
 | Export (subpath) | For |
 | --- | --- |
@@ -22,6 +23,7 @@ exactly one Better Auth copy in the app.
 | `createAuthHelpers`, `safeNext` (`./server`) | validated App Router session helpers (`getSession` / `getUser` / `requireSession` / `requireUser` / `signInTarget` / `redirectIfAuthenticated`), request-memoized via React `cache()`, with automatic `next` + stale-cookie signalling; `safeNext` validates a `?next=` param |
 | `createAuthMiddleware`, `withAuthPathHeader`, `clearStaleSession`, `renewSession` (`./middleware`) | loop-safe proxy middleware: gates unauthenticated users off protected paths, preserves `next`, clears a stale session cookie so a bad session self-heals, and (given `auth`) keeps an active session alive; the last three are its halves, for a site with its own proxy |
 | `usePasskeyAutofill`, `PASSKEY_AUTOFILL_EMAIL`, `totpEnrollment` (`./client`; `totpEnrollment` also at `./totp`) | sign-in and security-page pieces that work with password managers; see [Password managers](#7-password-managers-passkeys-and-2fa) |
+| `passkeyClient` (`./client/passkey`) | the passkey client plugin, apart from `./client` so a site without `@better-auth/passkey` builds |
 | `passkeyEndpoints`, `changePasswordRedirect` (`./well-known`) | the `/.well-known` route handlers password managers look for |
 
 > **Data access + RLS** is owned by [`@ingram-tech/nk-db`](../nk-db); see §3.
@@ -403,12 +405,10 @@ here too):
 
 ```tsx
 "use client";
-import {
-	authBasePath,
-	createAuthClient,
-	jwtClient,
-	passkeyClient,
-} from "@ingram-tech/nk-auth/client";
+import { authBasePath, createAuthClient, jwtClient } from "@ingram-tech/nk-auth/client";
+// Only with the optional `@better-auth/passkey` peer installed; `./client`
+// itself never imports it, so a site without passkeys builds.
+import { passkeyClient } from "@ingram-tech/nk-auth/client/passkey";
 
 export const authClient = createAuthClient({
 	baseURL: process.env.NEXT_PUBLIC_SITE_URL ?? "",
@@ -751,7 +751,8 @@ site-specific integration.
 `inputMode="numeric"`) for a 2FA or emailed code. A new-password field sits
 in a form that also has the username, so the manager saves the pair.
 
-**Passkeys in the autofill dropdown.** With `passkeyClient()`, offer passkeys
+**Passkeys in the autofill dropdown.** With `passkeyClient()` (from
+`@ingram-tech/nk-auth/client/passkey`), offer passkeys
 where the user already looks, instead of a separate button:
 
 ```tsx
