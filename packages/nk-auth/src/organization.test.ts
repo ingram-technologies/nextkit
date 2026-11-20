@@ -15,22 +15,24 @@ import {
 
 const MIGRATIONS = fileURLToPath(new URL("../migrations", import.meta.url));
 
-// The organization plugin's tables are site-owned, not in nk-auth's chain.
+// The organization plugin's tables are site-owned, not in nk-auth's chain. Their
+// ids are uuid like the chain's, defaulted, since Better Auth's "uuid" strategy
+// leaves every id to the database.
 const ORG_DDL = [
-	'alter table "user" add column "lastActiveOrganizationId" text',
-	'alter table "session" add column "activeOrganizationId" text',
-	`create table "organization" ("id" text primary key, "name" text not null,
+	'alter table "user" add column "lastActiveOrganizationId" uuid',
+	'alter table "session" add column "activeOrganizationId" uuid',
+	`create table "organization" ("id" uuid primary key default uuidv7(), "name" text not null,
 		"slug" text not null unique, "logo" text, "createdAt" timestamptz not null,
 		"updatedAt" timestamptz, "metadata" text)`,
-	`create table "member" ("id" text primary key,
-		"organizationId" text not null references "organization" ("id") on delete cascade,
-		"userId" text not null references "user" ("id") on delete cascade,
+	`create table "member" ("id" uuid primary key default uuidv7(),
+		"organizationId" uuid not null references "organization" ("id") on delete cascade,
+		"userId" uuid not null references "user" ("id") on delete cascade,
 		"role" text not null, "createdAt" timestamptz not null)`,
-	`create table "invitation" ("id" text primary key,
-		"organizationId" text not null references "organization" ("id") on delete cascade,
+	`create table "invitation" ("id" uuid primary key default uuidv7(),
+		"organizationId" uuid not null references "organization" ("id") on delete cascade,
 		"email" text not null, "role" text, "status" text not null,
 		"expiresAt" timestamptz not null, "createdAt" timestamptz not null default now(),
-		"inviterId" text not null references "user" ("id") on delete cascade)`,
+		"inviterId" uuid not null references "user" ("id") on delete cascade)`,
 ];
 
 let db: TestDb;
@@ -40,6 +42,7 @@ const makeAuth = (pool: TestDb["pool"]) =>
 		secret: "s".repeat(32),
 		baseURL: "http://localhost:3000",
 		emailAndPassword: { enabled: true },
+		advanced: { database: { generateId: "uuid" } },
 		user: { additionalFields: lastActiveOrganizationUserField },
 		databaseHooks: lastActiveOrganizationHooks(pool),
 		plugins: [organization(nkOrganizationDefaults)],
@@ -74,21 +77,22 @@ describe("lastActiveOrganizationHooks", () => {
 		const { user } = await auth.api.signUpEmail({
 			body: { email: "member@example.com", password, name: "Member" },
 		});
-		const orgs = ["a", "b"].map((slug) => ({ id: `org-${slug}`, slug }));
+		const orgs = ["a", "b"].map((slug) => ({ id: crypto.randomUUID(), slug }));
+		const [orgA, orgB] = orgs.map((org) => org.id);
 		for (const org of orgs) {
 			await db.pool.query(
-				'insert into "organization" (id, name, slug, "createdAt") values ($1, $1, $2, now())',
+				'insert into "organization" (id, name, slug, "createdAt") values ($1::uuid, $1::text, $2, now())',
 				[org.id, org.slug],
 			);
 			await db.pool.query(
 				`insert into "member" (id, "organizationId", "userId", role, "createdAt")
 				 values ($1, $2, $3, 'owner', now())`,
-				[`m-${org.slug}`, org.id, user.id],
+				[crypto.randomUUID(), org.id, user.id],
 			);
 		}
 		await db.pool.query(
 			'update "user" set "lastActiveOrganizationId" = $1 where id = $2',
-			["org-a", user.id],
+			[orgA, user.id],
 		);
 
 		const signIn = await auth.api.signInEmail({
@@ -98,17 +102,17 @@ describe("lastActiveOrganizationHooks", () => {
 		const cookie = (signIn.headers.getSetCookie()[0] ?? "").split(";")[0] ?? "";
 		const headers = new Headers({ cookie });
 		const session = await auth.api.getSession({ headers });
-		expect(session?.session.activeOrganizationId).toBe("org-a");
+		expect(session?.session.activeOrganizationId).toBe(orgA);
 
 		await auth.api.setActiveOrganization({
 			headers,
-			body: { organizationId: "org-b" },
+			body: { organizationId: orgB },
 		});
 		const stored = await db.pool.query<{ lastActiveOrganizationId: string }>(
 			'select "lastActiveOrganizationId" from "user" where id = $1',
 			[user.id],
 		);
-		expect(stored.rows[0]?.lastActiveOrganizationId).toBe("org-b");
+		expect(stored.rows[0]?.lastActiveOrganizationId).toBe(orgB);
 	});
 
 	it("skips an organization the user has left", async () => {
@@ -117,7 +121,7 @@ describe("lastActiveOrganizationHooks", () => {
 		});
 		await db.pool.query(
 			'update "user" set "lastActiveOrganizationId" = $1 where id = $2',
-			["org-a", user.id],
+			[crypto.randomUUID(), user.id],
 		);
 		const signIn = await auth.api.signInEmail({
 			body: { email: "left@example.com", password },

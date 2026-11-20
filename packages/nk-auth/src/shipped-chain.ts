@@ -26,4 +26,8 @@ export const SHIPPED_AUTH_CHAIN: ReadonlyArray<{ tag: string; hash: string }> = 
 		tag: "0004_oauth_provider",
 		hash: "8a9ad30feb35a8698da282d66254963270a9669b9d4daa42fc4be56c65fe1cfd",
 	},
+	{
+		tag: "0005_uuid_ids",
+		hash: "f407ece1c59e8ab23df23ddc322d2739d03a84f1388fb81111d674662e4003de",
+	},
 ];

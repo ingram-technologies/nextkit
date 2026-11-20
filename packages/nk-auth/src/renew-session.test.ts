@@ -21,6 +21,7 @@ const makeAuth = (database: TestDb["pool"]) =>
 		baseURL: BASE,
 		basePath: "/auth",
 		emailAndPassword: { enabled: true },
+		advanced: { database: { generateId: "uuid" } },
 	});
 let auth: ReturnType<typeof makeAuth>;
 
@@ -142,7 +143,7 @@ describe("createAuthMiddleware with auth", () => {
 			secret: "s".repeat(32),
 			basePath: "/auth",
 			session: { expiresIn: 30 * DAY },
-			advanced: { database: { generateId: false } },
+			advanced: { database: { generateId: "uuid" } },
 		});
 		// A type assertion, run as a test: this line failed to compile in 0.22.0.
 		expect(

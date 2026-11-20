@@ -16,6 +16,7 @@ import {
 	authMigrationsFolder,
 	AUTH_MIGRATIONS_TABLE,
 	AuthChainNotAppliedError,
+	AuthIdStrategyError,
 	authChainCheck,
 } from "./chain.js";
 import { SHIPPED_AUTH_CHAIN } from "./shipped-chain.js";
@@ -134,7 +135,9 @@ describe("assertAuthChainApplied", () => {
 	});
 
 	it("gives the per-process check the same verdicts without reading migrations/", async () => {
-		await expect(authChainCheck(complete.pool)()).resolves.toBeUndefined();
+		await expect(
+			authChainCheck(complete.pool, {}, "uuid")(),
+		).resolves.toBeUndefined();
 		await expect(authChainCheck(unrecorded.pool)()).resolves.toBeUndefined();
 		const failure = await authChainCheck(lagging.pool)().then(
 			() => null,
@@ -145,6 +148,20 @@ describe("assertAuthChainApplied", () => {
 				.entries.filter((entry) => entry.idx >= 2)
 				.map((entry) => entry.tag),
 		);
+	});
+
+	it("requires the database to mint ids once the chain makes them uuid", async () => {
+		// Better Auth's default id, or a JS generator, cannot fill a uuid column
+		// for every record; only the "uuid" strategy can.
+		for (const generateId of [undefined, false, () => "x"]) {
+			await expect(
+				authChainCheck(complete.pool, {}, generateId)(),
+			).rejects.toBeInstanceOf(AuthIdStrategyError);
+		}
+		// A database that does not record the chain is not the chain's to judge.
+		await expect(
+			authChainCheck(unrecorded.pool, {}, undefined)(),
+		).resolves.toBeUndefined();
 	});
 
 	it("memoizes per process and skips anything that is not a pg pool", async () => {

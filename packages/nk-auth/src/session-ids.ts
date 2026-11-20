@@ -29,11 +29,13 @@ const ID_FIELDS: Readonly<Record<string, Entity>> = {
 	organizationId: "organization",
 	activeOrganizationId: "organization",
 	lastActiveOrganizationId: "organization",
+	impersonatedBy: "user",
 };
 
 /** Keys whose object value is that entity, so its `id` is one. */
 const ENTITY_KEYS: Readonly<Record<string, Entity>> = {
 	user: "user",
+	users: "user",
 	organization: "organization",
 };
 
@@ -137,29 +139,73 @@ export const publicUserId = (rawId: string, ids: { user: IdHelper }): string =>
 
 /**
  * Endpoints whose body names users by field (`user.id`, `session.userId`, a
- * record's `userId`) and whose own top-level `id`, if any, is not a user's.
- * The passkey registration options are deliberately absent: their `user.id`
- * is the WebAuthn user handle, not a user id.
+ * record's `userId`) and whose own top-level `id`, if any, is not a user's:
+ * every Better Auth endpoint (core and first-party plugins) that answers with
+ * a session or user. The passkey registration options are deliberately
+ * absent: their `user.id` is the WebAuthn user handle, not a user id.
  */
 const USER_PATHS: ReadonlySet<string> = new Set([
 	"/get-session",
+	"/update-session",
 	"/sign-in/email",
 	"/sign-up/email",
+	"/sign-in/social",
+	"/sign-in/email-otp",
+	"/sign-in/username",
+	"/sign-in/phone-number",
+	"/sign-in/anonymous",
+	"/verify-email",
+	"/change-password",
 	"/list-sessions",
 	"/list-accounts",
 	"/magic-link/verify",
+	"/email-otp/verify-email",
+	"/phone-number/verify",
+	"/one-tap/callback",
+	"/one-time-token/verify",
+	"/siwe/verify",
+	"/two-factor/verify-totp",
+	"/two-factor/verify-otp",
+	"/two-factor/verify-backup-code",
+	"/multi-session/list-device-sessions",
+	"/multi-session/set-active",
 	"/passkey/verify-authentication",
 	"/passkey/verify-registration",
 	"/passkey/list-user-passkeys",
 	"/passkey/update-passkey",
+	"/admin/create-user",
+	"/admin/list-users",
+	"/admin/list-user-sessions",
+	"/admin/set-role",
+	"/admin/ban-user",
+	"/admin/unban-user",
+	"/admin/impersonate-user",
+	"/admin/stop-impersonating",
 ]);
 
-/** Endpoints that take a `userId` (body or query) naming the account owner. */
-const USER_INPUT_PATHS: ReadonlySet<string> = new Set([
-	"/get-access-token",
-	"/refresh-token",
-	"/account-info",
+/** Endpoints whose body is a user (the admin plugin's single-user reads). */
+const USER_SELF_PATHS: ReadonlySet<string> = new Set([
+	"/admin/get-user",
+	"/admin/update-user",
 ]);
+
+/** Endpoints that take a user id (body or query), and the field naming it. */
+const USER_INPUT_FIELDS: Readonly<Record<string, string>> = {
+	"/get-access-token": "userId",
+	"/refresh-token": "userId",
+	"/account-info": "userId",
+	"/admin/get-user": "id",
+	"/admin/update-user": "userId",
+	"/admin/set-role": "userId",
+	"/admin/ban-user": "userId",
+	"/admin/unban-user": "userId",
+	"/admin/list-user-sessions": "userId",
+	"/admin/impersonate-user": "userId",
+	"/admin/revoke-user-sessions": "userId",
+	"/admin/remove-user": "userId",
+	"/admin/set-user-password": "userId",
+	"/admin/has-permission": "userId",
+};
 
 /** Organization endpoints whose body is an organization (or a list of them). */
 const ORGANIZATION_PATHS: ReadonlySet<string> = new Set([
@@ -173,7 +219,7 @@ const ORGANIZATION_PATHS: ReadonlySet<string> = new Set([
 ]);
 
 /** Request fields an `/organization/*` call names a user or organization by. */
-const INPUT_FIELDS: ReadonlyArray<readonly [string, Entity]> = [
+const ORGANIZATION_INPUT_FIELDS: ReadonlyArray<readonly [string, Entity]> = [
 	["userId", "user"],
 	["organizationId", "organization"],
 ];
@@ -198,14 +244,18 @@ const encodeCredentialAccountIds = (body: unknown, ids: SessionIds): unknown =>
 		: body;
 
 /**
- * A copy of `input` with its `userId` / `organizationId` decoded to raw
+ * A copy of `input` with its user and organization id `fields` decoded to raw
  * uuids. A value that is not that entity's public id is refused: the wire
  * carries one form.
  */
-const decodeInput = (input: unknown, ids: SessionIds): unknown => {
+const decodeInput = (
+	input: unknown,
+	ids: SessionIds,
+	fields: ReadonlyArray<readonly [string, Entity]>,
+): unknown => {
 	if (!isPlainObject(input)) return input;
 	const out: Record<string, unknown> = { ...input };
-	for (const [key, entity] of INPUT_FIELDS) {
+	for (const [key, entity] of fields) {
 		const value = input[key];
 		const helper = ids[entity];
 		if (typeof value !== "string" || !helper) continue;
@@ -228,16 +278,17 @@ const decodeInput = (input: unknown, ids: SessionIds): unknown => {
  *
  *   plugins: [publicSessionIds({ ids: { user: ids.user, organization: ids.organization } })],
  *
- * Responses: the session endpoints (`/get-session`, `/sign-in/email`,
- * `/sign-up/email`, `/list-sessions`, `/magic-link/verify`,
- * `/passkey/verify-authentication`), `/list-accounts` (a credential
- * account's `accountId` too), the passkey records (`/passkey/list-user-passkeys`,
- * `/passkey/update-passkey`, `/passkey/verify-registration`) and, with
- * `ids.organization`, every `/organization/*` endpoint. Requests: the
- * `userId` of `/get-access-token`, `/refresh-token` and `/account-info`, and
- * an `/organization/*` call's `organizationId` / `userId` (body or query),
- * must be public ids and reach Better Auth decoded. Member, invitation, team,
- * account and passkey ids stay raw both ways.
+ * Responses: every endpoint that answers with a session or user (every
+ * sign-in and sign-up, `/get-session`, `/update-session`, `/verify-email`,
+ * `/change-password`, the email-OTP, phone, magic-link, one-tap, one-time
+ * token, SIWE, two-factor, multi-session, passkey and admin endpoints; see
+ * `USER_PATHS`), `/list-accounts` (a credential account's `accountId` too)
+ * and, with `ids.organization`, every `/organization/*` endpoint. Requests:
+ * the user id of `/get-access-token`, `/refresh-token`, `/account-info` and
+ * the admin endpoints, and an `/organization/*` call's `organizationId` /
+ * `userId` (body or query), must be public ids and reach Better Auth
+ * decoded. Member, invitation, team, account and passkey ids stay raw both
+ * ways.
  *
  * Only HTTP traffic changes. Server-side `auth.api.*` calls, what the adapter
  * reads and writes, and cookies keep raw uuids; pass an `auth.api.*` result
@@ -255,19 +306,26 @@ export function publicSessionIds(options: { ids: SessionIds }): BetterAuthPlugin
 	const userInputHttp = (ctx: { request?: Request; path?: string }) =>
 		ctx.request !== undefined &&
 		ctx.path !== undefined &&
-		USER_INPUT_PATHS.has(ctx.path);
+		Object.hasOwn(USER_INPUT_FIELDS, ctx.path);
 	return {
 		id: "nk-public-session-ids",
 		hooks: {
 			before: [
 				{
 					matcher: (ctx) => orgHttp(ctx) || userInputHttp(ctx),
-					handler: createAuthMiddleware(async (ctx) => ({
-						context: {
-							body: decodeInput(ctx.body, ids),
-							query: decodeInput(ctx.query, ids),
-						},
-					})),
+					handler: createAuthMiddleware(async (ctx) => {
+						const userField = USER_INPUT_FIELDS[ctx.path];
+						const fields: ReadonlyArray<readonly [string, Entity]> =
+							userField === undefined
+								? ORGANIZATION_INPUT_FIELDS
+								: [[userField, "user"]];
+						return {
+							context: {
+								body: decodeInput(ctx.body, ids, fields),
+								query: decodeInput(ctx.query, ids, fields),
+							},
+						};
+					}),
 				},
 			],
 			after: [
@@ -275,7 +333,9 @@ export function publicSessionIds(options: { ids: SessionIds }): BetterAuthPlugin
 					matcher: (ctx) =>
 						ctx.request !== undefined &&
 						ctx.path !== undefined &&
-						(USER_PATHS.has(ctx.path) || orgHttp(ctx)),
+						(USER_PATHS.has(ctx.path) ||
+							USER_SELF_PATHS.has(ctx.path) ||
+							orgHttp(ctx)),
 					handler: createAuthMiddleware(async (ctx) => {
 						const returned: unknown = ctx.context.returned;
 						if (
@@ -288,7 +348,9 @@ export function publicSessionIds(options: { ids: SessionIds }): BetterAuthPlugin
 						}
 						const self = ORGANIZATION_PATHS.has(ctx.path)
 							? "organization"
-							: undefined;
+							: USER_SELF_PATHS.has(ctx.path)
+								? "user"
+								: undefined;
 						const tree = encodeTree(returned, ids, self);
 						const body =
 							ctx.path === "/list-accounts"

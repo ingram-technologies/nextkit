@@ -15,7 +15,7 @@ only `./client/passkey` imports it at runtime.
 | `backendJwtOptions` / `verifyBackendJwt` (`./jwt`) | a JWT for your own backend API (custom `audience`; `ids` mints `sub` as the public user id) |
 | `nkOrganizationDefaults`, `lastActiveOrganizationHooks`, `lastActiveOrganizationUserField` (`./organization`) | org-plugin defaults + active-org restore/persist |
 | `createAuthPool` (`./pool`) | **deprecated** — alias of `createPool` from [`@ingram-tech/nk-db`](../nk-db); inject your app's shared pool instead |
-| `makeEmailSenders`, `makePasskeyOptions`, `passkeyOptionsForBaseUrl`, `uuidGenerateId` (`./`) | email hooks, passkeys (`passkeyOptionsForBaseUrl` derives `rpID`/`origin` from a single base URL), UUID ids |
+| `makeEmailSenders`, `makePasskeyOptions`, `passkeyOptionsForBaseUrl`, `uuidGenerateId` (`./`) | email hooks, passkeys (`passkeyOptionsForBaseUrl` derives `rpID`/`origin` from a single base URL), JS-minted UUIDv7 ids for a site that owns text-id auth tables (on the shipped chain, use `generateId: "uuid"`, see [§1](#1-apply-the-schema)) |
 | `mcpAuthServer`, `mcpDiscovery`, `loopbackClientsAsNative` (`./mcp`) | the site as an MCP authorization server (`@better-auth/mcp` + Client ID Metadata Documents), and its root discovery routes; see [MCP authorization server](#mcp-authorization-server) |
 | `publicSessionIds`, `encodeSessionIds`, `publicAuthIds`, `authUserId`, `authOrganizationId`, `publicUserId` (`./`, `./server`) | Better Auth plugin putting user and organization ids in public form (`usr_…`, `org_…`) on Better Auth's own HTTP surface, `/organization/*` included, the same rewrite for `auth.api.*` results, and the one-id conversions to and from what `auth.api.*` takes; see [Gate routes](#5-gate-routes-without-the-redirect-loop), "public ids" |
 | `sessionLifetime` (`./`) | Better Auth plugin capping a sliding session at `createdAt + maxAge`; see [Gate routes](#5-gate-routes-without-the-redirect-loop), "Session lifetime" |
@@ -77,9 +77,28 @@ nk-auth **owns its auth tables as its own migration chain** — the versioned SQ
 files it ships in `migrations/`, journaled separately from your app's `drizzle/`
 migrations. You don't copy anything in; you point the runner at the shipped
 folder. It creates Better Auth's tables (`user`, `session`, `account`,
-`verification`, `jwks`, `passkey`), defaults new user ids to UUIDs, and puts
-**deny-all RLS** on all of them (Better Auth reaches them through its own
-privileged connection). See [db-package.md § "The nk-auth migration
+`verification`, `jwks`, `passkey` and the OAuth provider's `oauth*`), types
+every entity id and every column referencing one as `uuid` with a `uuidv7()`
+default (PostgreSQL 18), and puts **deny-all RLS** on all of them (Better Auth
+reaches them through its own privileged connection).
+
+Because the database mints the ids, the instance must say so:
+`advanced: { database: { generateId: "uuid" } }`. Not `uuidGenerateId`, not
+`false`: Better Auth's single-use records (the lock that promotes an
+unverified account on a magic-link or email-OTP sign-in, an OAuth client
+assertion's `jti`) key their row on a deterministic id that only the `"uuid"`
+strategy shapes as a uuid, so any other setting fails those flows at a
+customer's sign-in. `createAuthHelpers` checks it on the first session read
+(`AuthIdStrategyError`) once the database records the whole chain.
+
+Your own tables reference the user as `uuid` too, with a real foreign key:
+`idColumn("user").references(...)` in Drizzle, `user_id uuid references
+"user"(id)` in SQL. Only values that are not ids of these rows stay `text`:
+`account.accountId` (the provider's subject), `passkey.credentialID`,
+`verification.identifier`, tokens, and the OAuth `clientId` / `referenceId`.
+Tables a site adds for other plugins (organization, two-factor, ...) follow
+the same shape, and need the default too, since the `"uuid"` strategy leaves
+every id to the database: `"id" uuid primary key default uuidv7()`. See [db-package.md § "The nk-auth migration
 chain"](../../docs/db-package.md#the-nk-auth-migration-chain) for the full model.
 
 The auth chain runs **before** your app chain, because your app tables FK to
@@ -188,6 +207,79 @@ loud error instead of failed inserts, so keep it on in production.
 > existing tables and simply records the nk-auth journal. New auth migrations then
 > flow through the shipped chain from here on.
 
+## Upgrading to uuid ids (0005)
+
+nk-auth 0.27 ships `0005_uuid_ids`, which moves every entity id the chain
+created from `text` to `uuid` (list in [§1](#1-apply-the-schema)), defaulting
+to `uuidv7()`. On a live database it:
+
+- converts, with them, every column of every table (yours included) holding a
+  foreign key to a converted column, transitively, dropping and re-creating
+  those foreign keys from their own definitions (`on delete` and all);
+- refuses, naming each `table.column` and the number of offending rows, when
+  any of those columns holds a value that is not a hyphenated uuid, and
+  changes nothing (a site that minted `usr_…` or nanoid ids into `user.id`
+  must rewrite them first);
+- refuses, naming them, while a view, rule, policy or trigger depends on one of
+  those columns (ALTER TYPE cannot carry it across: drop, migrate, re-create);
+- deletes expired verification and client-assertion rows whose id is not a
+  uuid (dead single-use markers), and asserts row and value counts after the
+  rewrite;
+- needs PostgreSQL 18 (`uuidv7()`), and refuses on anything older.
+
+It is one transaction: a refusal leaves the database exactly as it was.
+
+**Your own migrations.** On a fresh database (tests, `nk dev`, a new
+environment) the auth chain now creates `"user".id uuid` before your chain
+runs, so an applied migration of yours that declares
+`user_id text references "user"(id)` can no longer run there. Re-baseline
+those declarations to `uuid` in the same release: edit the column type in
+those files (and the Drizzle snapshot, or let `db:generate` emit the matching
+`alter ... type uuid`, a no-op on a converted database), `nk migrations
+--reseal`, and reconcile each existing database's journal with
+`nk-pg-migrate --baseline` once 0005 has converted its columns. This is the
+one sanctioned edit of applied migrations, the squash path in
+[db-package.md](../../docs/db-package.md#the-seal-applied-migrations-are-immutable).
+
+**Order, on every database the site has (production, demo, staging):**
+
+1. bump `@ingram-tech/nk-auth`, set `advanced.database.generateId` to
+   `"uuid"`, and make the cleanup below;
+2. `db:migrate` against the target database. The auth chain first:
+   `nk-pg-migrate --migrations node_modules/@ingram-tech/nk-auth/migrations --table __nkauth_migrations`
+   (a refusal names what to fix and changes nothing). Then the site chain:
+   plain `nk-pg-migrate` if your migrations did not change, or
+   `nk-pg-migrate --baseline` if you re-baselined them above (with no other
+   migration of yours pending);
+3. deploy that commit.
+
+Migrating first is safe for the version still running: it keeps minting ids
+with `uuidGenerateId`, UUIDv7 strings a uuid column takes, and reads them back
+as the same strings. Two of its flows fail between the migrate and the deploy:
+promoting an unverified account through a magic link or email OTP, and an
+OAuth client assertion, which write a non-uuid deterministic id until the new
+configuration ships. Deploying first is worse: `"uuid"` leaves session and
+account ids to a database default the text columns do not have, so every
+sign-in fails, and `createAuthHelpers` throws `AuthChainNotAppliedError`.
+
+**Cleanup, once the columns are uuid.** Every workaround for text user ids
+goes:
+
+- a `userIdColumn` helper (a `text` column that skins `usr_…` by hand):
+  delete it and use `idColumn("user")` from `@ingram-tech/nk-db/id/drizzle`
+  for every user reference, the Drizzle stub of the `user` table included;
+- `generateId: uuidGenerateId` (or `false`): replace with `"uuid"`;
+- `::uuid` / `::text` casts on `"user".id`, `session."userId"` and your user
+  reference columns in SQL, RLS policies and functions: drop them. A
+  comparison with a column that is still `text` now needs a cast instead
+  (`uuid = text` has no operator), and so does a raw query that binds one
+  parameter to both a text and a uuid column (`$1::text`, `$1::uuid`);
+- a text copy of the user id kept only because `"user".id` was not uuid:
+  make it a `uuid` foreign key.
+
+`authUserId` / `publicUserId` stay: they convert between the public `usr_…`
+form and the raw id, whatever its column type.
+
 ## MCP authorization server
 
 A site whose people connect their own MCP clients (Claude, Codex, …) signs them
@@ -271,7 +363,6 @@ import {
 	authEnv,
 	makeEmailSenders,
 	passkeyOptionsForBaseUrl,
-	uuidGenerateId,
 } from "@ingram-tech/nk-auth";
 import { betterAuth } from "better-auth";
 import { pool } from "@/lib/db"; // the ONE shared createPool() from @ingram-tech/nk-db
@@ -290,12 +381,10 @@ export const auth = betterAuth({
 	secret: env.secret,
 	baseURL: env.baseURL,
 	basePath: authBasePath, // mount at /auth, not the framework default /api/auth
-	advanced: { database: { generateId: uuidGenerateId } }, // UUIDv7 ids
-	// ^ stored as hyphenated UUIDv7 (uuid columns / RLS policies stay valid).
-	// To show those same ids as prefixed base58 on the wire/UI — `team_…`, the
-	// way an API exposes prefixed ids like `agt_`/`smt_` — skin them with
-	// `toPrefixedId(uuid, "team")` / recover with `fromPrefixedId`. `base58Id`
-	// mints a fresh one directly for text-id apps. All from `@ingram-tech/nk-auth`.
+	// The database mints every id (uuid columns, `uuidv7()` default); see §1.
+	// Public `usr_…` / `org_…` forms come from `publicSessionIds` and the
+	// helpers' `ids` (§5), never from the stored id.
+	advanced: { database: { generateId: "uuid" } },
 	emailAndPassword: {
 		enabled: true,
 		// Better Auth hashes with scrypt by default. Only apps carrying
@@ -467,20 +556,26 @@ import { publicSessionIds } from "@ingram-tech/nk-auth";
 plugins: [publicSessionIds({ ids: { user: ids.user, organization: ids.organization } })],
 ```
 
-It rewrites every user and organization id in the HTTP bodies of
-`/get-session`, `/sign-in/email`, `/sign-up/email`, `/list-sessions`,
-`/magic-link/verify`, `/list-accounts` (a credential account's `accountId` is
-the user id, so it is rewritten too), the passkey endpoints
-(`/passkey/list-user-passkeys`, `/passkey/update-passkey`,
-`/passkey/verify-registration`, `/passkey/verify-authentication`) and, with
-`ids.organization`, every `/organization/*` endpoint (`user.id`,
-`session.userId`, `activeOrganizationId`, `lastActiveOrganizationId`, an
-organization's `id`, a member's `userId` / `organizationId`, an invitation's
-`inviterId`). The `userId` of `/get-access-token`, `/refresh-token` and
-`/account-info`, and an `/organization/*` request's `organizationId` and
-`userId` (body or query, so `setActive({ organizationId })`), must be public
-ids: they are decoded before Better Auth sees them, and a raw uuid is refused
-with a 400. So none of these endpoints needs `disabledPaths` to keep raw ids
+It rewrites every user and organization id in the HTTP body of every Better
+Auth endpoint (core and first-party plugins) that answers with a session or a
+user: every sign-in and sign-up (`/sign-in/email`, `/sign-in/social` with an
+`idToken`, `/sign-in/email-otp`, `/sign-in/username`, `/sign-in/phone-number`,
+`/sign-in/anonymous`, `/sign-up/email`), `/get-session`, `/update-session`,
+`/list-sessions`, `/verify-email`, `/change-password`, `/magic-link/verify`,
+`/email-otp/verify-email`, `/phone-number/verify`, `/one-tap/callback`,
+`/one-time-token/verify`, `/siwe/verify`, the two-factor `verify-*`
+endpoints, `/multi-session/list-device-sessions` and `/set-active`, the
+passkey endpoints, the admin plugin's user and session endpoints,
+`/list-accounts` (a credential account's `accountId` is the user id, so it is
+rewritten too) and, with `ids.organization`, every `/organization/*` endpoint
+(`user.id`, `session.userId`, `session.impersonatedBy`,
+`activeOrganizationId`, `lastActiveOrganizationId`, an organization's `id`, a
+member's `userId` / `organizationId`, an invitation's `inviterId`). The
+`userId` of `/get-access-token`, `/refresh-token`, `/account-info` and the
+admin endpoints (`id` on `/admin/get-user`), and an `/organization/*`
+request's `organizationId` and `userId` (body or query, so
+`setActive({ organizationId })`), must be public ids: they are decoded before
+Better Auth sees them, and a raw uuid is refused with a 400. So none of these endpoints needs `disabledPaths` to keep raw ids
 off the wire. Member, invitation, team, session, account and passkey ids stay
 raw both ways; they are Better Auth's own and no registry names them.
 `auth.api.*` calls, the adapter and cookies stay raw.

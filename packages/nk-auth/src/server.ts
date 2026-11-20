@@ -68,7 +68,10 @@ interface AuthLike<S extends SessionLike> {
 	 * The options the instance was built with. `database` is the `pg` Pool a
 	 * site passes to `betterAuth()`; the chain check queries through it.
 	 */
-	options?: { database?: unknown };
+	options?: {
+		database?: unknown;
+		advanced?: { database?: { generateId?: unknown } };
+	};
 	api: {
 		getSession: (input: {
 			headers: Headers;
@@ -133,7 +136,11 @@ export function createAuthHelpers<S extends SessionLike>(
 	const ensureChain =
 		options.chainCheck === false
 			? async (): Promise<void> => {}
-			: authChainCheck(auth.options?.database, options.chainCheck);
+			: authChainCheck(
+					auth.options?.database,
+					options.chainCheck,
+					auth.options?.advanced?.database?.generateId,
+				);
 	const getSession = cache(async (): Promise<S | null> => {
 		// Request headers first: reading them is what marks the route dynamic, so
 		// a page Next tries to prerender bails out here instead of querying the

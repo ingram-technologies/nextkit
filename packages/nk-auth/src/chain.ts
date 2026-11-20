@@ -22,6 +22,12 @@ export const authMigrationsFolder = (): string =>
 /** The journal table the README tells a site to record the chain in. */
 export const AUTH_MIGRATIONS_TABLE = "__nkauth_migrations";
 
+/**
+ * The chain migration that makes every entity id `uuid`. Once a database has
+ * it, Better Auth must let the database mint ids (`generateId: "uuid"`).
+ */
+const UUID_IDS_TAG = "0005_uuid_ids";
+
 /** The shape of a `pg` Pool as far as the chain check needs it. */
 const isPool = (value: unknown): value is Pool =>
 	typeof value === "object" &&
@@ -44,6 +50,23 @@ export class AuthChainNotAppliedError extends Error {
 		);
 		this.name = "AuthChainNotAppliedError";
 		this.pending = pending;
+	}
+}
+
+/**
+ * Thrown when the database holds the uuid-id chain (0005) but the Better Auth
+ * instance mints ids some other way. Its default is a 32-character string a
+ * uuid column refuses, and a `generateId` function cannot shape the
+ * deterministic ids of single-use records (magic-link and email-OTP account
+ * promotion, OAuth client assertions) as uuids, so those flows would fail at
+ * a customer's sign-in instead of here.
+ */
+export class AuthIdStrategyError extends Error {
+	constructor(generateId: unknown) {
+		super(
+			`@ingram-tech/nk-auth: the auth tables use uuid ids (${UUID_IDS_TAG}), so Better Auth must run with \`advanced: { database: { generateId: "uuid" } }\` (found ${typeof generateId === "function" ? "a function" : (JSON.stringify(generateId) ?? "undefined")}).`,
+		);
+		this.name = "AuthIdStrategyError";
 	}
 }
 
@@ -93,6 +116,7 @@ const quoteIdent = (name: string): string => `"${name.replaceAll('"', '""')}"`;
 const assertShippedChainRecorded = async (
 	pool: Pool,
 	options: AuthChainCheckOptions,
+	generateId: unknown,
 ): Promise<void> => {
 	const { schema, table } = journalOf(options);
 	if (!(await journalReadable(pool, schema, table))) return;
@@ -104,6 +128,7 @@ const assertShippedChainRecorded = async (
 	if (pending.length > 0) {
 		throw new AuthChainNotAppliedError(pending.map((file) => file.tag));
 	}
+	if (generateId !== "uuid") throw new AuthIdStrategyError(generateId);
 };
 
 /**
@@ -145,16 +170,19 @@ export const assertAuthChainApplied = async (
  * the Better Auth options when there is one, memoizes the check, and rethrows
  * the same error on every later call so a failed deploy stays failed rather
  * than flapping. Anything that is not a `pg` Pool (a Drizzle or Kysely
- * adapter) is skipped: the check has nothing to query through.
+ * adapter) is skipped: the check has nothing to query through. On a database
+ * that records the whole chain it also requires `generateId` (the instance's
+ * `advanced.database.generateId`) to be `"uuid"`; see {@link AuthIdStrategyError}.
  */
 export const authChainCheck = (
 	database: unknown,
 	options: AuthChainCheckOptions = {},
+	generateId?: unknown,
 ): (() => Promise<void>) => {
 	if (!isPool(database)) return async () => {};
 	let checked: Promise<void> | undefined;
 	return () => {
-		checked ??= assertShippedChainRecorded(database, options);
+		checked ??= assertShippedChainRecorded(database, options, generateId);
 		return checked;
 	};
 };

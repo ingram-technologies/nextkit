@@ -14,6 +14,7 @@ import { mcp } from "@better-auth/mcp";
 import { passkey } from "@better-auth/passkey";
 import { runMigrations } from "@ingram-tech/nk-db/migrate";
 import { createTestDb, type TestDb } from "@ingram-tech/nk-db/pglite";
+import { betterAuth } from "better-auth";
 import { getAuthTables } from "better-auth/db";
 import { jwt } from "better-auth/plugins/jwt";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -48,6 +49,36 @@ const AUTH_TABLES = [
 	"jwks",
 	"passkey",
 	...OAUTH_TABLES,
+];
+
+const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+/** The entity ids 0005 moves to uuid. Everything else stays text: provider
+ *  subjects, credential ids, identifiers, tokens, client ids. */
+const UUID_COLUMNS = [
+	"user.id",
+	"session.id",
+	"session.userId",
+	"account.id",
+	"account.userId",
+	"verification.id",
+	"jwks.id",
+	"passkey.id",
+	"passkey.userId",
+	"oauthClient.id",
+	"oauthClient.userId",
+	"oauthResource.id",
+	"oauthClientResource.id",
+	"oauthRefreshToken.id",
+	"oauthRefreshToken.sessionId",
+	"oauthRefreshToken.userId",
+	"oauthAccessToken.id",
+	"oauthAccessToken.sessionId",
+	"oauthAccessToken.userId",
+	"oauthAccessToken.refreshId",
+	"oauthConsent.id",
+	"oauthConsent.userId",
+	"oauthClientAssertion.id",
 ];
 
 /** The plugins whose tables the chain ships. A site adding another plugin with
@@ -192,13 +223,28 @@ describe("nk-auth migration chain", () => {
 		expect(rows).toEqual([]);
 	});
 
-	it("defaults a new user id to a UUID so auth.uid() RLS casts hold (hardening 1)", async () => {
+	it("defaults a new user id to a UUIDv7 so auth.uid() RLS casts hold (hardening 1)", async () => {
 		const { rows } = await db.pool.query<{ id: string }>(
 			`insert into "user" ("name", "email") values ('a', 'a@acme.test') returning id`,
 		);
-		expect(rows[0]?.id).toMatch(
-			/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+		expect(rows[0]?.id).toMatch(UUID_V7);
+	});
+
+	it("types every entity id uuid with a uuidv7() default, and nothing else", async () => {
+		const { rows } = await db.pool.query<{
+			column: string;
+			data_type: string;
+			column_default: string | null;
+		}>(
+			`select table_name || '.' || column_name as column, data_type, column_default
+			from information_schema.columns
+			where table_schema = 'public' and data_type = 'uuid'
+			order by 1`,
 		);
+		expect(rows.map((r) => r.column)).toEqual([...UUID_COLUMNS].sort());
+		for (const row of rows.filter((r) => r.column.endsWith(".id"))) {
+			expect(row.column_default, row.column).toBe("uuidv7()");
+		}
 	});
 
 	it("records the chain in its own journal table", async () => {
@@ -231,7 +277,7 @@ describe("0002_better_auth_1_7 on a pre-1.7 database", () => {
 	): Promise<void> => {
 		await at.pool.query(
 			`insert into "account" ("id", "accountId", "providerId", "userId") values ($1, $2, $3, $4)`,
-			[`acct-${providerId}-${accountId}`, accountId, providerId, userId],
+			[crypto.randomUUID(), accountId, providerId, userId],
 		);
 	};
 
@@ -361,12 +407,9 @@ describe("0003_better_auth_1_7_3 relaxes the 1.7 identity constraint", () => {
 
 	it("accepts an account row without issuer, as 1.7.3+ writes it", async () => {
 		const dave = await seedUser("dave@acme.test");
-		await db.pool.query(
-			`insert into "account" ("id", "accountId", "providerId", "userId") values ('acct-dave', $1, 'credential', $1)`,
-			[dave],
-		);
 		const { rows } = await db.pool.query<{ issuer: string | null }>(
-			`select "issuer" from "account" where "id" = 'acct-dave'`,
+			`insert into "account" ("accountId", "providerId", "userId") values ($1::text, 'credential', $1::uuid) returning "issuer"`,
+			[dave],
 		);
 		expect(rows[0]?.issuer).toBeNull();
 	});
@@ -375,8 +418,8 @@ describe("0003_better_auth_1_7_3 relaxes the 1.7 identity constraint", () => {
 		const erin = await seedUser("erin@acme.test");
 		for (const provider of ["github", "gitlab"]) {
 			await db.pool.query(
-				`insert into "account" ("id", "accountId", "providerId", "userId") values ($1, 'shared-42', $2, $3)`,
-				[`acct-erin-${provider}`, provider, erin],
+				`insert into "account" ("accountId", "providerId", "userId") values ('shared-42', $1, $2)`,
+				[provider, erin],
 			);
 		}
 		const { rows } = await db.pool.query<{ n: string }>(
@@ -387,12 +430,9 @@ describe("0003_better_auth_1_7_3 relaxes the 1.7 identity constraint", () => {
 
 	it("still lets 1.7.2 write issuer into the relaxed column", async () => {
 		const fay = await seedUser("fay@acme.test");
-		await db.pool.query(
-			`insert into "account" ("id", "accountId", "providerId", "userId", "issuer") values ('acct-fay', $1, 'credential', $1, 'local:credential')`,
-			[fay],
-		);
 		const { rows } = await db.pool.query<{ issuer: string | null }>(
-			`select "issuer" from "account" where "id" = 'acct-fay'`,
+			`insert into "account" ("accountId", "providerId", "userId", "issuer") values ($1::text, 'credential', $1::uuid, 'local:credential') returning "issuer"`,
+			[fay],
 		);
 		expect(rows[0]?.issuer).toBe("local:credential");
 	});
@@ -473,7 +513,9 @@ describe("0004_oauth_provider on a live database", () => {
 				`insert into "oauthApplication" values ('a', 'Claude', 'client-1', 'http://localhost/cb', 'public', now(), now())`,
 			);
 
-			expect((await upgrade(at)).applied).toEqual(["0004_oauth_provider"]);
+			expect((await upgrade(at)).applied).toEqual(
+				SHIPPED_TAGS.slice(SHIPPED_TAGS.indexOf("0004_oauth_provider")),
+			);
 
 			const tables = (await columnsOf(at)).map((c) => c.table_name);
 			expect(tables).not.toContain("oauthApplication");
@@ -502,10 +544,12 @@ describe("0004_oauth_provider on a live database", () => {
 				.filter((statement) => statement.startsWith("create table"));
 			for (const statement of ddl) await at.pool.query(statement);
 			await at.pool.query(
-				`insert into "oauthClient" ("id", "clientId", "redirectUris") values ('c', 'client-1', '[]')`,
+				`insert into "oauthClient" ("id", "clientId", "redirectUris") values ('${crypto.randomUUID()}', 'client-1', '[]')`,
 			);
 
-			expect((await upgrade(at)).applied).toEqual(["0004_oauth_provider"]);
+			expect((await upgrade(at)).applied).toEqual(
+				SHIPPED_TAGS.slice(SHIPPED_TAGS.indexOf("0004_oauth_provider")),
+			);
 
 			const { rows } = await at.pool.query<{ clientId: string }>(
 				`select "clientId" from "oauthClient"`,
@@ -514,5 +558,275 @@ describe("0004_oauth_provider on a live database", () => {
 		} finally {
 			await at.close();
 		}
+	});
+});
+
+// 0005 lands on live databases full of text ids, and on sites whose own tables
+// hold text foreign keys to "user"(id). It must convert all of it or nothing.
+describe("0005_uuid_ids on a live database", () => {
+	let root: string;
+	let at0004: string;
+
+	beforeAll(() => {
+		root = mkdtempSync(join(tmpdir(), "nkauth-0004-"));
+		at0004 = chainUpTo(root, "0004_oauth_provider");
+	});
+
+	afterAll(() => {
+		if (root) rmSync(root, { recursive: true, force: true });
+	});
+
+	const bootAt0004 = (): Promise<TestDb> =>
+		createTestDb({
+			migrate: async () => {},
+			dependencyMigrations: [{ folder: at0004, table: JOURNAL_TABLE }],
+		});
+
+	const upgrade = (at: TestDb): ReturnType<typeof runMigrations> =>
+		runMigrations({
+			pool: at.pool,
+			migrationsFolder: MIGRATIONS,
+			migrationsTable: JOURNAL_TABLE,
+		});
+
+	/** The Postgres message of a failed migrate (drizzle keeps it on `cause`). */
+	const failureOf = async (at: TestDb): Promise<string> => {
+		const failure = await upgrade(at).then(
+			() => null,
+			(error: unknown) => error,
+		);
+		const cause = failure instanceof Error ? (failure.cause ?? failure) : failure;
+		return cause instanceof Error ? cause.message : "";
+	};
+
+	const typeOf = async (at: TestDb, table: string, column: string) => {
+		const { rows } = await at.pool.query<{ data_type: string }>(
+			"select data_type from information_schema.columns where table_schema = 'public' and table_name = $1 and column_name = $2",
+			[table, column],
+		);
+		return rows[0]?.data_type;
+	};
+
+	/** A 0004 database as Better Auth wrote it under `uuidGenerateId`, plus a
+	 *  site's own tables holding text foreign keys into it. */
+	const seed = async (at: TestDb) => {
+		const user = crypto.randomUUID();
+		const session = crypto.randomUUID();
+		const refresh = crypto.randomUUID();
+		await at.pool.query(
+			`insert into "user" ("id", "name", "email") values ($1, 'u', 'u@acme.test')`,
+			[user],
+		);
+		await at.pool.query(
+			`insert into "session" ("id", "expiresAt", "token", "userId") values ($1, now() + interval '1 day', 'tok', $2)`,
+			[session, user],
+		);
+		await at.pool.query(
+			`insert into "account" ("id", "accountId", "providerId", "userId") values ($1, 'google-sub-1', 'google', $2)`,
+			[crypto.randomUUID(), user],
+		);
+		await at.pool.query(
+			`insert into "oauthClient" ("id", "clientId", "redirectUris", "userId") values ($1, 'https://client.example/meta.json', '[]', $2)`,
+			[crypto.randomUUID(), user],
+		);
+		await at.pool.query(
+			`insert into "oauthRefreshToken" ("id", "token", "clientId", "sessionId", "userId", "expiresAt", "createdAt", "scopes") values ($1, 'rt', 'https://client.example/meta.json', $2, $3, now(), now(), '[]')`,
+			[refresh, session, user],
+		);
+		await at.pool.query(
+			`insert into "oauthAccessToken" ("id", "token", "clientId", "sessionId", "userId", "refreshId", "expiresAt", "createdAt", "scopes") values ($1, 'at', 'https://client.example/meta.json', $2, $3, $4, now(), now(), '[]')`,
+			[crypto.randomUUID(), session, user, refresh],
+		);
+		// A reservation tombstone Better Auth keyed on a base64url digest: expired,
+		// so dead, and deleted rather than refused.
+		await at.pool.query(
+			`insert into "verification" ("id", "identifier", "value", "expiresAt") values ('k3Yq0vZx', 'reserve', 'x', now() - interval '1 hour')`,
+		);
+		// The site's own tables: a text foreign key to "user", and one to that.
+		await at.pool.query(
+			`create table "deck" ("id" uuid primary key default uuidv7(), "user_id" text not null references "user" ("id") on delete cascade)`,
+		);
+		await at.pool.query(
+			`create table "profile" ("user_id" text primary key references "user" ("id") on delete cascade)`,
+		);
+		await at.pool.query(
+			`create table "profile_note" ("profile_user_id" text references "profile" ("user_id") on delete set null)`,
+		);
+		await at.pool.query(`insert into "deck" ("user_id") values ($1), ($1)`, [user]);
+		await at.pool.query(`insert into "profile" ("user_id") values ($1)`, [user]);
+		await at.pool.query(
+			`insert into "profile_note" ("profile_user_id") values ($1), (null)`,
+			[user],
+		);
+		return { user, session };
+	};
+
+	it("converts text uuids, the site's foreign keys with them, and keeps every row", async () => {
+		const at = await bootAt0004();
+		try {
+			const { user, session } = await seed(at);
+			expect((await upgrade(at)).applied).toEqual(["0005_uuid_ids"]);
+
+			for (const [table, column] of [
+				...UUID_COLUMNS.map((c) => c.split(".")),
+				["deck", "user_id"],
+				["profile", "user_id"],
+				["profile_note", "profile_user_id"],
+			]) {
+				expect(
+					await typeOf(at, table ?? "", column ?? ""),
+					`${table}.${column}`,
+				).toBe("uuid");
+			}
+			for (const [table, column] of [
+				["account", "accountId"],
+				["passkey", "credentialID"],
+				["verification", "identifier"],
+				["oauthClient", "clientId"],
+				["oauthRefreshToken", "authorizationCodeId"],
+				["oauthAccessToken", "referenceId"],
+			]) {
+				expect(
+					await typeOf(at, table ?? "", column ?? ""),
+					`${table}.${column}`,
+				).toBe("text");
+			}
+
+			const { rows } = await at.pool.query<{ table: string; n: string }>(
+				`select 'session' as table, count(*)::text as n from "session" where "userId" = $1
+				union all select 'deck', count(*)::text from "deck" where "user_id" = $1
+				union all select 'profile_note', count(*)::text from "profile_note"
+				union all select 'access', count(*)::text from "oauthAccessToken" where "sessionId" = $2
+				union all select 'verification', count(*)::text from "verification"`,
+				[user, session],
+			);
+			expect(Object.fromEntries(rows.map((r) => [r.table, Number(r.n)]))).toEqual(
+				{
+					session: 1,
+					deck: 2,
+					profile_note: 2,
+					access: 1,
+					verification: 0,
+				},
+			);
+
+			// The foreign keys came back with their own actions.
+			await at.pool.query(`delete from "user" where "id" = $1`, [user]);
+			const after = await at.pool.query<{ n: string }>(
+				`select (select count(*) from "deck") + (select count(*) from "oauthAccessToken") as n`,
+			);
+			expect(Number(after.rows[0]?.n)).toBe(0);
+			const notes = await at.pool.query<{ profile_user_id: string | null }>(
+				`select "profile_user_id" from "profile_note"`,
+			);
+			expect(notes.rows).toEqual([
+				{ profile_user_id: null },
+				{ profile_user_id: null },
+			]);
+
+			const { rows: fresh } = await at.pool.query<{ id: string }>(
+				`insert into "user" ("name", "email") values ('v', 'v@acme.test') returning id`,
+			);
+			expect(fresh[0]?.id).toMatch(UUID_V7);
+		} finally {
+			await at.close();
+		}
+	});
+
+	it("refuses a value that is not a uuid, naming the column and count, and changes nothing", async () => {
+		const at = await bootAt0004();
+		try {
+			await seed(at);
+			// A prefixed id, as a site minting `usr_…` into the text column would hold.
+			await at.pool.query(
+				`insert into "user" ("id", "name", "email") values ('usr_1CcKy4UzdQ9gHKkrqb9mKC', 'p', 'p@acme.test')`,
+			);
+			await at.pool.query(
+				`insert into "deck" ("user_id") values ('usr_1CcKy4UzdQ9gHKkrqb9mKC')`,
+			);
+
+			const message = await failureOf(at);
+			expect(message).toMatch(/not uuids/);
+			expect(message).toContain('"user".id: 1');
+			expect(message).toContain("deck.user_id: 1");
+			expect(await typeOf(at, "user", "id")).toBe("text");
+			expect(await typeOf(at, "deck", "user_id")).toBe("text");
+			const { rows } = await at.pool.query<{ n: string }>(
+				`select count(*)::text as n from "verification"`,
+			);
+			expect(Number(rows[0]?.n)).toBe(1);
+		} finally {
+			await at.close();
+		}
+	});
+
+	it("refuses while a policy or view depends on a column it must change", async () => {
+		const at = await bootAt0004();
+		try {
+			await seed(at);
+			await at.pool.query(
+				`create view "deck_owner" as select "user_id" from "deck"`,
+			);
+			const message = await failureOf(at);
+			expect(message).toMatch(/other objects depend on them/);
+			expect(message).toContain("deck.user_id (view or rule on deck_owner)");
+			expect(await typeOf(at, "user", "id")).toBe("text");
+		} finally {
+			await at.close();
+		}
+	});
+});
+
+// The configuration the uuid chain requires, end to end on Better Auth itself:
+// the database mints every id, and single-use records shape theirs as uuids.
+describe("Better Auth on the uuid chain", () => {
+	it("signs up with a database-minted UUIDv7 and keeps deterministic ids single-use", async () => {
+		const auth = betterAuth({
+			database: db.pool,
+			secret: "test-secret-that-is-at-least-32-characters",
+			baseURL: "http://localhost:3000",
+			emailAndPassword: { enabled: true },
+			advanced: { database: { generateId: "uuid" } },
+		});
+		const res = await auth.handler(
+			new Request("http://localhost:3000/api/auth/sign-up/email", {
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					origin: "http://localhost:3000",
+				},
+				body: JSON.stringify({
+					email: "uuid@acme.test",
+					password: "correct horse battery",
+					name: "U",
+				}),
+			}),
+		);
+		expect(res.status).toBe(200);
+		const body: unknown = await res.json();
+		const userId =
+			typeof body === "object" && body !== null && "user" in body
+				? (body.user as { id?: unknown }).id
+				: undefined;
+		expect(userId).toMatch(UUID_V7);
+
+		// The magic-link / email-OTP account promotion lock and OAuth jti guard.
+		const { internalAdapter } = await auth.$context;
+		const reserve = () =>
+			internalAdapter.reserveVerificationValue({
+				identifier: `lock:${crypto.randomUUID()}`,
+				value: "v",
+				expiresAt: new Date(Date.now() + 60_000),
+			});
+		const identifier = `lock:${crypto.randomUUID()}`;
+		const once = () =>
+			internalAdapter.reserveVerificationValue({
+				identifier,
+				value: "v",
+				expiresAt: new Date(Date.now() + 60_000),
+			});
+		expect(await once()).toBe(true);
+		expect(await once()).toBe(false);
+		expect(await reserve()).toBe(true);
 	});
 });

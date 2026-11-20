@@ -2,7 +2,7 @@ import { createIdRegistry, SHARED_ID_PREFIXES, uuidv7 } from "@ingram-tech/nk-db
 import { betterAuth } from "better-auth";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { passkey } from "@better-auth/passkey";
-import { magicLink, organization } from "better-auth/plugins";
+import { admin, emailOTP, magicLink, organization } from "better-auth/plugins";
 import { describe, expect, it } from "vitest";
 import {
 	authOrganizationId,
@@ -30,12 +30,38 @@ const setup = async () => {
 		passkey: [],
 	};
 	const magicLinks: string[] = [];
+	const otps: string[] = [];
 	const auth = betterAuth({
 		database: memoryAdapter(db),
 		secret: "test-secret-that-is-at-least-32-characters",
 		baseURL: "http://localhost:3000",
 		emailAndPassword: { enabled: true },
-		socialProviders: { google: { clientId: "id", clientSecret: "secret" } },
+		session: { additionalFields: { device: { type: "string", required: false } } },
+		socialProviders: {
+			google: {
+				clientId: "id",
+				clientSecret: "secret",
+				// Stands in for Google's JWKS check of a One Tap / native id token.
+				verifyIdToken: async () => true,
+				getUserInfo: async () => ({
+					user: { email: "g@b.com", name: "G", emailVerified: true },
+					data: {
+						sub: "google-sub",
+						aud: "id",
+						azp: "id",
+						iss: "https://accounts.google.com",
+						iat: 0,
+						exp: 0,
+						email: "g@b.com",
+						email_verified: true,
+						name: "G",
+						given_name: "G",
+						family_name: "B",
+						picture: "",
+					},
+				}),
+			},
+		},
 		advanced: { database: { generateId: () => uuidv7() } },
 		plugins: [
 			organization(),
@@ -43,6 +69,8 @@ const setup = async () => {
 			magicLink({
 				sendMagicLink: async ({ token }) => void magicLinks.push(token),
 			}),
+			emailOTP({ sendVerificationOTP: async ({ otp }) => void otps.push(otp) }),
+			admin(),
 			publicSessionIds({
 				ids: { user: ids.user, organization: ids.organization },
 			}),
@@ -68,7 +96,7 @@ const setup = async () => {
 		}),
 	});
 	const cookie = (signUp.headers.getSetCookie()[0] ?? "").split(";")[0] ?? "";
-	return { auth, db, call, cookie, signUp, magicLinks };
+	return { auth, db, call, cookie, signUp, magicLinks, otps };
 };
 
 const rawId = (rows: Array<Record<string, unknown>> | undefined): string => {
@@ -267,6 +295,107 @@ describe("publicSessionIds on accounts, passkeys and magic links", () => {
 			user: { id: userId },
 			session: { userId },
 		});
+	});
+});
+
+describe("publicSessionIds on the other session-returning endpoints", () => {
+	const post = (body: unknown, cookie?: string): RequestInit => ({
+		method: "POST",
+		headers: cookie ? { cookie } : {},
+		body: JSON.stringify(body),
+	});
+
+	const userRow = (
+		db: Record<string, Array<Record<string, unknown>>>,
+		email: string,
+	): Record<string, unknown> => {
+		const row = db.user?.find((u) => u.email === email);
+		if (!row) throw new Error(`no user ${email}`);
+		return row;
+	};
+
+	it("returns public ids from /sign-in/email-otp", async () => {
+		const { db, call, otps } = await setup();
+		const sent = await call(
+			"/email-otp/send-verification-otp",
+			post({ email: "a@b.com", type: "sign-in" }),
+		);
+		expect(sent.status).toBe(200);
+		const res = await call(
+			"/sign-in/email-otp",
+			post({ email: "a@b.com", otp: otps[0] }),
+		);
+		expect(res.status).toBe(200);
+		expect(await res.json()).toMatchObject({
+			user: { id: ids.user.encode(rawId(db.user)) },
+		});
+	});
+
+	it("returns public ids from /sign-in/social with an id token", async () => {
+		const { db, call } = await setup();
+		const res = await call(
+			"/sign-in/social",
+			post({ provider: "google", idToken: { token: "id-token" } }),
+		);
+		expect(res.status).toBe(200);
+		const raw = userRow(db, "g@b.com").id;
+		expect(typeof raw).toBe("string");
+		expect(await res.json()).toMatchObject({
+			redirect: false,
+			user: { id: ids.user.encode(String(raw)) },
+		});
+	});
+
+	it("returns public ids from /change-password and /update-session", async () => {
+		const { db, call, cookie } = await setup();
+		const userId = ids.user.encode(rawId(db.user));
+		const changed = await call(
+			"/change-password",
+			post(
+				{
+					currentPassword: "correct horse battery",
+					newPassword: "battery staple horse",
+				},
+				cookie,
+			),
+		);
+		expect(changed.status).toBe(200);
+		expect(await changed.json()).toMatchObject({ user: { id: userId } });
+
+		const updated = await call(
+			"/update-session",
+			post({ device: "laptop" }, cookie),
+		);
+		expect(updated.status).toBe(200);
+		expect(await updated.json()).toMatchObject({ session: { userId } });
+	});
+
+	it("speaks public ids on the admin endpoints, both ways", async () => {
+		const { db, call, cookie } = await setup();
+		userRow(db, "a@b.com").role = "admin";
+		const raw = rawId(db.user);
+		const userId = ids.user.encode(raw);
+
+		const one = await call(`/admin/get-user?id=${userId}`, { headers: { cookie } });
+		expect(one.status).toBe(200);
+		expect(await one.json()).toMatchObject({ id: userId, email: "a@b.com" });
+
+		const list = await call("/admin/list-users", { headers: { cookie } });
+		expect(list.status).toBe(200);
+		expect(await list.json()).toMatchObject({ users: [{ id: userId }] });
+
+		const sessions = await call(
+			"/admin/list-user-sessions",
+			post({ userId }, cookie),
+		);
+		expect(sessions.status).toBe(200);
+		expect(await sessions.json()).toMatchObject({ sessions: [{ userId }] });
+
+		const refused = await call(`/admin/get-user?id=${raw}`, {
+			headers: { cookie },
+		});
+		expect(refused.status).toBe(400);
+		expect(await refused.json()).toMatchObject({ message: "id must be a usr_ id" });
 	});
 });
 
