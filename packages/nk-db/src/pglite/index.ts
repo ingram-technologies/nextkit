@@ -13,7 +13,7 @@ import { rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import { PGlite, type Extensions } from "@electric-sql/pglite";
 import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
-import { ID758_SQL } from "id758/sql";
+import { ID758_SQL } from "../id-sql.js";
 import type { Pool } from "pg";
 import { resetPublicTables } from "./reset.js";
 import { PGLITE_APPLICATION_NAME } from "../pool.js";

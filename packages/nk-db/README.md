@@ -272,11 +272,15 @@ prefix)` also requires that prefix; `id758_prefix(id)` names it. An immutable
 call on a bound literal is folded at plan time, so `where id =
 id758_decode($1)` uses the ordinary primary-key index.
 
-The functions are text, not a migration chain: the codec is frozen, so there is
-never a second version to journal, and the script is `create or replace`. The
-PGlite harness installs them on every boot (`id758: false` opts out), so dev and
-test have them for free. Production gets them once, through your own
-migrations:
+`id758_decode(id, prefix)` calls the other two unqualified, so nk-db pins its
+`search_path` to the one it was created under (`set search_path from current`).
+That is what lets a SECURITY DEFINER function with `set search_path = ''` call
+`public.id758_decode(x, 'usr')`.
+
+The functions are text, not a migration chain, and the script is `create or
+replace`. The PGlite harness installs them on every boot (`id758: false` opts
+out), so dev and test have them for free. Production gets them through your
+own migrations:
 
 ```sh
 bunx drizzle-kit generate --custom --name id758
@@ -284,9 +288,15 @@ bunx drizzle-kit generate --custom --name id758
 
 and paste `id758Migration` (from `@ingram-tech/nk-db/id/sql`, the statements
 joined by `--> statement-breakpoint`) into the generated file. Or, outside any
-journal: `bunx id758 sql | psql "$DATABASE_URL"`. The `id758` bin also converts
-at the shell (`bunx id758 decode inv_…`), for a `psql` session that doesn't have
-the functions installed.
+journal: `bunx id758 sql | psql "$DATABASE_URL"`, which is upstream's text
+without the pin. The `id758` bin also converts at the shell (`bunx id758 decode
+inv_…`), for a `psql` session that doesn't have the functions installed.
+
+A site that installed the functions before nk-db 2.6.1 lacks the pin. Never
+edit that applied migration: generate a new one (`bunx drizzle-kit generate
+--custom --name id758_search_path`), paste `id758Migration` into it again
+(idempotent), seal it, and apply it. Only a site that calls the two-argument
+`id758_decode` under an empty `search_path` breaks without it.
 
 ## PGlite dev & test (`@ingram-tech/nk-db/pglite`)
 

@@ -55,6 +55,23 @@ describe("PGlite harness", () => {
 		expect(rows[0]).toEqual({ uuid: ids.invoice.decode(id), back: id });
 	});
 
+	it("works from a function with an empty search_path", async () => {
+		// SECURITY DEFINER functions pin `search_path = ''` and call the codec
+		// schema-qualified; the codec's own internal calls must still resolve.
+		await testDb.pool.query(`create function empty_path_decode(id text, prefix text)
+			returns uuid language sql stable security definer set search_path = ''
+			as $$ select public.id758_decode(id, prefix) $$`);
+		const id = ids.invoice.mint();
+		const { rows } = await testDb.pool.query<{ uuid: string }>(
+			"select empty_path_decode($1, 'inv') as uuid",
+			[id],
+		);
+		expect(rows).toEqual([{ uuid: ids.invoice.decode(id) }]);
+		await expect(
+			testDb.pool.query("select empty_path_decode($1, 'acct')", [id]),
+		).rejects.toThrow(/not a acct_ id/);
+	});
+
 	it("can be told not to", async () => {
 		const bare = await createTestDb({ id758: false, migrate: async () => {} });
 		try {
