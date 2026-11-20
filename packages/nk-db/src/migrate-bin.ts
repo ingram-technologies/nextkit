@@ -15,6 +15,12 @@
 //                                 WITHOUT running DDL (push-built / regenerated
 //                                 baseline whose schema already matches)
 //   nk-pg-migrate --migrations <folder>   (default: drizzle)
+//   nk-pg-migrate --table <name>          journal table (default:
+//                                         __drizzle_migrations); a dependency
+//                                         chain such as nk-auth's keeps its own
+//
+// Any other argument is refused, so a misspelt or unsupported flag cannot
+// silently run against the wrong journal.
 //
 // Run directly by Node, so the relative import carries a `.js` extension.
 import {
@@ -39,12 +45,25 @@ const value = (name: string): string | undefined => {
 	return next;
 };
 
+const FLAGS = new Set(["--status", "--baseline"]);
+const VALUES = new Set(["--migrations", "--migrations-folder", "--table"]);
+for (let i = 0; i < argv.length; i++) {
+	const arg = argv[i];
+	if (arg !== undefined && VALUES.has(arg)) i++;
+	else if (arg === undefined || !FLAGS.has(arg)) {
+		console.error(`nk-pg-migrate: unknown argument ${arg}`);
+		process.exit(1);
+	}
+}
+
 const migrationsFolder =
 	value("--migrations") ?? value("--migrations-folder") ?? "drizzle";
+const migrationsTable = value("--table");
+const config = { migrationsFolder, migrationsTable };
 
 const main = async (): Promise<void> => {
 	if (flag("--status")) {
-		const s = await inspectMigrations({ migrationsFolder });
+		const s = await inspectMigrations(config);
 		console.log(
 			`nk-pg-migrate: ${s.files.length} file(s), ${s.recorded.length} recorded, ${s.pending.length} pending${s.drifted ? " — DRIFTED" : ""}`,
 		);
@@ -62,14 +81,14 @@ const main = async (): Promise<void> => {
 	}
 
 	if (flag("--baseline")) {
-		const { recorded } = await baselineMigrations({ migrationsFolder });
+		const { recorded } = await baselineMigrations(config);
 		console.log(
 			`nk-pg-migrate: baselined journal to ${recorded.length} migration(s) — recorded as applied, no DDL run.`,
 		);
 		return;
 	}
 
-	const { applied } = await runMigrations({ migrationsFolder });
+	const { applied } = await runMigrations(config);
 	console.log(
 		applied.length
 			? `nk-pg-migrate: applied ${applied.length} migration(s) — ${applied.join(", ")}`
