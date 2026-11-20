@@ -16,6 +16,7 @@ import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
 import { ID758_SQL } from "id758/sql";
 import type { Pool } from "pg";
 import { resetPublicTables } from "./reset.js";
+import { PGLITE_APPLICATION_NAME } from "../pool.js";
 import { isolateConnections } from "./socket-fix.js";
 
 /** For a harness that builds its own `PGLiteSocketServer` (e.g. from a
@@ -136,7 +137,8 @@ const applyDependencyMigrations = async (
  * changes. Reused by both `startPgliteDev` (persisted) and `createTestDb`
  * (in-memory). The socket accepts several connections but serves them from one
  * session, one batch at a time, so a pool above `max: 1` gains nothing
- * (createPool caps local hosts at 1).
+ * (createPool caps the URL this returns at 1; it carries `application_name`
+ * {@link PGLITE_APPLICATION_NAME}, which tells it apart from a real local Postgres).
  */
 export const createPgliteServer = async (
 	options: PgliteServerOptions = {},
@@ -176,7 +178,7 @@ export const createPgliteServer = async (
 	});
 	isolateConnections(server, db);
 	await server.start();
-	const databaseUrl = `postgresql://postgres:postgres@${host}:${port}/postgres`;
+	const databaseUrl = `postgresql://postgres:postgres@${host}:${port}/postgres?application_name=${PGLITE_APPLICATION_NAME}`;
 	const stop = async (): Promise<void> => {
 		await server.stop().catch(() => {});
 		await db.close().catch(() => {});

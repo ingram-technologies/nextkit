@@ -1,3 +1,4 @@
+import { type GenericEndpointContext, getCurrentAdapter } from "better-auth";
 import type { Pool } from "pg";
 
 /**
@@ -33,6 +34,49 @@ interface SessionLike {
 }
 
 /**
+ * Whether `userId` last worked in an organization they still belong to; that
+ * organization's id, or `undefined`. Reads through Better Auth's adapter, which
+ * joins the transaction the hook runs in (sign-up creates the user and its
+ * session in one): a separate pool connection would wait on that transaction,
+ * forever on a one-connection pool or PGlite's single session.
+ */
+const restorableOrganization = async (
+	pool: Pool,
+	userId: string,
+	ctx: GenericEndpointContext | null,
+): Promise<string | undefined> => {
+	if (!ctx) {
+		// Outside an endpoint there is no Better Auth transaction to wait on.
+		const user = await pool.query<{ lastActiveOrganizationId: string | null }>(
+			'SELECT "lastActiveOrganizationId" FROM "user" WHERE id = $1',
+			[userId],
+		);
+		const orgId = user.rows[0]?.lastActiveOrganizationId;
+		if (!orgId) return undefined;
+		const member = await pool.query(
+			'SELECT 1 FROM member WHERE "userId" = $1 AND "organizationId" = $2 LIMIT 1',
+			[userId, orgId],
+		);
+		return member.rows.length > 0 ? orgId : undefined;
+	}
+	const adapter = await getCurrentAdapter(ctx.context.adapter);
+	const user = await adapter.findOne<{ lastActiveOrganizationId?: string | null }>({
+		model: "user",
+		where: [{ field: "id", value: userId }],
+	});
+	const orgId = user?.lastActiveOrganizationId;
+	if (!orgId) return undefined;
+	const member = await adapter.findOne({
+		model: "member",
+		where: [
+			{ field: "userId", value: userId },
+			{ field: "organizationId", value: orgId },
+		],
+	});
+	return member ? orgId : undefined;
+};
+
+/**
  * `databaseHooks` that restore the user's last active organization on session
  * create (only if they're still a member) and persist it on session update.
  * Requires `lastActiveOrganizationUserField` in `user.additionalFields` and the
@@ -41,30 +85,22 @@ interface SessionLike {
 export const lastActiveOrganizationHooks = (pool: Pool) => ({
 	session: {
 		create: {
-			before: async (session: SessionLike) => {
+			before: async (
+				session: SessionLike,
+				ctx: GenericEndpointContext | null,
+			) => {
 				if (session.activeOrganizationId) {
 					return;
 				}
-				const userResult = await pool.query<{
-					lastActiveOrganizationId: string | null;
-				}>('SELECT "lastActiveOrganizationId" FROM "user" WHERE id = $1', [
-					session.userId,
-				]);
-				const lastOrgId = userResult.rows[0]?.lastActiveOrganizationId;
-				if (!lastOrgId) {
+				const orgId = await restorableOrganization(pool, session.userId, ctx);
+				if (!orgId) {
 					return;
 				}
-				const memberResult = await pool.query(
-					'SELECT 1 FROM member WHERE "userId" = $1 AND "organizationId" = $2 LIMIT 1',
-					[session.userId, lastOrgId],
-				);
-				if (memberResult.rows.length === 0) {
-					return;
-				}
-				return { data: { ...session, activeOrganizationId: lastOrgId } };
+				return { data: { ...session, activeOrganizationId: orgId } };
 			},
 		},
 		update: {
+			// Runs after the transaction commits, so the pool is free to use.
 			after: async (session: SessionLike) => {
 				const orgId = session.activeOrganizationId;
 				if (typeof orgId !== "string" || !orgId) {

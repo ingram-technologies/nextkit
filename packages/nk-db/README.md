@@ -27,9 +27,10 @@ DATABASE_POOL_MAX=5       # optional; keep small on serverless
 ```
 
 TLS is determined by the connection string and the CA cert, never by a flag: a
-local host (`127.0.0.1`/`localhost`) gets no TLS and a `max: 1` pool (the
-PGlite socket serves one session; local detection also wins over a pulled
-`DATABASE_POOL_MAX`/`DATABASE_CA_CERT`); with `DATABASE_CA_CERT` set the server
+local host (`127.0.0.1`/`localhost`) gets no TLS (local detection wins over a
+pulled `DATABASE_CA_CERT`), and the PGlite socket also gets a `max: 1` pool
+whatever `DATABASE_POOL_MAX` says (it serves one session; a real local Postgres
+keeps a normal pool); with `DATABASE_CA_CERT` set the server
 cert + hostname are verified; otherwise TLS runs without chain verification
 (managed-provider certs aren't in Node's trust store).
 
@@ -322,10 +323,14 @@ error inside a batch makes `pg` read every later result one statement late.
 
 ## Gotchas it bakes in
 
-- **Local pool is capped at `max:1`** — PGlite is one Postgres session. The
+- **The PGlite pool is capped at `max:1`**: PGlite is one Postgres session. The
   socket accepts up to `maxConnections` (default 20, room for the several pools
   `next dev` creates) but runs one batch at a time, so a bigger pool gains
-  nothing.
+  nothing. `createPool` recognizes the socket by the
+  `application_name=nk-pglite` the harness puts on its URL
+  (`PGLITE_APPLICATION_NAME`); a harness that builds its own
+  `PGLiteSocketServer` appends it too, or passes `max: 1`. Any other local URL
+  is a real Postgres and gets a normal pool.
 - **Never await a second connection inside a transaction.** On PGlite the
   transaction holds the only session, so the second query waits forever; the
   socket logs `nk(pglite): queue stalled …` with the holder's last SQL. Prod

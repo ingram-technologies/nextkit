@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createPool, normalizeCaCert } from "./pool.js";
+import { createPool, normalizeCaCert, PGLITE_APPLICATION_NAME } from "./pool.js";
 
 const ESCAPED =
 	"-----BEGIN CERTIFICATE-----\\nMIIAbc\\nDEF==\\n-----END CERTIFICATE-----\\n";
@@ -36,9 +36,8 @@ describe("createPool ssl wiring", () => {
 });
 
 describe("createPool local-socket precedence", () => {
-	it("caps a local pool at max 1 even when DATABASE_POOL_MAX says otherwise", async () => {
-		process.env.DATABASE_URL =
-			"postgresql://postgres:postgres@127.0.0.1:5432/postgres";
+	it("caps the PGlite socket at max 1 even when DATABASE_POOL_MAX says otherwise", async () => {
+		process.env.DATABASE_URL = `postgresql://postgres:postgres@127.0.0.1:5432/postgres?application_name=${PGLITE_APPLICATION_NAME}`;
 		process.env.DATABASE_POOL_MAX = "5";
 		try {
 			const pool = createPool();
@@ -56,7 +55,15 @@ describe("createPool local-socket precedence", () => {
 			caCert: REAL,
 		});
 		expect(pool.options.ssl).toBeUndefined();
-		expect(pool.options.max).toBe(1);
+		await pool.end();
+	});
+
+	it("leaves a real local Postgres uncapped", async () => {
+		const pool = createPool({
+			connectionString: "postgresql://postgres:postgres@localhost:5432/postgres",
+		});
+		expect(pool.options.ssl).toBeUndefined();
+		expect(pool.options.max).toBe(10);
 		await pool.end();
 	});
 

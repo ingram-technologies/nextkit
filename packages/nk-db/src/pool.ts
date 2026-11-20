@@ -6,21 +6,35 @@ export interface CreatePoolConfig {
 	connectionString?: string;
 	/** PEM CA cert; when set, the server cert + hostname are verified. */
 	caCert?: string;
-	/** Pool size cap. Defaults to env DATABASE_POOL_MAX, or 1 for a local socket. */
+	/** Pool size cap. Defaults to env DATABASE_POOL_MAX, or 1 for the PGlite socket. */
 	max?: number;
 }
 
 const LOCAL_HOSTS = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 
-const isLocal = (connectionString: string): boolean => {
-	// Parse the URL: a substring check would misclassify a remote URL whose
-	// password or database name happens to contain "localhost".
+/**
+ * The `application_name` that marks a URL as the PGlite socket. The harness
+ * puts it on every URL it hands out; a harness that builds its own
+ * `PGLiteSocketServer` appends `?application_name=${PGLITE_APPLICATION_NAME}`.
+ */
+export const PGLITE_APPLICATION_NAME = "nk-pglite";
+
+const parseUrl = (connectionString: string): URL | undefined => {
 	try {
-		return LOCAL_HOSTS.has(new URL(connectionString).hostname);
+		return new URL(connectionString);
 	} catch {
-		return false;
+		return undefined;
 	}
 };
+
+// Parse the URL: a substring check would misclassify a remote URL whose
+// password or database name happens to contain "localhost".
+const isLocal = (url: URL | undefined): boolean =>
+	url !== undefined && LOCAL_HOSTS.has(url.hostname);
+
+const isPglite = (url: URL | undefined): boolean =>
+	isLocal(url) &&
+	url?.searchParams.get("application_name") === PGLITE_APPLICATION_NAME;
 
 /**
  * Un-escape a PEM CA cert that arrived with literal `\n` instead of real
@@ -48,8 +62,10 @@ export const normalizeCaCert = (caCert: string | undefined): string | undefined 
  * `createAuthPool`):
  *
  *   - `caCert` set  -> verify the server cert + hostname (`sslmode=verify-full`).
- *   - local host    -> no TLS, and cap at `max: 1` (the PGlite socket serves
- *                      every connection from one session; more buys nothing).
+ *   - local host    -> no TLS. The PGlite socket (its URL carries
+ *                      `application_name=nk-pglite`) is also capped at `max: 1`:
+ *                      it serves every connection from one session, so more
+ *                      buys nothing. A real local Postgres keeps a normal pool.
  *   - otherwise     -> TLS **without** chain verification. Managed certs (e.g.
  *                      DigitalOcean) aren't in Node's trust store, so full
  *                      verification fails with "self-signed certificate in
@@ -80,12 +96,13 @@ export const createPool = (config: CreatePoolConfig = {}): Pool => {
 		return unconfiguredPool();
 	}
 	const caCert = normalizeCaCert(config.caCert ?? env?.caCert);
-	const local = isLocal(connectionString);
+	const url = parseUrl(connectionString);
+	const local = isLocal(url);
 	// Local wins over the env: a pulled .env (e.g. `vercel env pull`) carries the
-	// production DATABASE_POOL_MAX/DATABASE_CA_CERT, but the PGlite socket
-	// serves one session and speaks no TLS — honoring them breaks dev. An explicit
+	// production DATABASE_CA_CERT, and a local server speaks no TLS. The PGlite
+	// socket also ignores DATABASE_POOL_MAX: it serves one session. An explicit
 	// `config.max` in code still applies.
-	const max = config.max ?? (local ? 1 : env?.poolMax);
+	const max = config.max ?? (isPglite(url) ? 1 : env?.poolMax);
 
 	const base: PoolConfig = max === undefined ? {} : { max };
 
@@ -99,11 +116,11 @@ export const createPool = (config: CreatePoolConfig = {}): Pool => {
 			ssl: { ca: caCert, rejectUnauthorized: true },
 		});
 	}
-	const url = new URL(connectionString);
-	url.searchParams.delete("sslmode");
+	const remote = new URL(connectionString);
+	remote.searchParams.delete("sslmode");
 	return new Pool({
 		...base,
-		connectionString: url.toString(),
+		connectionString: remote.toString(),
 		ssl: { rejectUnauthorized: false },
 	});
 };
