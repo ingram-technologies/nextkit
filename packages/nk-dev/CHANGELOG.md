@@ -1,5 +1,11 @@
 # @ingram-tech/nk-dev
 
+## 0.26.1
+
+### Patch Changes
+
+- 01ffdaa: Guide: Better Auth on uuid columns takes `generateId: "uuid"`, never `false`. With `false`, the deterministic single-use ids (magic-link and email-OTP reservations) are base64url and the uuid `verification.id` rejects them, so those sign-ins 500.
+
 ## 0.26.0
 
 ### Minor Changes
