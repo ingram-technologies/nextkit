@@ -1,5 +1,11 @@
 # @ingram-tech/nk-db
 
+## 2.6.2
+
+### Patch Changes
+
+- 51af4a8: `nk-pg-migrate` honours `--table <name>` (the journal table, as the nk-auth README's auth-chain command uses) and refuses any argument it does not know, instead of silently running against the default `__drizzle_migrations` journal.
+
 ## 2.6.1
 
 ### Patch Changes
