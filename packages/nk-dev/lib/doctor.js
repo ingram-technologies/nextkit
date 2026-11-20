@@ -203,6 +203,36 @@ export function findings(cwd) {
 		});
 	}
 
+	// 2b. TypeScript 7. The shared tsconfig sets `checkers`, which TS 6 rejects
+	//     (TS5025), and nk-dev ships no `tsc`: the site declares `typescript`
+	//     ^7, here or at its workspace root. Pulumi programs stay on TS 5.
+	const hasNkDev = deps["@ingram-tech/nk-dev"] || rootDeps["@ingram-tech/nk-dev"];
+	const tsRange = deps.typescript ?? rootDeps.typescript;
+	if (hasNkDev && !deps["@pulumi/pulumi"] && !/^\^7(\.|$)/.test(tsRange ?? "")) {
+		out.push({
+			id: "dep:typescript",
+			level: "error",
+			message:
+				tsRange === undefined
+					? "no `typescript` devDependency — declare `typescript` ^7 (nk-dev ships no tsc)"
+					: `\`typescript\` is "${tsRange}" — want ^7 (nk-dev's tsconfig sets \`checkers\`, which TS 6 rejects with TS5025)`,
+			fix:
+				deps.typescript === undefined && tsRange !== undefined
+					? undefined
+					: (dir) => {
+							const p = resolve(dir, "package.json");
+							const j = readJson(p);
+							delete j.dependencies?.typescript;
+							j.devDependencies = {
+								...j.devDependencies,
+								typescript: "^7",
+							};
+							writeJson(p, j);
+							return "set `typescript` → ^7";
+						},
+		});
+	}
+
 	// 3. .oxlintrc.json extends nk-dev (not the retired oxlint-config).
 	const oxPath = resolve(cwd, ".oxlintrc.json");
 	const ox = readJson(oxPath);

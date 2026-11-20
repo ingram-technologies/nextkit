@@ -22,7 +22,7 @@ describe("nk doctor: a Bun/npm workspace", () => {
 		pkg(root, {
 			name: "mono",
 			workspaces: ["apps/*", "packages/ui"],
-			devDependencies: { "@ingram-tech/nk-dev": "^0.19.0" },
+			devDependencies: { "@ingram-tech/nk-dev": "^0.19.0", typescript: "^7.0.2" },
 			scripts: {
 				lint: "nk lint",
 				format: "nk format",

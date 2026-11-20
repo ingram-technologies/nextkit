@@ -25,8 +25,10 @@ package. Stay a thin, standard Next.js app (bun · oxlint + oxfmt · strict TS).
   cast the parsed body to `unknown` on the way into a schema, never to a shape.
 - Format/lint with **oxlint + oxfmt** via `nk` (`@ingram-tech/nk-dev`); don't
   reintroduce ESLint or Prettier (SQL isn't formatted — it's generated). nk-dev
-  owns the toolchain: don't re-declare `oxfmt`/`oxlint`/`typescript` or the
-  retired `@ingram-tech/{oxlint,typescript}-config` — `nk doctor` flags the drift.
+  owns the toolchain: don't re-declare `oxfmt`/`oxlint` or the retired
+  `@ingram-tech/{oxlint,typescript}-config` — `nk doctor` flags the drift.
+  `typescript` is the one tool the site declares itself, at `^7` (the shared
+  tsconfig sets `checkers`, which TS 6 rejects); `nk doctor` flags any other range.
   `nk` is optional convenience that only orchestrates the standard tools — the
   site must stay buildable with plain `next build` / `next dev`.
 - **Type-check with `nk type-check`, not bare `tsc`.** A `tsc` error that
