@@ -6,7 +6,7 @@ export { pgNumericToNumber, pgTimestampToIso } from "./coerce.js";
 export { createDb, withRlsTransaction } from "./drizzle.js";
 export { isPgError, isUniqueViolation, PG_UNIQUE_VIOLATION } from "./errors.js";
 export { type DbEnv, dbEnv, getDatabaseUrl, isConfigured } from "./keys.js";
-export { type CreatePoolConfig, createPool } from "./pool.js";
+export { type CreatePoolConfig, createPool, PGLITE_APPLICATION_NAME } from "./pool.js";
 export {
 	createQueries,
 	parseMaybeRow,

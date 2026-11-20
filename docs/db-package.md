@@ -71,14 +71,17 @@ is in the [README](../packages/nk-db/README.md); the decisions:
   URL host and `DATABASE_CA_CERT` (below).
 - **Local detection wins over pulled env.** A pulled `.env` (e.g.
   `vercel env pull`) carries the production `DATABASE_POOL_MAX` /
-  `DATABASE_CA_CERT`, but the local PGlite socket serves one session and
-  speaks no TLS — so a local `DATABASE_URL` forces no-TLS and `max: 1`
-  regardless. An explicit `max` passed in code still applies.
+  `DATABASE_CA_CERT`, but a local server speaks no TLS, so a local
+  `DATABASE_URL` forces no-TLS regardless. The PGlite socket (its URL carries
+  `application_name=nk-pglite`) also forces `max: 1`, since it serves one
+  session; a real local Postgres keeps a normal pool. An explicit `max` passed
+  in code still applies.
 
 TLS rules in `createPool`:
 
 - `caCert` set → `ssl: { ca, rejectUnauthorized: true }` (`verify-full`).
-- local host (`127.0.0.1`/`localhost`/`::1`) → no TLS, pool capped at `max: 1`.
+- local host (`127.0.0.1`/`localhost`/`::1`) → no TLS; the PGlite socket
+  (`application_name=nk-pglite`) is also capped at `max: 1`.
 - otherwise → TLS **without** chain verification (`rejectUnauthorized: false`);
   managed certs aren't in Node's trust store but the link is still encrypted.
   `sslmode` is stripped from the URL — `pg` ignores the `ssl` object when the
