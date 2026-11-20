@@ -209,7 +209,7 @@ export const fingerprintChain = async (
 	const db = new PGlite({ extensions: (options.extensions ?? {}) as never });
 	try {
 		if (options.id758) {
-			const { ID758_SQL } = await import("id758/sql");
+			const { ID758_SQL } = await import("./id-sql.js");
 			await db.exec(ID758_SQL);
 		}
 		for (const sql of options.pre ?? []) await db.exec(sql);
