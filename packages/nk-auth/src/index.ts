@@ -19,6 +19,7 @@ export {
 	type AuthEmailMessage,
 	type AuthEmailUser,
 	bcryptPassword,
+	FORM_GATED_AUTH_PATHS,
 	makeEmailSenders,
 	makePasskeyOptions,
 	type PasskeyConfig,

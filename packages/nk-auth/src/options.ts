@@ -18,6 +18,21 @@ export { uuidGenerateId } from "./id.js";
  */
 
 /**
+ * Better Auth endpoints a site serves through `@ingram-tech/nk-forms` (bot gate,
+ * per-client and per-address limits). Pass them as `disabledPaths` so the raw
+ * HTTP routes answer 404 and cannot bypass the form. The forms' server-side
+ * `auth.api.*` calls keep working: Better Auth checks `disabledPaths` in its
+ * HTTP router only. A signed-in "send me a set-password link" then goes through
+ * a session-gated route that calls `auth.api.requestPasswordReset` for the
+ * session's own email.
+ */
+export const FORM_GATED_AUTH_PATHS: readonly string[] = [
+	"/sign-up/email",
+	"/request-password-reset",
+	"/send-verification-email",
+];
+
+/**
  * `emailAndPassword.password` config that hashes/verifies with bcrypt.
  *
  * @deprecated LEGACY SUPPORT ONLY. Do not wire this into a new site. It exists

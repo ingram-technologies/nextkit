@@ -781,15 +781,26 @@ export default async function Security() {
 
 **Set a password without a current one.** A social-only user has no current
 password to verify, so the re-auth is an emailed reset link — clicking it proves
-account ownership. Trigger it with the standard client call; there is no separate
-"set password" endpoint:
+account ownership. Send it server-side, from a session-gated route or server
+action, to the session's own address; there is no separate "set password"
+endpoint:
 
 ```ts
-await authClient.requestPasswordReset({
-	email,
-	redirectTo: "/reset-password", // your token-consumer page (below)
+"use server";
+const user = await requireUser();
+await auth.api.requestPasswordReset({
+	body: { email: user.email, redirectTo: "/reset-password" }, // your token-consumer page (below)
 });
 ```
+
+**Close the raw endpoints the forms wrap.** A site that serves sign-up and
+forgot-password through `@ingram-tech/nk-forms` passes
+`disabledPaths: [...FORM_GATED_AUTH_PATHS]` to `betterAuth()`. Otherwise
+`POST /auth/sign-up/email`, `/auth/request-password-reset` and
+`/auth/send-verification-email` skip the bot gate and the per-address limits,
+and anyone can loop them at a victim's inbox. The forms keep working:
+`disabledPaths` gates HTTP only, not `auth.api.*`. That is also why the
+set-password link above is sent server-side, not through `authClient`.
 
 Better Auth's reset endpoint **creates** the credential when the user has none,
 so the same flow both resets a forgotten password and sets a first one. That
