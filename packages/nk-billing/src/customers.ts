@@ -28,6 +28,7 @@ export interface CustomerDetails {
 	vatNumber?: string | null;
 	address?: {
 		line1?: string | null;
+		line2?: string | null;
 		city?: string | null;
 		postal_code?: string | null;
 		country?: string | null;
@@ -73,6 +74,7 @@ export async function findOrCreateCustomer(
 	if (details.address?.line1 || details.address?.city) {
 		params.address = {
 			line1: details.address.line1 ?? undefined,
+			line2: details.address.line2 || undefined,
 			city: details.address.city ?? undefined,
 			postal_code: details.address.postal_code ?? undefined,
 			country: details.address.country ?? undefined,
@@ -121,6 +123,8 @@ export async function updateCustomerBillingAddress(
 		name?: string | null;
 		address: {
 			line1: string;
+			/** The second street line; an empty one is not sent. */
+			line2?: string | null;
 			city: string;
 			postal_code: string;
 			country: string;
@@ -128,8 +132,9 @@ export async function updateCustomerBillingAddress(
 	},
 	stripe: Stripe = getStripe(),
 ): Promise<void> {
+	const { line2, ...address } = opts.address;
 	await stripe.customers.update(customerId, {
 		...(opts.name ? { name: opts.name } : {}),
-		address: opts.address,
+		address: { ...address, ...(line2 ? { line2 } : {}) },
 	});
 }
