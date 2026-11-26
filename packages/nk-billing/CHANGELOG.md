@@ -1,5 +1,11 @@
 # @ingram-tech/nk-billing
 
+## 0.5.0
+
+### Minor Changes
+
+- 007d578: The customer address carries `line2`. `findOrCreateCustomer` sends `details.address.line2` (it dropped it), and `updateCustomerBillingAddress` takes an optional `line2`. An empty one is not sent.
+
 ## 0.4.0
 
 ### Minor Changes
